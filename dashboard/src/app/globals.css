@@ -1,0 +1,278 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f5f7fa;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --muted: #e2e8f0;
+  --muted-foreground: #64748b;
+  --border: #e2e8f0;
+  --primary: #21a1aa;
+  --primary-foreground: #ffffff;
+  --accent: #edca5c;
+  --accent-foreground: #0f172a;
+  --ring: #21a1aa;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #334155;
+  --surface-elevated: rgba(255, 255, 255, 0.72);
+}
+
+.dark {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --card: #1e293b;
+  --card-foreground: #f8fafc;
+  --muted: #334155;
+  --muted-foreground: #94a3b8;
+  --border: #334155;
+  --primary: #21a1aa;
+  --primary-foreground: #ffffff;
+  --accent: #edca5c;
+  --accent-foreground: #0f172a;
+  --ring: #21a1aa;
+  --sidebar: #111827;
+  --sidebar-foreground: #cbd5e1;
+  --surface-elevated: rgba(30, 41, 59, 0.72);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-teal: #21a1aa;
+  --color-deep-teal: #178891;
+  --color-gold: #edca5c;
+  --color-light-gold: #f4d67f;
+  --color-soft-gray: #f5f7fa;
+  --color-dark-slate: #0f172a;
+  --font-sans: var(--font-dm-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Mesh gradient background */
+.mesh-bg {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(at 0% 0%, rgba(33, 161, 170, 0.12) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(237, 202, 92, 0.1) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(23, 136, 145, 0.08) 0px, transparent 50%);
+}
+
+.dark .mesh-bg {
+  background-image:
+    radial-gradient(at 0% 0%, rgba(33, 161, 170, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(237, 202, 92, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(23, 136, 145, 0.1) 0px, transparent 50%);
+}
+
+.glass-card {
+  background: var(--surface-elevated);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.dark .glass-card {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glow-teal {
+  box-shadow: 0 0 40px -10px rgba(33, 161, 170, 0.35);
+}
+
+.glow-gold {
+  box-shadow: 0 0 40px -10px rgba(237, 202, 92, 0.3);
+}
+
+.kpi-border {
+  position: relative;
+}
+
+.kpi-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(33, 161, 170, 0.5), rgba(237, 202, 92, 0.3));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.kpi-border:hover::before {
+  opacity: 1;
+}
+
+/* Shimmer skeleton — richer than a flat pulse */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--muted);
+  opacity: 0.5;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.35),
+    transparent
+  );
+  animation: shimmer 1.6s infinite;
+}
+
+.dark .skeleton::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Card surface used by KPI + chart cards */
+.surface-card {
+  background: var(--card);
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 1px 3px rgba(15, 23, 42, 0.03);
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.surface-card:hover {
+  box-shadow:
+    0 10px 30px -12px rgba(15, 23, 42, 0.18),
+    0 4px 10px -6px rgba(33, 161, 170, 0.12);
+}
+
+.dark .surface-card:hover {
+  box-shadow:
+    0 10px 34px -12px rgba(0, 0, 0, 0.6),
+    0 4px 10px -6px rgba(33, 161, 170, 0.18);
+}
+
+/* Gradient header accent for chart cards */
+.chart-accent::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--color-teal), var(--color-gold));
+  opacity: 0;
+  transform: scaleX(0.4);
+  transform-origin: left;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+
+.chart-accent:hover::before {
+  opacity: 0.9;
+  transform: scaleX(1);
+}
+
+/* Animated gradient text */
+.text-gradient {
+  background: linear-gradient(120deg, var(--color-teal), var(--color-deep-teal), var(--color-gold));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* Focus visible for a11y */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Recharts: remove focus outline and hover highlight on chart surfaces */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-wrapper:focus-visible,
+.recharts-surface:focus-visible {
+  outline: none !important;
+}
+
+.recharts-bar-rectangle,
+.recharts-sector,
+.recharts-rectangle.recharts-tooltip-cursor {
+  outline: none !important;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
