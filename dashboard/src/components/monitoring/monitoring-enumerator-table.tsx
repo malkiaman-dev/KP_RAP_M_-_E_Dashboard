@@ -16,9 +16,10 @@ import {
 
 type SortKey =
   | "name"
+  | "expectedTracked"
   | "submissions"
-  | "uniqueGirls"
   | "trackedGirls"
+  | "girlsLeftFromTarget"
   | "successRate"
   | "activeDays"
   | "avgTrackedPerDay"
@@ -26,11 +27,16 @@ type SortKey =
   | "avgSubmissionsPerDay"
   | "submissionTargetAttainment";
 
+type EnumeratorRow = EnumeratorPerformance & {
+  girlsLeftFromTarget: number;
+};
+
 const columns: { key: SortKey; label: string; numeric?: boolean }[] = [
   { key: "name", label: "Enumerator" },
-  { key: "submissions", label: "Submissions", numeric: true },
-  { key: "uniqueGirls", label: "Girls", numeric: true },
+  { key: "expectedTracked", label: "Target Girls Count", numeric: true },
+  { key: "submissions", label: "Girls", numeric: true },
   { key: "trackedGirls", label: "Tracked", numeric: true },
+  { key: "girlsLeftFromTarget", label: "Girls Left from Target", numeric: true },
   { key: "successRate", label: "Success %", numeric: true },
   { key: "activeDays", label: "Days", numeric: true },
   { key: "avgTrackedPerDay", label: "Avg/Day (Tracked)", numeric: true },
@@ -78,8 +84,14 @@ export function MonitoringEnumeratorTable({
         )
       : data;
     const sorted = [...filtered].sort((a, b) => {
-      const av = a[sortKey];
-      const bv = b[sortKey];
+      const av =
+        sortKey === "girlsLeftFromTarget"
+          ? a.expectedTracked - a.submissions
+          : a[sortKey];
+      const bv =
+        sortKey === "girlsLeftFromTarget"
+          ? b.expectedTracked - b.submissions
+          : b[sortKey];
       if (typeof av === "string" && typeof bv === "string") {
         return sortDir === "asc"
           ? av.localeCompare(bv)
@@ -89,7 +101,10 @@ export function MonitoringEnumeratorTable({
         ? (av as number) - (bv as number)
         : (bv as number) - (av as number);
     });
-    return sorted;
+    return sorted.map((e) => ({
+      ...e,
+      girlsLeftFromTarget: e.expectedTracked - e.submissions,
+    }));
   }, [metrics, query, sortKey, sortDir]);
 
   if (loading) {
@@ -189,7 +204,7 @@ export function MonitoringEnumeratorTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((e: EnumeratorPerformance) => (
+            {rows.map((e: EnumeratorRow) => (
               <tr
                 key={e.id}
                 className="group border-b border-border/40 last:border-0 hover:bg-muted/40"
@@ -201,13 +216,16 @@ export function MonitoringEnumeratorTable({
                   </div>
                 </td>
                 <td className="px-4 py-2.5 text-right tabular-nums">
-                  {e.submissions}
+                  {e.expectedTracked}
                 </td>
                 <td className="px-4 py-2.5 text-right tabular-nums">
-                  {e.uniqueGirls}
+                  {e.submissions}
                 </td>
                 <td className="px-4 py-2.5 text-right tabular-nums font-medium text-teal">
                   {e.trackedGirls}
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums">
+                  {e.girlsLeftFromTarget}
                 </td>
                 <td className="px-4 py-2.5 text-right tabular-nums">
                   {e.successRate.toFixed(0)}%

@@ -3,7 +3,7 @@ import type {
   EnumeratorPerformance,
   TrackingFilters,
 } from "@/lib/data/tracking-metrics";
-import { toIsoDateString } from "@/lib/utils";
+import { formatDisplayDate, toIsoDateString } from "@/lib/utils";
 
 function statusLabel(value: number): string {
   if (value >= 100) return "On track";
@@ -31,18 +31,20 @@ export function buildEnumeratorReportFilename(
             filters.district
         );
 
+  const fmt = (iso: string) => formatDisplayDate(iso) || iso;
+
   let datePart: string;
   if (filters.todayOnly) {
-    datePart = toIsoDateString(new Date());
+    datePart = fmt(toIsoDateString(new Date()));
   } else if (filters.dateFrom && filters.dateTo) {
     datePart =
       filters.dateFrom === filters.dateTo
-        ? filters.dateFrom
-        : `${filters.dateFrom}_to_${filters.dateTo}`;
+        ? fmt(filters.dateFrom)
+        : `${fmt(filters.dateFrom)}_to_${fmt(filters.dateTo)}`;
   } else if (filters.dateFrom) {
-    datePart = filters.dateFrom;
+    datePart = fmt(filters.dateFrom);
   } else if (filters.dateTo) {
-    datePart = filters.dateTo;
+    datePart = fmt(filters.dateTo);
   } else {
     datePart = "All_Dates";
   }
@@ -51,24 +53,31 @@ export function buildEnumeratorReportFilename(
 }
 
 function toSheetRows(rows: EnumeratorPerformance[]) {
-  return rows.map((e) => ({
-    "Enumerator ID": e.id,
-    Enumerator: e.name,
-    District: e.district,
-    Submissions: e.submissions,
-    Girls: e.uniqueGirls,
-    Tracked: e.trackedGirls,
-    "Success %": Math.round(e.successRate),
-    Days: e.activeDays,
-    "Avg/Day (Tracked)": Math.round(e.avgTrackedPerDay),
-    "Target % (Tracked)": Math.round(e.targetAttainment),
-    "Status (Tracked)": statusLabel(e.targetAttainment),
-    "Avg/Day (Subs)": Math.round(e.avgSubmissionsPerDay),
-    "Target % (Subs)": Math.round(e.submissionTargetAttainment),
-    "Status (Subs)": statusLabel(e.submissionTargetAttainment),
-    "Daily Target": e.dailyTarget,
-    "Days Meeting Target": e.daysMeetingTarget,
-  }));
+  return rows.map((e) => {
+    const targetGirlsCount = e.expectedTracked;
+    const girls = e.submissions;
+    const girlsLeftFromTarget = targetGirlsCount - girls;
+
+    return {
+      "Enumerator ID": e.id,
+      Enumerator: e.name,
+      District: e.district,
+      "Target Girls Count": targetGirlsCount,
+      Girls: girls,
+      Tracked: e.trackedGirls,
+      "Girls Left from Target Girls": girlsLeftFromTarget,
+      "Success %": Math.round(e.successRate),
+      Days: e.activeDays,
+      "Avg/Day (Tracked)": Math.round(e.avgTrackedPerDay),
+      "Target % (Tracked)": Math.round(e.targetAttainment),
+      "Status (Tracked)": statusLabel(e.targetAttainment),
+      "Avg/Day (Subs)": Math.round(e.avgSubmissionsPerDay),
+      "Target % (Subs)": Math.round(e.submissionTargetAttainment),
+      "Status (Subs)": statusLabel(e.submissionTargetAttainment),
+      "Daily Target": e.dailyTarget,
+      "Days Meeting Target": e.daysMeetingTarget,
+    };
+  });
 }
 
 export function downloadEnumeratorReport(
