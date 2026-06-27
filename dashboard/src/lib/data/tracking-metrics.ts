@@ -455,6 +455,8 @@ export interface RevisitDetailMetrics {
   revisitsNeed2nd: number;
   /** 2nd visit done but still not located; 3rd visit not yet done */
   revisitsNeed3rd: number;
+  /** Revisits still needed minus girls concluded via revisit (tracked on 2nd/3rd, or 3rd done) */
+  totalRemainingRevisits: number;
   girls2ndRevisited: number;
   girls3rdRevisited: number;
   girlsTrackedOn2ndRevisit: number;
@@ -465,6 +467,11 @@ export interface RevisitDetailMetrics {
 }
 
 export type RevisitDetailMetricKey = keyof RevisitDetailMetrics;
+
+export type RevisitDetailListKey = Exclude<
+  RevisitDetailMetricKey,
+  "totalRemainingRevisits"
+>;
 
 export interface RevisitGirlExportRow {
   girlId: string;
@@ -486,11 +493,11 @@ export interface RevisitGirlExportRow {
 }
 
 export interface RevisitDetailData extends RevisitDetailMetrics {
-  lists: Record<RevisitDetailMetricKey, RevisitGirlExportRow[]>;
+  lists: Record<RevisitDetailListKey, RevisitGirlExportRow[]>;
 }
 
 function emptyRevisitLists(): Record<
-  RevisitDetailMetricKey,
+  RevisitDetailListKey,
   RevisitGirlExportRow[]
 > {
   return {
@@ -566,18 +573,27 @@ function firstVisitSubmission(subs: TrackingRow[]): TrackingRow | undefined {
   return firstAttempts[0] ?? subs[0];
 }
 
-function girlStillNeeds2nd(subs: TrackingRow[], allRows: TrackingRow[]): boolean {
+function latestVisitSubmission(
+  subs: TrackingRow[],
+  visit: 2 | 3
+): TrackingRow | undefined {
+  const matches = subs.filter((r) => parseVisitNum(r) === visit);
+  return matches[matches.length - 1];
+}
+
+function girlStillNeeds2nd(subs: TrackingRow[], _allRows: TrackingRow[]): boolean {
   if (girlEverTracked(subs)) return false;
-  if (latestActualRevisitSubmission(subs, allRows, 2)) return false;
+  if (latestVisitSubmission(subs, 2)) return false;
+  if (latestVisitSubmission(subs, 3)) return false;
   const first = firstVisitSubmission(subs);
   if (!first) return false;
   return priorAttemptRequiresRevisit(first);
 }
 
-function girlStillNeeds3rd(subs: TrackingRow[], allRows: TrackingRow[]): boolean {
+function girlStillNeeds3rd(subs: TrackingRow[], _allRows: TrackingRow[]): boolean {
   if (girlEverTracked(subs)) return false;
-  if (latestActualRevisitSubmission(subs, allRows, 3)) return false;
-  const second = latestActualRevisitSubmission(subs, allRows, 2);
+  if (latestVisitSubmission(subs, 3)) return false;
+  const second = latestVisitSubmission(subs, 2);
   if (!second) return false;
   return priorAttemptRequiresRevisit(second);
 }
@@ -675,6 +691,14 @@ export function computeRevisitDetailMetrics(
     revisitsNeedToBeDone: revisitsNeed2nd + revisitsNeed3rd,
     revisitsNeed2nd,
     revisitsNeed3rd,
+    totalRemainingRevisits: Math.max(
+      0,
+      revisitsNeed2nd +
+        revisitsNeed3rd -
+        (girlsTrackedOn2ndRevisit +
+          girlsTrackedOn3rdRevisit +
+          girlsNotTrackedOn3rdRevisit)
+    ),
     girls2ndRevisited,
     girls3rdRevisited,
     girlsTrackedOn2ndRevisit,

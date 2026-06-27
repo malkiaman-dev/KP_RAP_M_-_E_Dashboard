@@ -13,114 +13,162 @@ import {
 import { StatCard, StatCardSkeleton } from "@/components/ui/stat-card";
 import { cn } from "@/lib/utils";
 import type {
-  RevisitDetailMetricKey,
+  RevisitGirlExportRow,
   TrackingMetrics,
 } from "@/lib/data/tracking-metrics";
 import { downloadRevisitExcel } from "@/lib/export/revisit-excel";
 
 type Detail = NonNullable<TrackingMetrics["revisitDetail"]>;
 
+function dedupeGirls(rows: RevisitGirlExportRow[]): RevisitGirlExportRow[] {
+  const map = new Map<string, RevisitGirlExportRow>();
+  for (const r of rows) map.set(r.girlId, r);
+  return [...map.values()];
+}
+
 const cards: {
-  key: RevisitDetailMetricKey;
   label: string;
   hint: string;
   exportLabel: string;
   icon: typeof RefreshCw;
   color: string;
   group: "general" | "2nd" | "3rd";
+  value: (d: Detail) => number;
+  suffix?: string;
+  decimals?: number;
+  /** Girls to export on click. Omit to make the card non-clickable. */
+  getList?: (d: Detail) => RevisitGirlExportRow[];
   hoverDetail?: (d: Detail) => string;
 }[] = [
   {
-    key: "revisitsNeedToBeDone",
     label: "Revisits Still Needed",
     exportLabel: "revisits-still-needed",
     hint: "Girls who still need a 2nd or 3rd follow-up · click to download",
     icon: Target,
     color: "text-amber-600",
     group: "general",
+    value: (d) => d.revisitsNeedToBeDone,
+    getList: (d) => d.lists.revisitsNeedToBeDone,
     hoverDetail: (d) =>
       `2nd attempt still needed: ${d.revisitsNeed2nd} · 3rd attempt still needed: ${d.revisitsNeed3rd} · Click to download`,
   },
   {
-    key: "revisitsNeed2nd",
-    label: "2nd Attempt Still Needed",
-    exportLabel: "2nd-attempt-still-needed",
-    hint: "1st visit done, girl temporarily not located — click to download",
-    icon: Target,
-    color: "text-amber-500",
-    group: "2nd",
+    label: "Total Remaining Revisits",
+    exportLabel: "total-remaining-revisits",
+    hint: "Revisits still needed minus girls concluded via revisit (tracked on 2nd/3rd, or 3rd attempt done) · click to download",
+    icon: RefreshCw,
+    color: "text-amber-700",
+    group: "general",
+    value: (d) => d.totalRemainingRevisits,
+    getList: (d) => d.lists.revisitsNeedToBeDone,
+    hoverDetail: (d) =>
+      `Still needed: ${d.revisitsNeedToBeDone} − concluded via revisit: ${d.girlsTrackedOn2ndRevisit + d.girlsTrackedOn3rdRevisit + d.girlsNotTrackedOn3rdRevisit} = ${d.totalRemainingRevisits}`,
   },
   {
-    key: "revisitsNeed3rd",
-    label: "3rd Attempt Still Needed",
-    exportLabel: "3rd-attempt-still-needed",
-    hint: "2nd visit done but girl still not located — click to download",
-    icon: Target,
-    color: "text-orange-600",
-    group: "3rd",
-  },
-  {
-    key: "girls2ndRevisited",
-    label: "2nd Revisited Girls",
-    exportLabel: "2nd-revisited-girls",
-    hint: "Girls with an actual 2nd follow-up visit · click to download",
-    icon: Users,
-    color: "text-sky-600",
-    group: "2nd",
-  },
-  {
-    key: "girls3rdRevisited",
-    label: "3rd Revisited Girls",
-    exportLabel: "3rd-revisited-girls",
-    hint: "Girls with an actual 3rd follow-up visit · click to download",
-    icon: Users,
-    color: "text-indigo-600",
-    group: "3rd",
-  },
-  {
-    key: "totalRevisitedGirls",
     label: "Total Revisited Girls",
     exportLabel: "total-revisited-girls",
     hint: "Unique girls with a 2nd or 3rd follow-up visit · click to download",
     icon: RefreshCw,
     color: "text-teal",
     group: "general",
+    value: (d) => d.totalRevisitedGirls,
+    getList: (d) => d.lists.totalRevisitedGirls,
   },
   {
-    key: "girlsTrackedOn2ndRevisit",
+    label: "Tracked via Revisit",
+    exportLabel: "tracked-via-revisit",
+    hint: "Girls finally tracked thanks to a 2nd or 3rd follow-up · click to download",
+    icon: CheckCircle2,
+    color: "text-green-600",
+    group: "general",
+    value: (d) => d.girlsTrackedOn2ndRevisit + d.girlsTrackedOn3rdRevisit,
+    getList: (d) =>
+      dedupeGirls([
+        ...d.lists.girlsTrackedOn2ndRevisit,
+        ...d.lists.girlsTrackedOn3rdRevisit,
+      ]),
+    hoverDetail: (d) =>
+      `Tracked on 2nd: ${d.girlsTrackedOn2ndRevisit} · Tracked on 3rd: ${d.girlsTrackedOn3rdRevisit} · Click to download`,
+  },
+  {
+    label: "2nd Attempt Still Needed",
+    exportLabel: "2nd-attempt-still-needed",
+    hint: "1st visit done, girl temporarily not located — click to download",
+    icon: Target,
+    color: "text-amber-500",
+    group: "2nd",
+    value: (d) => d.revisitsNeed2nd,
+    getList: (d) => d.lists.revisitsNeed2nd,
+  },
+  {
+    label: "2nd Revisited Girls",
+    exportLabel: "2nd-revisited-girls",
+    hint: "Girls with an actual 2nd follow-up visit · click to download",
+    icon: Users,
+    color: "text-sky-600",
+    group: "2nd",
+    value: (d) => d.girls2ndRevisited,
+    getList: (d) => d.lists.girls2ndRevisited,
+  },
+  {
     label: "Tracked on 2nd Revisit",
     exportLabel: "tracked-on-2nd-revisit",
     hint: "Successfully tracked on the 2nd follow-up form · click to download",
     icon: CheckCircle2,
     color: "text-teal",
     group: "2nd",
+    value: (d) => d.girlsTrackedOn2ndRevisit,
+    getList: (d) => d.lists.girlsTrackedOn2ndRevisit,
   },
   {
-    key: "girlsTrackedOn3rdRevisit",
-    label: "Tracked on 3rd Revisit",
-    exportLabel: "tracked-on-3rd-revisit",
-    hint: "Successfully tracked on the 3rd follow-up form · click to download",
-    icon: CheckCircle2,
-    color: "text-deep-teal",
-    group: "3rd",
-  },
-  {
-    key: "girlsNotTrackedOn2ndRevisit",
     label: "Not Tracked on 2nd Revisit",
     exportLabel: "not-tracked-on-2nd-revisit",
     hint: "2nd follow-up completed but not tracked on that visit · click to download",
     icon: UserX,
     color: "text-orange-600",
     group: "2nd",
+    value: (d) => d.girlsNotTrackedOn2ndRevisit,
+    getList: (d) => d.lists.girlsNotTrackedOn2ndRevisit,
   },
   {
-    key: "girlsNotTrackedOn3rdRevisit",
+    label: "3rd Attempt Still Needed",
+    exportLabel: "3rd-attempt-still-needed",
+    hint: "2nd visit done but girl still not located — click to download",
+    icon: Target,
+    color: "text-orange-600",
+    group: "3rd",
+    value: (d) => d.revisitsNeed3rd,
+    getList: (d) => d.lists.revisitsNeed3rd,
+  },
+  {
+    label: "3rd Revisited Girls",
+    exportLabel: "3rd-revisited-girls",
+    hint: "Girls with an actual 3rd follow-up visit · click to download",
+    icon: Users,
+    color: "text-indigo-600",
+    group: "3rd",
+    value: (d) => d.girls3rdRevisited,
+    getList: (d) => d.lists.girls3rdRevisited,
+  },
+  {
+    label: "Tracked on 3rd Revisit",
+    exportLabel: "tracked-on-3rd-revisit",
+    hint: "Successfully tracked on the 3rd follow-up form · click to download",
+    icon: CheckCircle2,
+    color: "text-deep-teal",
+    group: "3rd",
+    value: (d) => d.girlsTrackedOn3rdRevisit,
+    getList: (d) => d.lists.girlsTrackedOn3rdRevisit,
+  },
+  {
     label: "Not Tracked on 3rd Revisit",
     exportLabel: "not-tracked-on-3rd-revisit",
     hint: "3rd follow-up completed but not tracked on that visit · click to download",
     icon: UserX,
     color: "text-red-500",
     group: "3rd",
+    value: (d) => d.girlsNotTrackedOn3rdRevisit,
+    getList: (d) => d.lists.girlsNotTrackedOn3rdRevisit,
   },
 ];
 
@@ -131,11 +179,9 @@ const columns: { group: "general" | "2nd" | "3rd"; heading: string }[] = [
 ];
 
 function downloadCardList(
-  d: Detail,
-  key: RevisitDetailMetricKey,
+  rows: RevisitGirlExportRow[],
   exportLabel: string
 ) {
-  const rows = d.lists[key];
   const date = new Date().toISOString().slice(0, 10);
   downloadRevisitExcel(rows, `follow-up-${exportLabel}-${date}.xlsx`);
 }
@@ -215,19 +261,24 @@ export function TrackingRevisitSection({
                         </p>
                         {colCards.map((card, i) => {
                           const Icon = card.icon;
+                          const list = card.getList?.(d!);
                           return (
                             <StatCard
-                              key={card.key}
+                              key={card.label}
                               index={i}
                               muted
                               label={card.label}
-                              value={d![card.key]}
+                              value={card.value(d!)}
                               icon={Icon}
                               color={card.color}
                               hint={card.hint}
+                              suffix={card.suffix}
+                              decimals={card.decimals}
                               hoverDetail={card.hoverDetail?.(d!)}
-                              onClick={() =>
-                                downloadCardList(d!, card.key, card.exportLabel)
+                              onClick={
+                                list
+                                  ? () => downloadCardList(list, card.exportLabel)
+                                  : undefined
                               }
                             />
                           );
