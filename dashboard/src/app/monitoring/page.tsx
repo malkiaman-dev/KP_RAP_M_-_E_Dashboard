@@ -102,7 +102,12 @@ export default function MonitoringPage() {
         </p>
       )}
 
-      <MonitoringEnumeratorTable metrics={monitoring} loading={isLoading} />
+      <MonitoringEnumeratorTable
+        metrics={monitoring}
+        loading={isLoading}
+        filters={filters}
+        districtOptions={data?.filterOptions?.districts}
+      />
 
       <MonitoringCharts
         metrics={monitoring}

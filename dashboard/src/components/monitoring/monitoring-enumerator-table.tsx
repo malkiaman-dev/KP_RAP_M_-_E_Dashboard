@@ -2,12 +2,17 @@
 
 import { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowUpDown, Search, CheckCircle2, AlertTriangle } from "lucide-react";
+import { ArrowUpDown, Download, Search, CheckCircle2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
   EnumeratorPerformance,
   MonitoringMetrics,
+  TrackingFilters,
 } from "@/lib/data/tracking-metrics";
+import {
+  buildEnumeratorReportFilename,
+  downloadEnumeratorReport,
+} from "@/lib/export/monitoring-enumerator-excel";
 
 type SortKey =
   | "name"
@@ -37,9 +42,13 @@ const columns: { key: SortKey; label: string; numeric?: boolean }[] = [
 export function MonitoringEnumeratorTable({
   metrics,
   loading,
+  filters,
+  districtOptions,
 }: {
   metrics?: MonitoringMetrics;
   loading?: boolean;
+  filters?: TrackingFilters;
+  districtOptions?: { value: string; label: string }[];
 }) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("trackedGirls");
@@ -114,15 +123,31 @@ export function MonitoringEnumeratorTable({
             meeting the {metrics.dailyTarget}/day target on average
           </p>
         </div>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search enumerator…"
-            className="w-full rounded-lg border border-border/60 bg-background py-1.5 pl-8 pr-3 text-xs outline-none focus:border-teal sm:w-56"
-            aria-label="Search enumerator"
-          />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={() => {
+              const filename = filters
+                ? buildEnumeratorReportFilename(filters, districtOptions)
+                : `All_Districts_Enumerator_Performance_${new Date().toISOString().slice(0, 10)}.xlsx`;
+              downloadEnumeratorReport(rows, filename);
+            }}
+            disabled={rows.length === 0}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-teal/30 bg-teal/10 px-3 py-1.5 text-xs font-medium text-teal hover:bg-teal/15 disabled:pointer-events-none disabled:opacity-50"
+          >
+            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            Download report
+          </button>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search enumerator…"
+              className="w-full rounded-lg border border-border/60 bg-background py-1.5 pl-8 pr-3 text-xs outline-none focus:border-teal sm:w-56"
+              aria-label="Search enumerator"
+            />
+          </div>
         </div>
       </div>
 
