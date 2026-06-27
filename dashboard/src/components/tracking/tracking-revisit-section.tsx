@@ -27,6 +27,7 @@ const cards: {
   exportLabel: string;
   icon: typeof RefreshCw;
   color: string;
+  group: "general" | "2nd" | "3rd";
   hoverDetail?: (d: Detail) => string;
 }[] = [
   {
@@ -36,6 +37,7 @@ const cards: {
     hint: "Girls who still need a 2nd or 3rd follow-up · click to download",
     icon: Target,
     color: "text-amber-600",
+    group: "general",
     hoverDetail: (d) =>
       `2nd attempt still needed: ${d.revisitsNeed2nd} · 3rd attempt still needed: ${d.revisitsNeed3rd} · Click to download`,
   },
@@ -46,6 +48,7 @@ const cards: {
     hint: "1st visit done, girl temporarily not located — click to download",
     icon: Target,
     color: "text-amber-500",
+    group: "2nd",
   },
   {
     key: "revisitsNeed3rd",
@@ -54,6 +57,7 @@ const cards: {
     hint: "2nd visit done but girl still not located — click to download",
     icon: Target,
     color: "text-orange-600",
+    group: "3rd",
   },
   {
     key: "girls2ndRevisited",
@@ -62,6 +66,7 @@ const cards: {
     hint: "Girls with an actual 2nd follow-up visit · click to download",
     icon: Users,
     color: "text-sky-600",
+    group: "2nd",
   },
   {
     key: "girls3rdRevisited",
@@ -70,6 +75,7 @@ const cards: {
     hint: "Girls with an actual 3rd follow-up visit · click to download",
     icon: Users,
     color: "text-indigo-600",
+    group: "3rd",
   },
   {
     key: "totalRevisitedGirls",
@@ -78,6 +84,7 @@ const cards: {
     hint: "Unique girls with a 2nd or 3rd follow-up visit · click to download",
     icon: RefreshCw,
     color: "text-teal",
+    group: "general",
   },
   {
     key: "girlsTrackedOn2ndRevisit",
@@ -86,6 +93,7 @@ const cards: {
     hint: "Successfully tracked on the 2nd follow-up form · click to download",
     icon: CheckCircle2,
     color: "text-teal",
+    group: "2nd",
   },
   {
     key: "girlsTrackedOn3rdRevisit",
@@ -94,6 +102,7 @@ const cards: {
     hint: "Successfully tracked on the 3rd follow-up form · click to download",
     icon: CheckCircle2,
     color: "text-deep-teal",
+    group: "3rd",
   },
   {
     key: "girlsNotTrackedOn2ndRevisit",
@@ -102,6 +111,7 @@ const cards: {
     hint: "2nd follow-up completed but not tracked on that visit · click to download",
     icon: UserX,
     color: "text-orange-600",
+    group: "2nd",
   },
   {
     key: "girlsNotTrackedOn3rdRevisit",
@@ -110,7 +120,14 @@ const cards: {
     hint: "3rd follow-up completed but not tracked on that visit · click to download",
     icon: UserX,
     color: "text-red-500",
+    group: "3rd",
   },
+];
+
+const columns: { group: "general" | "2nd" | "3rd"; heading: string }[] = [
+  { group: "general", heading: "Overall" },
+  { group: "2nd", heading: "2nd attempt" },
+  { group: "3rd", heading: "3rd attempt" },
 ];
 
 function downloadCardList(
@@ -182,28 +199,42 @@ export function TrackingRevisitSection({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 md:grid-cols-3 lg:grid-cols-3">
-              {loading ? (
-                <StatCardSkeleton count={10} />
-              ) : (
-                cards.map((card, i) => {
-                  const Icon = card.icon;
-                  return (
-                    <StatCard
-                      key={card.key}
-                      index={i}
-                      muted
-                      label={card.label}
-                      value={d![card.key]}
-                      icon={Icon}
-                      color={card.color}
-                      hint={card.hint}
-                      hoverDetail={card.hoverDetail?.(d!)}
-                      onClick={() => downloadCardList(d!, card.key, card.exportLabel)}
-                    />
-                  );
-                })
-              )}
+            <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
+              {loading
+                ? columns.map((col) => (
+                    <div key={col.group} className="flex flex-col gap-3">
+                      <StatCardSkeleton count={4} />
+                    </div>
+                  ))
+                : columns.map((col) => {
+                    const colCards = cards.filter((c) => c.group === col.group);
+                    return (
+                      <div key={col.group} className="flex flex-col gap-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          {col.heading}
+                        </p>
+                        {colCards.map((card, i) => {
+                          const Icon = card.icon;
+                          return (
+                            <StatCard
+                              key={card.key}
+                              index={i}
+                              muted
+                              label={card.label}
+                              value={d![card.key]}
+                              icon={Icon}
+                              color={card.color}
+                              hint={card.hint}
+                              hoverDetail={card.hoverDetail?.(d!)}
+                              onClick={() =>
+                                downloadCardList(d!, card.key, card.exportLabel)
+                              }
+                            />
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
             </div>
           </motion.div>
         )}
