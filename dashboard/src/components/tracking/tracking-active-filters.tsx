@@ -46,6 +46,7 @@ export function TrackingActiveFilters({
   filters,
   onChange,
   filterOptions,
+  resetFilters = defaultTrackingFilters,
 }: {
   filters: TrackingFilters;
   onChange: (filters: TrackingFilters) => void;
@@ -56,6 +57,7 @@ export function TrackingActiveFilters({
     schools?: { value: string; label: string }[];
     sessions?: { value: string; label: string }[];
   };
+  resetFilters?: TrackingFilters | (() => TrackingFilters);
 }) {
   const resolveLabel = (key: keyof TrackingFilters, value: string) => {
     if (key === "district") {
@@ -86,6 +88,7 @@ export function TrackingActiveFilters({
   const chips: { key: keyof TrackingFilters; label: string }[] = [];
 
   (Object.keys(filters) as (keyof TrackingFilters)[]).forEach((key) => {
+    if (key === "todayOnly") return;
     const value = filters[key];
     if (key === "dateFrom" || key === "dateTo") return;
     if (!value || value === "all") return;
@@ -95,7 +98,12 @@ export function TrackingActiveFilters({
     });
   });
 
-  if (filters.dateFrom || filters.dateTo) {
+  if (filters.todayOnly) {
+    chips.push({
+      key: "todayOnly",
+      label: "Today",
+    });
+  } else if (filters.dateFrom || filters.dateTo) {
     const from = filters.dateFrom
       ? formatDisplayDate(filters.dateFrom) || filters.dateFrom
       : "…";
@@ -121,7 +129,14 @@ export function TrackingActiveFilters({
           key={chip.key}
           type="button"
           onClick={() => {
-            if (chip.key === "dateFrom") {
+            if (chip.key === "todayOnly") {
+              onChange({
+                ...filters,
+                todayOnly: false,
+                dateFrom: "",
+                dateTo: "",
+              });
+            } else if (chip.key === "dateFrom") {
               onChange({ ...filters, dateFrom: "", dateTo: "" });
             } else {
               onChange({ ...filters, [chip.key]: "all" });
@@ -135,7 +150,11 @@ export function TrackingActiveFilters({
       ))}
       <button
         type="button"
-        onClick={() => onChange(defaultTrackingFilters)}
+        onClick={() =>
+          onChange(
+            typeof resetFilters === "function" ? resetFilters() : resetFilters
+          )
+        }
         className="text-[11px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
       >
         Clear all

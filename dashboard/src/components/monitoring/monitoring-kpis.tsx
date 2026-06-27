@@ -85,7 +85,6 @@ export function MonitoringKpis({
         metrics.avgTrackedPerEnumeratorPerDay >= metrics.dailyTarget
           ? "text-teal"
           : "text-red-600",
-      decimals: 1,
     },
     {
       label: "Target Achievement %",

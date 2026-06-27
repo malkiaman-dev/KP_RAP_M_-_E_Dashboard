@@ -11,7 +11,7 @@ import { MonitoringEnumeratorTable } from "@/components/monitoring/monitoring-en
 import {
   applyTrackingFilters,
   computeMonitoringMetrics,
-  defaultTrackingFilters,
+  defaultMonitoringFilters,
   type TrackingFilters,
   type TrackingMetrics,
 } from "@/lib/data/tracking-metrics";
@@ -24,7 +24,9 @@ async function fetchTracking(): Promise<TrackingMetrics> {
 }
 
 export default function MonitoringPage() {
-  const [filters, setFilters] = useState<TrackingFilters>(defaultTrackingFilters);
+  const [filters, setFilters] = useState<TrackingFilters>(() =>
+    defaultMonitoringFilters()
+  );
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["tracking-metrics"],
@@ -72,12 +74,15 @@ export default function MonitoringPage() {
         filterOptions={data?.filterOptions}
         filters={filters}
         onChange={setFilters}
+        showTodayToggle
+        resetFilters={defaultMonitoringFilters}
       />
 
       <TrackingActiveFilters
         filters={filters}
         onChange={setFilters}
         filterOptions={data?.filterOptions}
+        resetFilters={defaultMonitoringFilters}
       />
 
       <MonitoringKpis metrics={monitoring} loading={isLoading} />

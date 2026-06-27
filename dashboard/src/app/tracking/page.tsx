@@ -119,6 +119,7 @@ export default function TrackingPage() {
         filterOptions={data?.filterOptions}
         filters={filters}
         onChange={setFilters}
+        showTodayToggle
       />
 
       <TrackingActiveFilters
@@ -156,7 +157,7 @@ export default function TrackingPage() {
           {display.untrackedInData} girls in export not yet successfully tracked ·{" "}
           {display.secondaryKpis.locatedGirls} households located ·{" "}
           {display.successTarget.toLocaleString()} success target ·{" "}
-          {display.secondaryKpis.avgSubmissionsPerEnumerator.toFixed(1)} avg
+          {Math.round(display.secondaryKpis.avgSubmissionsPerEnumerator)} avg
           submissions per enumerator
         </p>
       )}

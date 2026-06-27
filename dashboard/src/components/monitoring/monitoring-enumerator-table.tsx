@@ -198,7 +198,7 @@ export function MonitoringEnumeratorTable({
                       : "text-red-600"
                   )}
                 >
-                  {e.avgTrackedPerDay.toFixed(1)}
+                  {Math.round(e.avgTrackedPerDay)}
                 </td>
                 <td className="px-4 py-2.5 text-right">
                   <TargetPercentCell value={e.targetAttainment} />
@@ -211,7 +211,7 @@ export function MonitoringEnumeratorTable({
                       : "text-red-600"
                   )}
                 >
-                  {e.avgSubmissionsPerDay.toFixed(1)}
+                  {Math.round(e.avgSubmissionsPerDay)}
                 </td>
                 <td className="px-4 py-2.5 text-right">
                   <TargetPercentCell value={e.submissionTargetAttainment} />

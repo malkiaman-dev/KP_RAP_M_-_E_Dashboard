@@ -65,6 +65,7 @@ export function TrackingCharts({
   const pickDate = (iso: string) =>
     onFilterChange({
       ...filters,
+      todayOnly: false,
       ...toggleDateRange(filters.dateFrom, filters.dateTo, iso),
     });
 

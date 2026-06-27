@@ -1,4 +1,5 @@
 import { DEFAULT_TRACKING_TARGETS } from "./protocol";
+import { toIsoDateString } from "../utils";
 
 export type TrackingCohort = "baseline" | "new-sample";
 
@@ -84,6 +85,8 @@ export interface TrackingFilters {
   enrollStatus: string;
   dateFrom: string;
   dateTo: string;
+  /** When true, only submissions from today are included. */
+  todayOnly: boolean;
 }
 
 export const defaultTrackingFilters: TrackingFilters = {
@@ -97,7 +100,13 @@ export const defaultTrackingFilters: TrackingFilters = {
   enrollStatus: "all",
   dateFrom: "",
   dateTo: "",
+  todayOnly: false,
 };
+
+/** Shared filter defaults — Today toggle off. */
+export function defaultMonitoringFilters(): TrackingFilters {
+  return { ...defaultTrackingFilters };
+}
 
 export type UntrackedReasonKey = Exclude<
   keyof UntrackedBreakdown,
@@ -120,13 +129,18 @@ export function toggleTrackingFilters(
   const next = { ...current };
   for (const [key, value] of Object.entries(patch) as [
     keyof TrackingFilters,
-    string | undefined,
+    TrackingFilters[keyof TrackingFilters] | undefined,
   ][]) {
     if (value === undefined) continue;
+    if (key === "todayOnly") {
+      next.todayOnly = value as boolean;
+      continue;
+    }
+    const strValue = value as string;
     const isDate = key === "dateFrom" || key === "dateTo";
     const empty = isDate ? "" : "all";
-    if (!value || value === empty) continue;
-    next[key] = current[key] === value ? empty : value;
+    if (!strValue || strValue === empty) continue;
+    next[key] = current[key] === strValue ? empty : strValue;
   }
   return next;
 }
@@ -761,12 +775,15 @@ export function applyTrackingFilters(
       if (!enrollKeys.has(girlKey(r))) return false;
     }
     const subDate = parseDate(r.SubmissionDate || "");
-    if (filters.dateFrom && subDate) {
-      const from = new Date(filters.dateFrom);
+    const today = toIsoDateString(new Date());
+    const dateFrom = filters.todayOnly ? today : filters.dateFrom;
+    const dateTo = filters.todayOnly ? today : filters.dateTo;
+    if (dateFrom && subDate) {
+      const from = new Date(dateFrom);
       if (subDate < from) return false;
     }
-    if (filters.dateTo && subDate) {
-      const to = new Date(filters.dateTo);
+    if (dateTo && subDate) {
+      const to = new Date(dateTo);
       to.setHours(23, 59, 59, 999);
       if (subDate > to) return false;
     }

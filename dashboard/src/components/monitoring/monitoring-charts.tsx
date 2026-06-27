@@ -66,6 +66,7 @@ export function MonitoringCharts({
   const pickDate = (iso: string) =>
     onFilterChange({
       ...filters,
+      todayOnly: false,
       ...toggleDateRange(filters.dateFrom, filters.dateTo, iso),
     });
 
@@ -226,7 +227,10 @@ export function MonitoringCharts({
               contentStyle={tooltipStyle}
               cursor={false}
               labelFormatter={enumeratorTooltipLabel}
-              formatter={(value) => [Number(value).toFixed(1), "Avg tracked/day"]}
+              formatter={(value) => [
+                Math.round(Number(value)).toString(),
+                "Avg tracked/day",
+              ]}
             />
             <ReferenceLine
               y={target}

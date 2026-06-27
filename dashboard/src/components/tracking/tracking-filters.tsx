@@ -13,7 +13,7 @@ import {
   X,
   Group,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, toIsoDateString } from "@/lib/utils";
 import { FilterDateRange, FilterSelect } from "@/components/ui/filter-select";
 import type {
   TrackingFilters,
@@ -25,12 +25,18 @@ interface TrackingFiltersPanelProps {
   filterOptions?: TrackingMetrics["filterOptions"];
   filters: TrackingFilters;
   onChange: (filters: TrackingFilters) => void;
+  /** Show the Today toggle after the date range. */
+  showTodayToggle?: boolean;
+  /** Filters restored when Reset is clicked (defaults to defaultTrackingFilters). */
+  resetFilters?: TrackingFilters | (() => TrackingFilters);
 }
 
 export function TrackingFiltersPanel({
   filterOptions,
   filters,
   onChange,
+  showTodayToggle = false,
+  resetFilters = defaultTrackingFilters,
 }: TrackingFiltersPanelProps) {
   const [expanded, setExpanded] = useState(true);
 
@@ -157,15 +163,65 @@ export function TrackingFiltersPanel({
                       ...filters,
                       dateFrom: range.dateFrom,
                       dateTo: range.dateTo,
+                      todayOnly: false,
                     })
                   }
                   aria-label="Submission date range"
                 />
               </div>
+
+              {showTodayToggle && (
+                <div className="flex flex-col justify-end">
+                  <label className="mb-1.5 text-xs font-medium text-muted-foreground">
+                    Today
+                  </label>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={filters.todayOnly}
+                    aria-label="Filter to today only"
+                    onClick={() => {
+                      if (filters.todayOnly) {
+                        onChange({
+                          ...filters,
+                          todayOnly: false,
+                          dateFrom: "",
+                          dateTo: "",
+                        });
+                      } else {
+                        const today = toIsoDateString(new Date());
+                        onChange({
+                          ...filters,
+                          todayOnly: true,
+                          dateFrom: today,
+                          dateTo: today,
+                        });
+                      }
+                    }}
+                    className={cn(
+                      "relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200",
+                      filters.todayOnly ? "bg-green-500" : "bg-muted"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-200",
+                        filters.todayOnly && "translate-x-5"
+                      )}
+                    />
+                  </button>
+                </div>
+              )}
             </div>
             <div className="flex justify-end border-t border-border/60 px-5 py-3">
               <button
-                onClick={() => onChange(defaultTrackingFilters)}
+                onClick={() =>
+                  onChange(
+                    typeof resetFilters === "function"
+                      ? resetFilters()
+                      : resetFilters
+                  )
+                }
                 className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
               >
                 <X className="h-3 w-3" aria-hidden="true" />

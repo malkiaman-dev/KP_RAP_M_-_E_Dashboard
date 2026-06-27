@@ -160,7 +160,6 @@ const cards: {
     hint: "Average unique girls per enumerator",
     icon: BarChart3,
     color: "text-sky-600",
-    decimals: 1,
   },
 ];
 
