@@ -24,7 +24,6 @@ import {
 import {
   barPayload,
   CHART_CLICK_HINT,
-  enumeratorTooltipLabel,
   pointerBarStyle,
   toggleDateRange,
 } from "@/lib/chart-cross-filter";
@@ -112,6 +111,35 @@ function VillageUntrackedTooltip({ active, payload }: TooltipContentProps) {
     <div style={tooltipStyle}>
       <p style={{ marginBottom: 6, fontWeight: 600 }}>{row.districtLabel}</p>
       {tooltipLine("Untracked", row.count)}
+    </div>
+  );
+}
+
+type EnumeratorUntrackedPoint = TrackingMetrics["enumeratorUntrackedRate"][number];
+
+function EnumeratorUntrackedTooltip({
+  active,
+  payload,
+  label,
+}: TooltipContentProps) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload as EnumeratorUntrackedPoint | undefined;
+  if (!row) return null;
+
+  const title =
+    row.name && row.district
+      ? `${row.name} · ${row.district}`
+      : String(label ?? row.name ?? "");
+
+  return (
+    <div style={{ ...tooltipStyle, whiteSpace: "nowrap" }}>
+      <p style={{ marginBottom: 6, fontWeight: 600 }}>{title}</p>
+      <p style={{ margin: "2px 0", color: "var(--muted-foreground)" }}>
+        Untracked rate :{" "}
+        <span style={{ fontWeight: 500, color: "var(--foreground)" }}>
+          {row.rate.toFixed(1)}% ({row.untracked}/{row.total})
+        </span>
+      </p>
     </div>
   );
 }
@@ -518,6 +546,7 @@ export function TrackingCharts({
         title="Untracked Girls Rate by Enumerator (%)"
         subtitle={`Share of assigned girls not yet tracked · ${CHART_CLICK_HINT}`}
         className="lg:col-start-3 lg:row-start-3"
+        allowOverflow
       >
         <ChartArea>
           <BarChart
@@ -538,17 +567,12 @@ export function TrackingCharts({
               tick={EnumeratorAxisTick}
             />
             <Tooltip
-              contentStyle={tooltipStyle}
+              content={EnumeratorUntrackedTooltip}
               cursor={false}
-              labelFormatter={enumeratorTooltipLabel}
-              formatter={(value, _name, props) => {
-                const v = typeof value === "number" ? value : 0;
-                const payload = props?.payload as { untracked?: number; total?: number };
-                return [
-                  `${v.toFixed(1)}% (${payload?.untracked ?? 0}/${payload?.total ?? 0})`,
-                  "Untracked rate",
-                ];
-              }}
+              allowEscapeViewBox={{ x: true, y: true }}
+              reverseDirection={{ x: true, y: false }}
+              offset={20}
+              wrapperStyle={{ zIndex: 1000 }}
             />
             <Bar
               dataKey="rate"

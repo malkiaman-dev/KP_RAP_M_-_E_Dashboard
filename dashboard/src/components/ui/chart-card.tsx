@@ -15,12 +15,15 @@ export function ChartCard({
   children,
   className,
   index = 0,
+  allowOverflow = false,
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
   className?: string;
   index?: number;
+  /** Let content (e.g. wide tooltips) spill past the card edge instead of being clipped. */
+  allowOverflow?: boolean;
 }) {
   return (
     <motion.div
@@ -34,7 +37,8 @@ export function ChartCard({
         damping: 26,
       }}
       className={cn(
-        "surface-card chart-accent group relative flex h-full min-h-[300px] flex-col overflow-hidden rounded-2xl p-5 lg:min-h-0",
+        "surface-card chart-accent group relative flex h-full min-h-[300px] flex-col rounded-2xl p-5 lg:min-h-0",
+        allowOverflow ? "overflow-visible" : "overflow-hidden",
         className
       )}
     >
