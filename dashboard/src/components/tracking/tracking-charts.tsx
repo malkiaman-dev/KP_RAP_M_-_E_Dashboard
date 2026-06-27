@@ -13,6 +13,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  type TooltipContentProps,
 } from "recharts";
 import {
   toggleTrackingFilters,
@@ -33,7 +34,87 @@ import {
   ChartGridSkeleton,
 } from "@/components/ui/chart-card";
 import { tooltipStyle, ChartGradients } from "@/components/ui/chart-theme";
+
 import { formatDisplayDate } from "@/lib/utils";
+
+type CohortProgressPoint = TrackingMetrics["cohortProgress"][number];
+type DistrictTrackedPoint = TrackingMetrics["trackedByDistrict"][number];
+type VillageUntrackedPoint = TrackingMetrics["topVillagesUntracked"][number];
+
+function tooltipLine(label: string, value: number) {
+  return (
+    <p style={{ margin: "2px 0", color: "var(--muted-foreground)" }}>
+      {label} :{" "}
+      <span style={{ fontWeight: 500, color: "var(--foreground)" }}>{value}</span>
+    </p>
+  );
+}
+
+function CohortProgressTooltip({
+  active,
+  payload,
+  label,
+}: TooltipContentProps) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload as CohortProgressPoint | undefined;
+  if (!row) return null;
+
+  return (
+    <div style={tooltipStyle}>
+      <p style={{ marginBottom: 6, fontWeight: 600 }}>{label}</p>
+      <p style={{ margin: "2px 0", color: "var(--muted-foreground)" }}>
+        Remaining to target :{" "}
+        <span style={{ fontWeight: 500, color: "var(--foreground)" }}>
+          {row.remaining}
+        </span>
+      </p>
+      <p style={{ margin: "2px 0", color: "var(--muted-foreground)" }}>
+        Successfully tracked :{" "}
+        <span style={{ fontWeight: 500, color: "var(--foreground)" }}>
+          {row.tracked}
+        </span>
+      </p>
+      <p style={{ margin: "2px 0", color: "var(--muted-foreground)" }}>
+        Total submissions :{" "}
+        <span style={{ fontWeight: 500, color: "var(--foreground)" }}>
+          {row.totalSubmissions}
+        </span>
+      </p>
+    </div>
+  );
+}
+
+function DistrictTrackedTooltip({
+  active,
+  payload,
+  label,
+}: TooltipContentProps) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload as DistrictTrackedPoint | undefined;
+  if (!row) return null;
+
+  return (
+    <div style={tooltipStyle}>
+      <p style={{ marginBottom: 6, fontWeight: 600 }}>{label}</p>
+      {tooltipLine("Tracked", row.tracked)}
+      {tooltipLine("Untracked", row.untracked)}
+      {tooltipLine("Total submissions", row.totalSubmissions)}
+    </div>
+  );
+}
+
+function VillageUntrackedTooltip({ active, payload }: TooltipContentProps) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload as VillageUntrackedPoint | undefined;
+  if (!row) return null;
+
+  return (
+    <div style={tooltipStyle}>
+      <p style={{ marginBottom: 6, fontWeight: 600 }}>{row.districtLabel}</p>
+      {tooltipLine("Untracked", row.count)}
+    </div>
+  );
+}
 
 const chartDateTickFormatter = (value: string) => formatDisplayDate(value) || value;
 
@@ -116,7 +197,7 @@ export function TrackingCharts({
               interval={0}
               tick={{ fontSize: 10 }}
             />
-            <Tooltip contentStyle={tooltipStyle} cursor={false} />
+            <Tooltip content={VillageUntrackedTooltip} cursor={false} />
             <Bar
               dataKey="count"
               name="Untracked"
@@ -162,7 +243,7 @@ export function TrackingCharts({
               interval={0}
               tick={{ fontSize: 10 }}
             />
-            <Tooltip contentStyle={tooltipStyle} cursor={false} />
+            <Tooltip content={DistrictTrackedTooltip} cursor={false} />
             <Bar
               dataKey="tracked"
               name="Tracked"
@@ -387,7 +468,7 @@ export function TrackingCharts({
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis dataKey="cohort" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-            <Tooltip contentStyle={tooltipStyle} cursor={false} />
+            <Tooltip content={CohortProgressTooltip} cursor={false} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar
               dataKey="tracked"

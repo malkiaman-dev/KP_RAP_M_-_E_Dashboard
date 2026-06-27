@@ -983,12 +983,13 @@ export function computeTrackingMetrics(
       untracked: Math.max(0, districtGirls.length - tracked),
       target,
       inData: districtGirls.length,
+      totalSubmissions: rows.filter((r) => r.district === d).length,
     };
   });
 
   const villageUntracked = new Map<
     string,
-    { count: number; villageId: string }
+    { count: number; villageId: string; districtLabel: string }
   >();
   for (const g of untrackedGirls) {
     const label = g.villageLabel;
@@ -996,12 +997,14 @@ export function computeTrackingMetrics(
     villageUntracked.set(label, {
       count: (existing?.count || 0) + 1,
       villageId: g.village || existing?.villageId || label,
+      districtLabel: g.districtLabel,
     });
   }
   const topVillagesUntracked = [...villageUntracked.entries()]
     .map(([village, v]) => ({
       village,
       villageId: v.villageId,
+      districtLabel: v.districtLabel,
       count: v.count,
     }))
     .sort((a, b) => b.count - a.count)
@@ -1204,6 +1207,7 @@ export function computeTrackingMetrics(
       tracked: cohorts.baseline.totalTrackedGirls,
       remaining: cohorts.baseline.remainingToSuccessTarget,
       target: cohorts.baseline.successTarget,
+      totalSubmissions: cohorts.baseline.totalSubmissions,
     },
     {
       cohort: "New Sample",
@@ -1211,6 +1215,7 @@ export function computeTrackingMetrics(
       tracked: cohorts.newSample.totalTrackedGirls,
       remaining: cohorts.newSample.remainingToSuccessTarget,
       target: cohorts.newSample.successTarget,
+      totalSubmissions: cohorts.newSample.totalSubmissions,
     },
   ];
 
