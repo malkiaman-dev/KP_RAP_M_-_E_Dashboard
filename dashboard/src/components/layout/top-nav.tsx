@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { useTheme } from "next-themes";
 import { motion } from "framer-motion";
 import {
@@ -9,8 +8,11 @@ import {
   Sun,
   Moon,
   Command,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/auth/auth-provider";
+import { ROLE_LABELS } from "@/lib/auth/roles";
 
 interface TopNavProps {
   sidebarWidth: number;
@@ -18,6 +20,7 @@ interface TopNavProps {
 
 export function TopNav({ sidebarWidth }: TopNavProps) {
   const { theme, setTheme } = useTheme();
+  const { user, logout } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -27,6 +30,15 @@ export function TopNav({ sidebarWidth }: TopNavProps) {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const initials = user?.name
+    ? user.name
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "?";
 
   return (
     <motion.header
@@ -73,22 +85,28 @@ export function TopNav({ sidebarWidth }: TopNavProps) {
           </button>
         )}
 
-        <button
-          className="flex items-center gap-2 rounded-xl border border-border bg-card p-1.5 pr-3 transition-colors hover:bg-muted"
-          aria-label="User profile"
-        >
-          <Image
-            src="/executive-user.jpg"
-            alt="Executive User"
-            width={32}
-            height={32}
-            className="h-8 w-8 shrink-0 rounded-lg object-cover"
-          />
-          <div className="hidden text-left sm:block">
-            <p className="text-xs font-semibold leading-none">Executive User</p>
-            <p className="mt-0.5 text-[10px] text-muted-foreground">Admin</p>
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-card p-1.5 pr-2">
+          <div
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-xs font-semibold text-primary"
+            aria-hidden="true"
+          >
+            {initials}
           </div>
-        </button>
+          <div className="hidden text-left sm:block">
+            <p className="text-xs font-semibold leading-none">{user?.name ?? "User"}</p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
+              {user ? ROLE_LABELS[user.role] : ""}
+            </p>
+          </div>
+          <button
+            onClick={() => logout()}
+            className="ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Sign out"
+            title="Sign out"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </motion.header>
   );

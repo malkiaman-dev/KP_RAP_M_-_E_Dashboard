@@ -15,9 +15,12 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
+import { useAuth } from "@/components/auth/auth-provider";
+import { ROLE_LABELS } from "@/lib/auth/roles";
 
 const navSections = [
   {
@@ -55,6 +58,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const { canAccess, user } = useAuth();
 
   return (
     <motion.aside
@@ -100,6 +104,42 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   pathname === item.href ||
                   (item.href !== "/" && pathname.startsWith(item.href));
                 const Icon = item.icon;
+                const allowed = canAccess(item.href);
+                const locked = !allowed;
+
+                if (locked) {
+                  return (
+                    <li key={item.href}>
+                      <div
+                        title="Locked for your role"
+                        className={cn(
+                          "group relative flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium",
+                          "text-muted-foreground/50"
+                        )}
+                        aria-disabled="true"
+                      >
+                        <Icon className="relative z-10 h-[18px] w-[18px] shrink-0 opacity-50" />
+                        <AnimatePresence>
+                          {!collapsed && (
+                            <motion.span
+                              initial={{ opacity: 0, x: -8 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: -8 }}
+                              className="relative z-10 flex flex-1 items-center justify-between truncate"
+                            >
+                              <span className="truncate">{item.label}</span>
+                              <Lock className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
+                        {collapsed && (
+                          <Lock className="absolute bottom-1 right-2 h-2.5 w-2.5 opacity-60" />
+                        )}
+                      </div>
+                    </li>
+                  );
+                }
+
                 return (
                   <li key={item.href}>
                     <Link
@@ -172,7 +212,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <div>
               <p className="text-xs font-medium text-foreground">KPRAP Project</p>
               <p className="mt-0.5 text-[10px] text-muted-foreground">
-                SurveyCTO Live Data
+                {user ? ROLE_LABELS[user.role] : "SurveyCTO Live Data"}
               </p>
               <div className="mt-2 flex items-center gap-1.5">
                 <span className="relative flex h-2 w-2">

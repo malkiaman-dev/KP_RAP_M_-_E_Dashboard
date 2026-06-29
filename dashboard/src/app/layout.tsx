@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
-import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { AppShell } from "@/components/layout/app-shell";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -36,7 +36,7 @@ export default function RootLayout({
           Skip to main content
         </a>
         <Providers>
-          <DashboardShell>{children}</DashboardShell>
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>
