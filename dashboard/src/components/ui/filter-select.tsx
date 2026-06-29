@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   addMonths,
   eachDayOfInterval,
@@ -230,8 +230,8 @@ export function FilterDate({
   const calendarId = useId();
   const { panelRef, position, mounted } = useFloatingPanel(open, anchorRef, 280);
 
-  const minDate = min ? parseDateValue(min) : null;
-  const maxDate = max ? parseDateValue(max) : null;
+  const minDate = useMemo(() => (min ? parseDateValue(min) : null), [min]);
+  const maxDate = useMemo(() => (max ? parseDateValue(max) : null), [max]);
   const selectedDate = parseDateValue(value);
   const today = startOfDay(new Date());
   const todayDisabled = isDateDisabled(today, minDate, maxDate);
@@ -448,8 +448,8 @@ export function FilterDateRange({
   const calendarId = useId();
   const { panelRef, position, mounted } = useFloatingPanel(open, anchorRef, 300);
 
-  const minDate = min ? parseDateValue(min) : null;
-  const maxDate = max ? parseDateValue(max) : null;
+  const minDate = useMemo(() => (min ? parseDateValue(min) : null), [min]);
+  const maxDate = useMemo(() => (max ? parseDateValue(max) : null), [max]);
   const fromDate = parseDateValue(dateFrom);
   const toDate = parseDateValue(dateTo);
   const today = startOfDay(new Date());
