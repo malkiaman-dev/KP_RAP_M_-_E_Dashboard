@@ -8,8 +8,13 @@ interface CredentialsFile {
 
 let cachedUsers: User[] | null = null;
 
-function credentialsPath(): string {
+export function credentialsPath(): string {
   return join(process.cwd(), "data", "credentials.json");
+}
+
+function serializeUsers(users: User[]): string {
+  const data: CredentialsFile = { users };
+  return `${JSON.stringify(data, null, 2)}\n`;
 }
 
 export function getUsers(): User[] {
@@ -21,10 +26,19 @@ export function getUsers(): User[] {
   return cachedUsers;
 }
 
+export function getCredentialsFileContent(): string {
+  return serializeUsers(getUsers());
+}
+
 export function saveUsers(users: User[]): void {
-  const data: CredentialsFile = { users };
-  writeFileSync(credentialsPath(), `${JSON.stringify(data, null, 2)}\n`, "utf-8");
+  // Update the in-memory cache first so the change is live immediately even
+  // when the filesystem is read-only (e.g. on a serverless host).
   cachedUsers = users;
+  try {
+    writeFileSync(credentialsPath(), serializeUsers(users), "utf-8");
+  } catch {
+    // Read-only filesystem: persistence is handled by committing to GitHub.
+  }
 }
 
 export function findUser(email: string, password: string): User | null {

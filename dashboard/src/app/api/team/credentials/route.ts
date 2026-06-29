@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
-import { getPublicUsers, updateUserCredentials } from "@/lib/auth/users";
+import {
+  credentialsPath,
+  getCredentialsFileContent,
+  getPublicUsers,
+  updateUserCredentials,
+} from "@/lib/auth/users";
 import { requireMalki } from "@/lib/auth/guard";
+import { autoPublishDataFiles } from "@/lib/git/publish";
 import type { Role } from "@/lib/auth/types";
 
 export async function GET() {
@@ -33,12 +39,26 @@ export async function PUT(request: Request) {
       password: body.password,
     });
 
+    let published = false;
+    let publishError: string | null = null;
+    try {
+      published = await autoPublishDataFiles(
+        [{ localPath: credentialsPath(), content: getCredentialsFileContent() }],
+        `Update ${updated.role} login credentials`
+      );
+    } catch (error) {
+      publishError =
+        error instanceof Error ? error.message : "Failed to publish change";
+    }
+
     return NextResponse.json({
       user: {
         role: updated.role,
         name: updated.name,
         email: updated.email,
       },
+      published,
+      publishError,
       requiresReLogin:
         auth.session.role === updated.role && auth.session.email !== updated.email,
     });

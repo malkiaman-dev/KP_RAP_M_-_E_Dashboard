@@ -8,7 +8,7 @@ export function barPayload(data: unknown): Record<string, string> | undefined {
   return row.payload ?? (data as Record<string, string>);
 }
 
-/** Tooltip title for charts keyed by enumerator name — shows district when available. */
+/** Tooltip title for charts keyed by enumerator name - shows district when available. */
 export function enumeratorTooltipLabel(
   label: unknown,
   payload?: readonly { payload?: { name?: string; district?: string } }[]
@@ -27,7 +27,7 @@ export function toggleField(
   return current === value ? empty : value;
 }
 
-/** Toggle a date range — same day click clears both ends. */
+/** Toggle a date range - same day click clears both ends. */
 export function toggleDateRange(
   dateFrom: string,
   dateTo: string,

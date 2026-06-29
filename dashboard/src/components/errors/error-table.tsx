@@ -90,7 +90,7 @@ export function ErrorTable({
                 <td className="px-4 py-2.5 text-muted-foreground">
                   {e.enumeratorName && e.enumeratorName !== "-"
                     ? e.enumeratorName
-                    : "—"}
+                    : "-"}
                 </td>
                 <td className="px-4 py-2.5 text-muted-foreground">{e.district}</td>
                 <td className="px-4 py-2.5 font-mono text-[10px] text-muted-foreground">

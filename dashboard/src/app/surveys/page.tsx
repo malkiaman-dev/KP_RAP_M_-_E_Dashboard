@@ -85,7 +85,7 @@ export default function SurveysPage() {
       >
         <h1 className="text-2xl font-bold tracking-tight">Surveys</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          KPRAP survey modules — tracking, household, and girls
+          KPRAP survey modules - tracking, household, and girls
         </p>
       </motion.div>
 
@@ -110,7 +110,7 @@ export default function SurveysPage() {
                   <div key={st.label}>
                     <p className="text-xs text-muted-foreground">{st.label}</p>
                     <p className="text-xl font-bold text-foreground">
-                      {isLoading ? "—" : (
+                      {isLoading ? "-" : (
                         <AnimatedCounter value={st.value ?? 0} />
                       )}
                     </p>

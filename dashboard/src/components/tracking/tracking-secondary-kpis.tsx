@@ -172,7 +172,7 @@ export function TrackingSecondaryKpis({
 }) {
   if (loading) {
     return (
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
         <StatCardSkeleton count={cards.length} />
       </div>
     );
@@ -187,7 +187,7 @@ export function TrackingSecondaryKpis({
       <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         Operational metrics
       </p>
-      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
         {cards.map((card, i) => (
           <StatCard
             key={card.key}

@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Alliance of Excellence | M&E Dashboard",
   description:
-    "Enterprise monitoring and evaluation platform for Alliance of Excellence — survey tracking, field operations, and impact analytics.",
+    "Enterprise monitoring and evaluation platform for Alliance of Excellence - survey tracking, field operations, and impact analytics.",
 };
 
 export default function RootLayout({

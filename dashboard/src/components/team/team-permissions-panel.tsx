@@ -114,10 +114,16 @@ export function TeamPermissionsPanel() {
       await queryClient.invalidateQueries({ queryKey: ["team-permissions"] });
       await refreshAuth();
 
+      const baseMessage = result.published
+        ? "Tab access updated and published live."
+        : "Tab access updated successfully.";
+
       updateRole(role, {
         saving: false,
         routes: result.routes,
-        message: "Tab access updated successfully.",
+        message: result.publishError
+          ? `${baseMessage} (Publish failed: ${result.publishError})`
+          : baseMessage,
         error: null,
       });
     } catch {

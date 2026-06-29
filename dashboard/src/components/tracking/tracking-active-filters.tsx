@@ -113,7 +113,7 @@ export function TrackingActiveFilters({
     const same = filters.dateFrom && filters.dateFrom === filters.dateTo;
     chips.push({
       key: "dateFrom",
-      label: same ? `Date: ${from}` : `Dates: ${from} – ${to}`,
+      label: same ? `Date: ${from}` : `Dates: ${from} to ${to}`,
     });
   }
 

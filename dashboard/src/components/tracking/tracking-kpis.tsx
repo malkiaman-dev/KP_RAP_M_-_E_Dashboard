@@ -87,7 +87,7 @@ export function TrackingKpis({
 }) {
   if (loading) {
     return (
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
         <StatCardSkeleton count={8} />
       </div>
     );
@@ -96,7 +96,7 @@ export function TrackingKpis({
   if (!metrics) return null;
 
   return (
-    <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+    <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
       {kpiConfig.map((kpi, i) => (
         <StatCard
           key={kpi.key}

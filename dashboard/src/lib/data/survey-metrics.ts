@@ -47,7 +47,7 @@ export const defaultDashboardFilters: DashboardFilters = {
   dateTo: "",
 };
 
-/** Toggle filter values from chart clicks — click again to clear. */
+/** Toggle filter values from chart clicks - click again to clear. */
 export function toggleDashboardFilters(
   current: DashboardFilters,
   patch: Partial<DashboardFilters>

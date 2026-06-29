@@ -132,7 +132,7 @@ body {
   opacity: 1;
 }
 
-/* Shimmer skeleton — richer than a flat pulse */
+/* Shimmer skeleton - richer than a flat pulse */
 .skeleton {
   position: relative;
   overflow: hidden;

@@ -399,9 +399,9 @@ interface FilterDateRangeProps {
 
 function formatRangeDisplay(dateFrom: string, dateTo: string): string {
   if (!dateFrom && !dateTo) return "Select date range";
-  if (dateFrom && !dateTo) return `${formatDisplay(dateFrom)} – ...`;
+  if (dateFrom && !dateTo) return `${formatDisplay(dateFrom)} to ...`;
   if (dateFrom && dateTo) {
-    return `${formatDisplay(dateFrom)} – ${formatDisplay(dateTo)}`;
+    return `${formatDisplay(dateFrom)} to ${formatDisplay(dateTo)}`;
   }
   return "Select date range";
 }
@@ -537,7 +537,7 @@ export function FilterDateRange({
             <p className="text-[11px] text-muted-foreground">
               {dateFrom && !dateTo
                 ? "Click the same day again for one day only, or another day for a range"
-                : "Click a day to start — click again to finish (same day = single day)"}
+                : "Click a day to start - click again to finish (same day = single day)"}
             </p>
           </div>
 

@@ -43,7 +43,7 @@ export default function GirlsSurveyPage() {
           >
             <p className="text-xs text-muted-foreground">{item.label}</p>
             <p className="mt-1 text-3xl font-bold">
-              {isLoading ? "—" : <AnimatedCounter value={item.value ?? 0} />}
+              {isLoading ? "-" : <AnimatedCounter value={item.value ?? 0} />}
             </p>
           </motion.div>
         ))}
@@ -56,7 +56,7 @@ export default function GirlsSurveyPage() {
             <p className="text-xs text-muted-foreground">Target: 90%</p>
           </div>
           <span className="text-3xl font-bold text-teal">
-            {isLoading ? "—" : (
+            {isLoading ? "-" : (
               <AnimatedCounter
                 value={gs?.total ? (gs.complete / gs.total) * 100 : 0}
                 suffix="%"

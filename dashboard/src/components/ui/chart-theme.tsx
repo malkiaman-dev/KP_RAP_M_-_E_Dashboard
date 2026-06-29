@@ -1,6 +1,6 @@
 "use client";
 
-/** Shared Recharts tooltip styling — soft elevation + rounded corners. */
+/** Shared Recharts tooltip styling - soft elevation + rounded corners. */
 export const tooltipStyle = {
   backgroundColor: "var(--card)",
   border: "1px solid var(--border)",

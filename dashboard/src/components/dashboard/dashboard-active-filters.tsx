@@ -76,7 +76,7 @@ export function DashboardActiveFilters({
     const same = filters.dateFrom && filters.dateFrom === filters.dateTo;
     chips.push({
       key: "date",
-      label: same ? `Date: ${from}` : `Dates: ${from} – ${to}`,
+      label: same ? `Date: ${from}` : `Dates: ${from} to ${to}`,
     });
   }
 

@@ -24,7 +24,7 @@ export default function HouseholdSurveyPage() {
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <h1 className="text-2xl font-bold">Household Survey</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Father and mother surveys of tracked girls — two forms per girl expected
+          Father and mother surveys of tracked girls - two forms per girl expected
         </p>
       </motion.div>
 
@@ -46,7 +46,7 @@ export default function HouseholdSurveyPage() {
           >
             <p className="text-xs text-muted-foreground">{item.label}</p>
             <p className="mt-1 text-2xl font-bold">
-              {isLoading ? "—" : (
+              {isLoading ? "-" : (
                 <AnimatedCounter
                   value={item.value ?? 0}
                   suffix={item.suffix || ""}
@@ -61,7 +61,7 @@ export default function HouseholdSurveyPage() {
       <div className="mt-6 rounded-2xl border border-gold/20 bg-gold/5 p-5">
         <p className="text-sm font-medium text-foreground">Duplicate Detection Rule</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Same girl with mother (respondent=2) and father (respondent=1) forms is expected — not flagged as duplicate.
+          Same girl with mother (respondent=2) and father (respondent=1) forms is expected - not flagged as duplicate.
           Only same girl + same respondent + same attempt is flagged.
         </p>
       </div>

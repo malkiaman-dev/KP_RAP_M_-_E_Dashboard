@@ -17,8 +17,16 @@ const MALKI_REQUIRED_TABS = ["/team"];
 
 let cachedPermissions: PermissionsFile | null = null;
 
-function permissionsPath(): string {
+export function permissionsPath(): string {
   return join(process.cwd(), "data", "role-permissions.json");
+}
+
+function serializePermissions(permissions: PermissionsFile): string {
+  return `${JSON.stringify(permissions, null, 2)}\n`;
+}
+
+export function getPermissionsFileContent(): string {
+  return serializePermissions(getPermissions());
 }
 
 const DEFAULT_PERMISSIONS: PermissionsFile = {
@@ -44,12 +52,12 @@ export function getPermissions(): PermissionsFile {
 }
 
 export function savePermissions(permissions: PermissionsFile): void {
-  writeFileSync(
-    permissionsPath(),
-    `${JSON.stringify(permissions, null, 2)}\n`,
-    "utf-8"
-  );
   cachedPermissions = permissions;
+  try {
+    writeFileSync(permissionsPath(), serializePermissions(permissions), "utf-8");
+  } catch {
+    // Read-only filesystem: persistence is handled by committing to GitHub.
+  }
 }
 
 export function getAllowedRoutes(role: Role): string[] {

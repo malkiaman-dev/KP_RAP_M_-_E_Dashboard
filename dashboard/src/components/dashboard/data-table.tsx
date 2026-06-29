@@ -85,7 +85,7 @@ export function DataTable({ data, loading }: DataTableProps) {
         ),
         cell: ({ getValue }) => (
           <span className="text-sm text-foreground">
-            {formatDisplayDate(String(getValue() || "")) || "—"}
+            {formatDisplayDate(String(getValue() || "")) || "-"}
           </span>
         ),
       },
@@ -116,7 +116,7 @@ export function DataTable({ data, loading }: DataTableProps) {
         cell: ({ row }) => (
           <div>
             <p className="text-sm font-medium text-foreground">
-              {row.original.girlname_label || "—"}
+              {row.original.girlname_label || "-"}
             </p>
             <p className="text-[10px] text-muted-foreground">
               {row.original.girl || row.original.girl_id || ""}
@@ -129,7 +129,7 @@ export function DataTable({ data, loading }: DataTableProps) {
         header: "District",
         cell: ({ getValue }) => (
           <span className="text-sm text-muted-foreground">
-            {districtNames[String(getValue())] || String(getValue() || "—")}
+            {districtNames[String(getValue())] || String(getValue() || "-")}
           </span>
         ),
       },
@@ -138,7 +138,7 @@ export function DataTable({ data, loading }: DataTableProps) {
         header: "Enumerator",
         cell: ({ getValue }) => (
           <span className="max-w-[140px] truncate text-sm text-muted-foreground">
-            {String(getValue() || "—").replace(/\(.*\)/, "").trim()}
+            {String(getValue() || "-").replace(/\(.*\)/, "").trim()}
           </span>
         ),
       },
@@ -148,7 +148,7 @@ export function DataTable({ data, loading }: DataTableProps) {
         cell: ({ getValue }) => {
           const v = String(getValue() || "");
           const s = statusLabels[v] || {
-            label: v || "—",
+            label: v || "-",
             class: "bg-muted text-muted-foreground",
           };
           return (
@@ -333,7 +333,7 @@ function Detail({ label, value }: { label: string; value?: string }) {
   return (
     <div>
       <span className="text-muted-foreground">{label}: </span>
-      <span className="font-medium text-foreground">{value || "—"}</span>
+      <span className="font-medium text-foreground">{value || "-"}</span>
     </div>
   );
 }

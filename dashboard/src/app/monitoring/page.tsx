@@ -61,7 +61,7 @@ export default function MonitoringPage() {
         className="mb-6"
       >
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Field Monitoring — Enumerator Performance
+          Field Monitoring - Enumerator Performance
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Daily tracking target of{" "}

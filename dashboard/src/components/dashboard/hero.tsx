@@ -15,8 +15,8 @@ const particles = Array.from({ length: 12 }, (_, i) => ({
 }));
 
 function formatDate(iso: string) {
-  if (!iso) return "—";
-  return formatDisplayDate(iso) || "—";
+  if (!iso) return "-";
+  return formatDisplayDate(iso) || "-";
 }
 
 interface DashboardHeroProps {
@@ -27,13 +27,13 @@ interface DashboardHeroProps {
 export function DashboardHero({ metrics, loading }: DashboardHeroProps) {
   const periodStart = metrics?.reportingPeriod.start
     ? formatDate(metrics.reportingPeriod.start)
-    : "—";
+    : "-";
   const periodEnd = metrics?.reportingPeriod.end
     ? formatDate(metrics.reportingPeriod.end)
-    : "—";
+    : "-";
   const reportingPeriod =
-    periodStart !== "—" && periodEnd !== "—"
-      ? `${periodStart} – ${periodEnd}`
+    periodStart !== "-" && periodEnd !== "-"
+      ? `${periodStart} to ${periodEnd}`
       : "No data loaded";
 
   return (
@@ -143,22 +143,22 @@ export function DashboardHero({ metrics, loading }: DashboardHeroProps) {
             {[
               {
                 label: "Submissions",
-                value: loading ? "—" : String(metrics?.totalSubmissions ?? 0),
+                value: loading ? "-" : String(metrics?.totalSubmissions ?? 0),
                 icon: FileStack,
               },
               {
                 label: "Districts",
-                value: loading ? "—" : String(metrics?.activeDistricts ?? 0),
+                value: loading ? "-" : String(metrics?.activeDistricts ?? 0),
                 icon: MapPin,
               },
               {
                 label: "Enumerators",
-                value: loading ? "—" : String(metrics?.totalEnumerators ?? 0),
+                value: loading ? "-" : String(metrics?.totalEnumerators ?? 0),
                 icon: Users,
               },
               {
                 label: "Schools",
-                value: loading ? "—" : String(metrics?.totalSchools ?? 0),
+                value: loading ? "-" : String(metrics?.totalSchools ?? 0),
                 icon: School,
               },
             ].map((item) => {

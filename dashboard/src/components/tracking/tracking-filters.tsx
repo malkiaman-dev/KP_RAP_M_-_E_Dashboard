@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCollapsedOnMobile } from "@/lib/hooks/use-collapsed-on-mobile";
 import {
   Filter,
   Calendar,
@@ -38,7 +38,7 @@ export function TrackingFiltersPanel({
   showTodayToggle = false,
   resetFilters = defaultTrackingFilters,
 }: TrackingFiltersPanelProps) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useCollapsedOnMobile();
 
   const fields = [
     {

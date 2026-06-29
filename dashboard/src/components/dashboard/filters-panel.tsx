@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCollapsedOnMobile } from "@/lib/hooks/use-collapsed-on-mobile";
 import {
   Filter,
   MapPin,
@@ -47,7 +48,7 @@ export function FiltersPanel({
   filters,
   onChange,
 }: FiltersPanelProps) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useCollapsedOnMobile();
   const [activePreset, setActivePreset] = useState("all");
 
   const update = (partial: Partial<DashboardFilters>) => {

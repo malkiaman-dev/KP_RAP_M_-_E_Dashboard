@@ -106,12 +106,18 @@ export function TeamCredentialsPanel() {
 
       await queryClient.invalidateQueries({ queryKey: ["team-credentials"] });
 
+      const baseMessage = data.requiresReLogin
+        ? "Saved. Sign in again with your new email."
+        : data.published
+          ? "Saved and published live."
+          : "Credentials updated successfully.";
+
       updateForm(user.role, {
         saving: false,
         password: "",
-        message: data.requiresReLogin
-          ? "Saved. Sign in again with your new email."
-          : "Credentials updated successfully.",
+        message: data.publishError
+          ? `${baseMessage} (Publish failed: ${data.publishError})`
+          : baseMessage,
         error: null,
       });
     } catch {

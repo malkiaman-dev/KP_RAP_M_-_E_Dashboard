@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { ResponsiveContainer } from "recharts";
 
 /**
- * Shared chart container — animated entrance, hover elevation and an animated
+ * Shared chart container - animated entrance, hover elevation and an animated
  * gradient accent bar across the top edge. Used by every chart grid so the
  * dashboard reads as one cohesive design system.
  */
@@ -37,7 +37,7 @@ export function ChartCard({
         damping: 26,
       }}
       className={cn(
-        "surface-card chart-accent group relative flex h-full min-h-[300px] flex-col rounded-2xl p-5 lg:min-h-0",
+        "surface-card chart-accent group relative flex h-full min-h-[300px] min-w-0 flex-col rounded-2xl p-5 lg:min-h-0",
         allowOverflow ? "overflow-visible" : "overflow-hidden",
         className
       )}
@@ -55,7 +55,7 @@ export function ChartCard({
 
 export function ChartArea({ children }: { children: React.ReactElement }) {
   return (
-    <div className="min-h-0 flex-1">
+    <div className="h-full min-h-[240px] w-full min-w-0 flex-1">
       <ResponsiveContainer width="100%" height="100%">
         {children}
       </ResponsiveContainer>

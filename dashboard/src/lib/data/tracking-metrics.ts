@@ -31,9 +31,9 @@ export interface TrackingRow {
   enrollstat_label?: string;
   formdef_version?: string;
   cohort?: TrackingCohort;
-  /** Academic session — independent of baseline / new-sample group */
+  /** Academic session - independent of baseline / new-sample group */
   session?: TrackingSessionId;
-  /** Raw SurveyCTO batch field (1 = 2022–2023, 2 = 2023–2024) */
+  /** Raw SurveyCTO batch field (1 = 2022-2023, 2 = 2023-2024) */
   batch?: string;
   [key: string]: string | undefined;
 }
@@ -103,7 +103,7 @@ export const defaultTrackingFilters: TrackingFilters = {
   todayOnly: false,
 };
 
-/** Shared filter defaults — Today toggle off. */
+/** Shared filter defaults - Today toggle off. */
 export function defaultMonitoringFilters(): TrackingFilters {
   return { ...defaultTrackingFilters };
 }
@@ -121,7 +121,7 @@ export const UNTRACKED_REASON_BY_LABEL: Record<string, UntrackedReasonKey> = {
   "Incomplete survey": "incomplete",
 };
 
-/** Toggle filter values from chart clicks — click again to clear. */
+/** Toggle filter values from chart clicks - click again to clear. */
 export function toggleTrackingFilters(
   current: TrackingFilters,
   patch: Partial<TrackingFilters>
@@ -217,7 +217,7 @@ function resolveSchoolLabel(row: TrackingRow): string | undefined {
  *
  * Baseline exports put a numeric code in `village` and the name in
  * `village_label`; the new-sample export has no `village` column at all, only
- * `village_label`. So the only field present in both is the name — use it as the
+ * `village_label`. So the only field present in both is the name - use it as the
  * single village key for filters, summaries and the village chart.
  */
 function resolveVillageLabel(row: TrackingRow): string | undefined {
@@ -714,8 +714,8 @@ export function computeRevisitDetailMetrics(
 export type TrackingBatchId = TrackingSessionId;
 
 export const TRACKING_SESSIONS = [
-  { value: "2022-2023", label: "2022–2023" },
-  { value: "2023-2024", label: "2023–2024" },
+  { value: "2022-2023", label: "2022-2023" },
+  { value: "2023-2024", label: "2023-2024" },
 ] as const;
 
 /** @deprecated Use TRACKING_SESSIONS */
@@ -971,7 +971,7 @@ export function computeTrackingMetrics(
   const trackedByDistrict = districtIds.map((d) => {
     const districtGirls = girls.filter((g) => g.district === d);
     const tracked = districtGirls.filter((g) => g.tracked).length;
-    // Proportional slice of the protocol pool — informational reference only.
+    // Proportional slice of the protocol pool - informational reference only.
     const target = Math.round(targets.assignmentPool * districtShare(d));
     return {
       district: d,
@@ -1145,7 +1145,7 @@ export function computeTrackingMetrics(
   ).size;
   // Girls whose household had moved (house_found = 2) and who were never
   // successfully tracked. A moved household means the girl is no longer there,
-  // so `girl_found`/`consent` are blank — requiring isTrackedSubmission here
+  // so `girl_found`/`consent` are blank - requiring isTrackedSubmission here
   // made this KPI structurally always 0. Mirror the Untraceable HH logic: count
   // moved-household girls unless they were tracked on another visit.
   const familyMovedGirls = new Set(
@@ -1305,7 +1305,7 @@ export function computeTrackingMetrics(
 export type TrackingMetrics = ReturnType<typeof computeTrackingMetrics>;
 
 /* -------------------------------------------------------------------------- */
-/*  Monitoring module — enumerator performance against daily tracking target  */
+/*  Monitoring module - enumerator performance against daily tracking target  */
 /* -------------------------------------------------------------------------- */
 
 export interface EnumeratorPerformance {

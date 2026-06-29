@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
+  AlertTriangle,
   CheckCircle2,
   CloudUpload,
   FileClock,
@@ -13,7 +14,10 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
+type PublishMode = "git" | "github" | "unavailable";
+
 interface PublishStatus {
+  mode: PublishMode;
   branch: string;
   pendingChanges: number;
   changedFiles: string[];
@@ -22,8 +26,8 @@ interface PublishStatus {
 }
 
 interface PublishResult {
+  via: PublishMode;
   committed: boolean;
-  pushed: boolean;
   message: string;
 }
 
@@ -77,8 +81,12 @@ export function PublishPanel() {
     }
   }
 
-  const pending = (data?.pendingChanges ?? 0) + (data?.ahead ?? 0);
-  const hasSomethingToPublish = pending > 0;
+  const mode = data?.mode;
+  const isUnavailable = mode === "unavailable";
+  const isGithub = mode === "github";
+  const gitPending = (data?.pendingChanges ?? 0) + (data?.ahead ?? 0);
+  // On GitHub mode we can always publish the current data files.
+  const canPublish = isGithub || (mode === "git" && gitPending > 0);
 
   return (
     <motion.div
@@ -115,7 +123,7 @@ export function PublishPanel() {
         {isLoading ? (
           <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Checking for changes…
+            Checking publish status…
           </div>
         ) : isError ? (
           <div className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">
@@ -123,56 +131,85 @@ export function PublishPanel() {
           </div>
         ) : (
           data && (
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-border bg-background px-4 py-3">
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  <GitBranch className="h-3.5 w-3.5" />
-                  Branch
+            <>
+              {isUnavailable && (
+                <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    Publishing isn&apos;t configured on this server. Add a{" "}
+                    <code className="font-mono">GITHUB_TOKEN</code> environment
+                    variable (a GitHub token with write access to the repo) to
+                    enable publishing from the live site.
+                  </span>
                 </div>
-                <p className="mt-1 truncate text-sm font-medium text-foreground">
-                  {data.branch}
-                </p>
-              </div>
-              <div className="rounded-xl border border-border bg-background px-4 py-3">
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  <FileClock className="h-3.5 w-3.5" />
-                  Unpublished
-                </div>
-                <p className="mt-1 text-sm font-medium text-foreground">
-                  {pending} change{pending === 1 ? "" : "s"}
-                </p>
-              </div>
-              <div className="rounded-xl border border-border bg-background px-4 py-3">
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Last published
-                </div>
-                <p className="mt-1 truncate text-sm font-medium text-foreground">
-                  {data.lastCommit?.date
-                    ? formatDistanceToNow(new Date(data.lastCommit.date), {
-                        addSuffix: true,
-                      })
-                    : "—"}
-                </p>
-              </div>
-            </div>
-          )
-        )}
+              )}
 
-        {data && data.changedFiles.length > 0 && (
-          <details className="rounded-xl border border-border bg-background px-4 py-3">
-            <summary className="cursor-pointer text-sm font-medium text-foreground">
-              {data.changedFiles.length} file
-              {data.changedFiles.length === 1 ? "" : "s"} changed
-            </summary>
-            <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto text-xs text-muted-foreground">
-              {data.changedFiles.map((file) => (
-                <li key={file} className="truncate font-mono">
-                  {file}
-                </li>
-              ))}
-            </ul>
-          </details>
+              {isGithub && (
+                <div className="flex items-start gap-2 rounded-xl border border-teal/30 bg-teal/10 px-4 py-3 text-sm text-teal">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    Connected to GitHub. Changes you make here (passwords, tab
+                    access) publish automatically. Use the button below to push
+                    the latest data on demand.
+                  </span>
+                </div>
+              )}
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-border bg-background px-4 py-3">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    <GitBranch className="h-3.5 w-3.5" />
+                    Branch
+                  </div>
+                  <p className="mt-1 truncate text-sm font-medium text-foreground">
+                    {data.branch}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-background px-4 py-3">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    <FileClock className="h-3.5 w-3.5" />
+                    {mode === "git" ? "Unpublished" : "Mode"}
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    {mode === "git"
+                      ? `${gitPending} change${gitPending === 1 ? "" : "s"}`
+                      : isGithub
+                        ? "GitHub"
+                        : "Not set up"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-background px-4 py-3">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Last published
+                  </div>
+                  <p className="mt-1 truncate text-sm font-medium text-foreground">
+                    {data.lastCommit?.date
+                      ? formatDistanceToNow(new Date(data.lastCommit.date), {
+                          addSuffix: true,
+                        })
+                      : "-"}
+                  </p>
+                </div>
+              </div>
+
+              {mode === "git" && data.changedFiles.length > 0 && (
+                <details className="rounded-xl border border-border bg-background px-4 py-3">
+                  <summary className="cursor-pointer text-sm font-medium text-foreground">
+                    {data.changedFiles.length} file
+                    {data.changedFiles.length === 1 ? "" : "s"} changed
+                  </summary>
+                  <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto text-xs text-muted-foreground">
+                    {data.changedFiles.map((file) => (
+                      <li key={file} className="truncate font-mono">
+                        {file}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </>
+          )
         )}
 
         <div>
@@ -188,7 +225,8 @@ export function PublishPanel() {
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="e.g. Updated tracking survey data for week 24"
-            className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground transition-all focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            disabled={isUnavailable}
+            className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground transition-all focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
           />
         </div>
 
@@ -207,7 +245,7 @@ export function PublishPanel() {
         <button
           type="button"
           onClick={handlePublish}
-          disabled={publishing || isLoading || (!hasSomethingToPublish && !isError)}
+          disabled={publishing || isLoading || isUnavailable || (!canPublish && !isError)}
           className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
         >
           {publishing ? (
@@ -218,7 +256,11 @@ export function PublishPanel() {
           ) : (
             <>
               <CloudUpload className="h-4 w-4" />
-              {hasSomethingToPublish ? "Publish live" : "Nothing to publish"}
+              {isUnavailable
+                ? "Publishing not configured"
+                : canPublish
+                  ? "Publish live"
+                  : "Nothing to publish"}
             </>
           )}
         </button>

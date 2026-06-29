@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCollapsedOnMobile } from "@/lib/hooks/use-collapsed-on-mobile";
 import {
   Filter,
   MapPin,
@@ -27,7 +27,7 @@ export function ErrorFiltersPanel({
   filters,
   onChange,
 }: ErrorFiltersPanelProps) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useCollapsedOnMobile();
 
   const fields = [
     {

@@ -93,7 +93,7 @@ const cards: {
   {
     label: "2nd Attempt Still Needed",
     exportLabel: "2nd-attempt-still-needed",
-    hint: "1st visit done, girl temporarily not located — click to download",
+    hint: "1st visit done, girl temporarily not located - click to download",
     icon: Target,
     color: "text-amber-500",
     group: "2nd",
@@ -133,7 +133,7 @@ const cards: {
   {
     label: "3rd Attempt Still Needed",
     exportLabel: "3rd-attempt-still-needed",
-    hint: "2nd visit done but girl still not located — click to download",
+    hint: "2nd visit done but girl still not located - click to download",
     icon: Target,
     color: "text-orange-600",
     group: "3rd",

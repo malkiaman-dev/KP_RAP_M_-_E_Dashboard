@@ -1,21 +1,21 @@
-/** KPRAP protocol targets — KPRAP_Survey_Protocol.docx */
+/** KPRAP protocol targets - KPRAP_Survey_Protocol.docx */
 export const PROTOCOL = {
   /** Completed household survey target (N) */
   HH_SURVEY_TARGET: 4038,
   /** Total girls assigned for tracking (~120% buffer over HH target) */
   GIRLS_TO_TRACK: 4860,
-  /** Baseline listed girls (2022–2023 cohort) */
+  /** Baseline listed girls (2022-2023 cohort) */
   BASELINE_GIRLS_TO_TRACK: 1235,
-  /** New sample girls (2023–2024 cohort) */
+  /** New sample girls (2023-2024 cohort) */
   NEW_SAMPLE_GIRLS_TO_TRACK: 3625,
-  /** Primary outcome target — successfully tracked girls */
+  /** Primary outcome target - successfully tracked girls */
   SUCCESSFUL_TRACKING_TARGET: 4250,
   TRACKING_BUFFER_PERCENT: 120,
   /** Per-enumerator daily tracking target (girls to track per working day) */
   DAILY_TRACKING_TARGET_PER_ENUMERATOR: 10,
 } as const;
 
-/** Per-enumerator daily tracking target — girls to track per working day */
+/** Per-enumerator daily tracking target - girls to track per working day */
 export const DAILY_TRACKING_TARGET_PER_ENUMERATOR =
   PROTOCOL.DAILY_TRACKING_TARGET_PER_ENUMERATOR;
 

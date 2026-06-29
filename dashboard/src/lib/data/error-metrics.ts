@@ -33,7 +33,7 @@ export const defaultErrorFilters: ErrorFilters = {
   ruleId: "all",
 };
 
-const UNASSIGNED = "—";
+const UNASSIGNED = "-";
 
 /** A cross-survey integrity check has no responsible field enumerator. */
 export function isEnumeratorAttributable(row: ErrorRow): boolean {
@@ -41,7 +41,7 @@ export function isEnumeratorAttributable(row: ErrorRow): boolean {
   return (
     name !== "" &&
     name !== "-" &&
-    name !== "—" &&
+    name !== "-" &&
     !name.toUpperCase().startsWith("UNASSIGNED")
   );
 }
@@ -56,7 +56,7 @@ export function excludeCrossSurveyChecks(rows: ErrorRow[]): ErrorRow[] {
   return rows.filter((r) => !isCrossSurvey(r));
 }
 
-/** Toggle filter values from chart clicks — click again to clear. */
+/** Toggle filter values from chart clicks - click again to clear. */
 export function toggleErrorFilters(
   current: ErrorFilters,
   patch: Partial<ErrorFilters>
