@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,64 +16,95 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  X,
   Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
 import { useAuth } from "@/components/auth/auth-provider";
+import { getTabsBySection } from "@/lib/auth/nav-tabs";
 import { ROLE_LABELS } from "@/lib/auth/roles";
+import type { LucideIcon } from "lucide-react";
 
-const navSections = [
-  {
-    label: "Overview",
-    items: [
-      { href: "/", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/analytics", label: "Analytics", icon: BarChart3 },
-      { href: "/reports", label: "Reports", icon: FileText },
-    ],
-  },
-  {
-    label: "Surveys",
-    items: [
-      { href: "/surveys", label: "All Surveys", icon: ClipboardList },
-      { href: "/tracking", label: "Tracking", icon: MapPin },
-      { href: "/surveys/household", label: "Household", icon: ClipboardList },
-      { href: "/surveys/girls", label: "Girls", icon: ClipboardList },
-      { href: "/surveys/errors", label: "Error Report", icon: AlertTriangle },
-      { href: "/monitoring", label: "Monitoring", icon: Activity },
-    ],
-  },
-  {
-    label: "Organization",
-    items: [
-      { href: "/team", label: "Team Management", icon: UserCog },
-      { href: "/settings", label: "Settings", icon: Settings },
-    ],
-  },
-];
+/** Tracks whether the viewport is below the `lg` breakpoint (drawer mode). */
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return isMobile;
+}
+
+const TAB_ICONS: Record<string, LucideIcon> = {
+  "/": LayoutDashboard,
+  "/analytics": BarChart3,
+  "/reports": FileText,
+  "/surveys": ClipboardList,
+  "/tracking": MapPin,
+  "/surveys/household": ClipboardList,
+  "/surveys/girls": ClipboardList,
+  "/surveys/errors": AlertTriangle,
+  "/monitoring": Activity,
+  "/team": UserCog,
+  "/settings": Settings,
+};
+
+const navSections = getTabsBySection().map((section) => ({
+  ...section,
+  items: section.items.map((item) => ({
+    ...item,
+    icon: TAB_ICONS[item.href] ?? ClipboardList,
+  })),
+}));
 
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  mobileOpen: boolean;
+  onMobileClose: () => void;
 }
 
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export function Sidebar({
+  collapsed,
+  onToggle,
+  mobileOpen,
+  onMobileClose,
+}: SidebarProps) {
   const pathname = usePathname();
   const { canAccess, user } = useAuth();
+  const isMobile = useIsMobile();
+  // On mobile the drawer is always full-width; collapse only applies on desktop.
+  const effectiveCollapsed = collapsed && !isMobile;
 
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: collapsed ? 72 : 260 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border bg-sidebar shadow-lg shadow-black/[0.03] dark:shadow-black/20"
-      aria-label="Main navigation"
-    >
+    <>
+      <div
+        onClick={onMobileClose}
+        className={cn(
+          "fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-300 lg:hidden",
+          mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        )}
+        aria-hidden="true"
+      />
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-border bg-sidebar shadow-lg shadow-black/[0.03] transition-[width,transform] duration-300 dark:shadow-black/20",
+          "w-[260px]",
+          collapsed ? "lg:w-[72px]" : "lg:w-[260px]",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          "lg:translate-x-0"
+        )}
+        aria-label="Main navigation"
+      >
       <div className="flex h-16 items-center justify-between border-b border-border px-4">
-        <Logo collapsed={collapsed} />
+        <Logo collapsed={effectiveCollapsed} />
         <button
           onClick={onToggle}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="hidden h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:flex"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? (
@@ -81,13 +113,20 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <ChevronLeft className="h-4 w-4" />
           )}
         </button>
+        <button
+          onClick={onMobileClose}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:hidden"
+          aria-label="Close menu"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4" role="navigation">
         {navSections.map((section) => (
           <div key={section.label} className="mb-6">
             <AnimatePresence>
-              {!collapsed && (
+              {!effectiveCollapsed && (
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -120,7 +159,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                       >
                         <Icon className="relative z-10 h-[18px] w-[18px] shrink-0 opacity-50" />
                         <AnimatePresence>
-                          {!collapsed && (
+                          {!effectiveCollapsed && (
                             <motion.span
                               initial={{ opacity: 0, x: -8 }}
                               animate={{ opacity: 1, x: 0 }}
@@ -132,7 +171,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                             </motion.span>
                           )}
                         </AnimatePresence>
-                        {collapsed && (
+                        {effectiveCollapsed && (
                           <Lock className="absolute bottom-1 right-2 h-2.5 w-2.5 opacity-60" />
                         )}
                       </div>
@@ -144,6 +183,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      onClick={onMobileClose}
                       className={cn(
                         "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                         isActive
@@ -181,7 +221,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                         )}
                       />
                       <AnimatePresence>
-                        {!collapsed && (
+                        {!effectiveCollapsed && (
                           <motion.span
                             initial={{ opacity: 0, x: -8 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -205,10 +245,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <div
           className={cn(
             "glass-card rounded-xl p-3",
-            collapsed && "flex justify-center p-2"
+            effectiveCollapsed && "flex justify-center p-2"
           )}
         >
-          {!collapsed ? (
+          {!effectiveCollapsed ? (
             <div>
               <p className="text-xs font-medium text-foreground">KPRAP Project</p>
               <p className="mt-0.5 text-[10px] text-muted-foreground">
@@ -230,6 +270,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           )}
         </div>
       </div>
-    </motion.aside>
+      </aside>
+    </>
   );
 }

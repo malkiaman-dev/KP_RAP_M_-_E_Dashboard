@@ -1,0 +1,29 @@
+{
+  "roles": {
+    "malki": [
+      "/",
+      "/analytics",
+      "/reports",
+      "/surveys",
+      "/tracking",
+      "/surveys/household",
+      "/surveys/girls",
+      "/surveys/errors",
+      "/monitoring",
+      "/team",
+      "/settings"
+    ],
+    "pidc": [
+      "/tracking",
+      "/monitoring",
+      "/surveys/errors",
+      "/"
+    ],
+    "world-bank": [
+      "/tracking"
+    ],
+    "piu": [
+      "/tracking"
+    ]
+  }
+}

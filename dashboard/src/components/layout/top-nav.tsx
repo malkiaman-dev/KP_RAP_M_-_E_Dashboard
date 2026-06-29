@@ -2,23 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
-import { motion } from "framer-motion";
 import {
   Search,
   Sun,
   Moon,
   Command,
   LogOut,
+  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 
 interface TopNavProps {
-  sidebarWidth: number;
+  onMenuClick: () => void;
 }
 
-export function TopNav({ sidebarWidth }: TopNavProps) {
+export function TopNav({ onMenuClick }: TopNavProps) {
   const { theme, setTheme } = useTheme();
   const { user, logout } = useAuth();
   const [mounted, setMounted] = useState(false);
@@ -41,18 +41,22 @@ export function TopNav({ sidebarWidth }: TopNavProps) {
     : "?";
 
   return (
-    <motion.header
-      initial={false}
-      animate={{ marginLeft: sidebarWidth }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+    <header
       className={cn(
-        "sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-border/60 px-6 transition-shadow duration-300",
+        "sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border/60 px-4 transition-shadow duration-300 sm:px-6",
         scrolled
           ? "bg-background/80 shadow-md shadow-black/[0.04] backdrop-blur-xl dark:shadow-black/20"
           : "bg-background/60 backdrop-blur-sm"
       )}
     >
-      <div className="flex flex-1 items-center gap-4">
+      <div className="flex flex-1 items-center gap-3">
+        <button
+          onClick={onMenuClick}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:hidden"
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
         <div className="relative hidden max-w-md flex-1 sm:block">
           <Search
             className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -108,6 +112,6 @@ export function TopNav({ sidebarWidth }: TopNavProps) {
           </button>
         </div>
       </div>
-    </motion.header>
+    </header>
   );
 }

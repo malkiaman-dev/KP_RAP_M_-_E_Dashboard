@@ -8,13 +8,16 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
+import { isPathAllowed } from "@/lib/auth/nav-tabs";
 import type { Session } from "@/lib/auth/types";
-import { isRouteAllowed } from "@/lib/auth/roles";
 
 interface AuthContextValue {
   user: Session | null;
+  allowedRoutes: string[];
+  defaultRoute: string;
   loading: boolean;
   canAccess: (href: string) => boolean;
+  refreshAuth: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -22,30 +25,56 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Session | null>(null);
+  const [allowedRoutes, setAllowedRoutes] = useState<string[]>([]);
+  const [defaultRoute, setDefaultRoute] = useState("/");
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => (res.ok ? res.json() : { user: null }))
-      .then((data) => setUser(data.user ?? null))
-      .finally(() => setLoading(false));
+  const refreshAuth = useCallback(async () => {
+    const res = await fetch("/api/auth/me");
+    if (!res.ok) {
+      setUser(null);
+      setAllowedRoutes([]);
+      setDefaultRoute("/");
+      return;
+    }
+
+    const data = await res.json();
+    setUser(data.user ?? null);
+    setAllowedRoutes(data.allowedRoutes ?? []);
+    setDefaultRoute(data.defaultRoute ?? "/");
   }, []);
 
+  useEffect(() => {
+    refreshAuth().finally(() => setLoading(false));
+  }, [refreshAuth]);
+
   const canAccess = useCallback(
-    (href: string) => (user ? isRouteAllowed(user.role, href) : false),
-    [user]
+    (href: string) => isPathAllowed(allowedRoutes, href),
+    [allowedRoutes]
   );
 
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
+    setAllowedRoutes([]);
+    setDefaultRoute("/");
     router.push("/login");
     router.refresh();
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, canAccess, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        allowedRoutes,
+        defaultRoute,
+        loading,
+        canAccess,
+        refreshAuth,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

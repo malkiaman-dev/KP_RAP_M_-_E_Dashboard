@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Lock, LogIn } from "lucide-react";
+import { Eye, EyeOff, LogIn } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { brand } from "@/lib/brand";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -56,7 +57,8 @@ export default function LoginPage() {
             Sign in to your dashboard
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Enter your credentials to access your assigned views.
+            {brand.tagline} for the KPRAP project. Tracking, monitoring, and
+            survey insights in one place.
           </p>
         </div>
 
@@ -134,10 +136,9 @@ export default function LoginPage() {
           </div>
         </form>
 
-        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <Lock className="h-3.5 w-3.5" />
-          <span>Access is limited by your organization role</span>
-        </div>
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          Need help signing in? Contact us.
+        </p>
       </motion.div>
     </div>
   );

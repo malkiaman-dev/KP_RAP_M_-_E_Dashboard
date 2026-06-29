@@ -1,10 +1,5 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import {
-  canAccessApi,
-  canAccessRoute,
-  getDefaultRoute,
-} from "@/lib/auth/roles";
 import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
 
 const PUBLIC_PATHS = ["/login"];
@@ -15,9 +10,7 @@ export async function middleware(request: NextRequest) {
   if (PUBLIC_PATHS.includes(pathname)) {
     const session = await verifySession(request.cookies.get(SESSION_COOKIE)?.value);
     if (session) {
-      return NextResponse.redirect(
-        new URL(getDefaultRoute(session.role), request.url)
-      );
+      return NextResponse.redirect(new URL("/", request.url));
     }
     return NextResponse.next();
   }
@@ -35,23 +28,6 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("from", pathname);
     return NextResponse.redirect(loginUrl);
-  }
-
-  if (pathname.startsWith("/api/auth/")) {
-    return NextResponse.next();
-  }
-
-  if (pathname.startsWith("/api/")) {
-    if (!canAccessApi(session.role, pathname)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-    return NextResponse.next();
-  }
-
-  if (!canAccessRoute(session.role, pathname)) {
-    return NextResponse.redirect(
-      new URL(getDefaultRoute(session.role), request.url)
-    );
   }
 
   return NextResponse.next();

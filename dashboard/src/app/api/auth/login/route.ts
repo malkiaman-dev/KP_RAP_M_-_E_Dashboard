@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { findUser } from "@/lib/auth/users";
-import { getDefaultRoute } from "@/lib/auth/roles";
+import { getDefaultRoute } from "@/lib/auth/permissions";
 import { signSession, sessionCookieOptions } from "@/lib/auth/session";
 
 export async function POST(request: Request) {

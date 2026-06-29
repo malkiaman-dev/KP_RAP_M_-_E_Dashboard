@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { RouteGuard } from "@/components/auth/route-guard";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -14,7 +15,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthProvider>
-      <DashboardShell>{children}</DashboardShell>
+      <DashboardShell>
+        <RouteGuard>{children}</RouteGuard>
+      </DashboardShell>
     </AuthProvider>
   );
 }
