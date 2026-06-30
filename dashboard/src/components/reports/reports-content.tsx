@@ -51,10 +51,10 @@ function ComingSoonReportActions({
           Format
         </label>
         <FilterSelect
-          value="docx"
+          value="pdf"
           options={[
-            { value: "docx", label: "Microsoft Word (.docx)" },
             { value: "pdf", label: "PDF (.pdf)" },
+            { value: "docx", label: "Microsoft Word (.docx)" },
           ]}
           onChange={() => {}}
           disabled

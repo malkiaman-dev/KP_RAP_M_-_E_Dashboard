@@ -20,8 +20,8 @@ import {
 import { ReportCard } from "@/components/reports/report-card";
 
 const FORMAT_OPTIONS = [
-  { value: "docx", label: "Microsoft Word (.docx)" },
   { value: "pdf", label: "PDF (.pdf)" },
+  { value: "docx", label: "Microsoft Word (.docx)" },
 ] as const;
 
 export function TrackingStatusReportCard({
@@ -36,7 +36,7 @@ export function TrackingStatusReportCard({
   loading?: boolean;
 }) {
   const [selectedDistrict, setSelectedDistrict] = useState("");
-  const [format, setFormat] = useState<ReportFormat>("docx");
+  const [format, setFormat] = useState<ReportFormat>("pdf");
   const [downloading, setDownloading] = useState<"district" | "all" | null>(
     null
   );

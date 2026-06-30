@@ -164,7 +164,7 @@ function sanitizeFilenamePart(value: string): string {
 export function buildMonitoringStatusReportFilename(
   scopeLabel: string,
   filters: TrackingFilters,
-  format: ReportFormat = "docx"
+  format: ReportFormat = "pdf"
 ): string {
   const district =
     scopeLabel === "All_Districts"

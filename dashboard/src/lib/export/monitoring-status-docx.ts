@@ -97,9 +97,13 @@ function gapBorders(color = COLOR.white, size = 14) {
   };
 }
 
-function paragraph(text: string, opts: { spacingAfter?: number } = {}) {
+function paragraph(
+  text: string,
+  opts: { spacingAfter?: number; keepNext?: boolean } = {}
+) {
   return new Paragraph({
     spacing: { after: opts.spacingAfter ?? 140, line: 276 },
+    keepNext: opts.keepNext,
     children: [new TextRun({ text, color: COLOR.body, size: 20 })],
   });
 }
@@ -107,6 +111,8 @@ function paragraph(text: string, opts: { spacingAfter?: number } = {}) {
 function sectionHeading(text: string) {
   return new Paragraph({
     spacing: { before: 360, after: 160 },
+    keepNext: true,
+    keepLines: true,
     border: {
       bottom: { style: BorderStyle.SINGLE, size: 14, color: COLOR.brand },
     },
@@ -242,7 +248,7 @@ function kpiGrid(tiles: KpiTile[]): Table {
   const rows: TableRow[] = [];
   for (let i = 0; i < tiles.length; i += 3) {
     const slice = [tiles[i] ?? null, tiles[i + 1] ?? null, tiles[i + 2] ?? null];
-    rows.push(new TableRow({ children: slice.map(kpiTileCell) }));
+    rows.push(new TableRow({ cantSplit: true, children: slice.map(kpiTileCell) }));
   }
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -267,6 +273,7 @@ function targetCallout(metrics: MonitoringMetrics): Table {
     },
     rows: [
       new TableRow({
+        cantSplit: true,
         children: [
           new TableCell({
             shading: { type: ShadingType.CLEAR, color: "auto", fill: tier.bg },
@@ -324,39 +331,22 @@ function targetCallout(metrics: MonitoringMetrics): Table {
 
 /* ----- Enumerator category tables ---------------------------------------- */
 
-function categoryBanner(title: string, count: number, tier: Tier): Table {
-  return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    borders: {
-      top: NO_BORDER,
-      bottom: NO_BORDER,
-      left: { style: BorderStyle.SINGLE, size: 20, color: tier.fg },
-      right: NO_BORDER,
-      insideHorizontal: NO_BORDER,
-      insideVertical: NO_BORDER,
+function categoryBanner(title: string, count: number, tier: Tier): Paragraph {
+  return new Paragraph({
+    keepNext: true,
+    keepLines: true,
+    spacing: { before: 60, after: 0 },
+    shading: { type: ShadingType.CLEAR, color: "auto", fill: tier.bg },
+    border: {
+      left: { style: BorderStyle.SINGLE, size: 20, color: tier.fg, space: 8 },
     },
-    rows: [
-      new TableRow({
-        children: [
-          new TableCell({
-            shading: { type: ShadingType.CLEAR, color: "auto", fill: tier.bg },
-            margins: { top: 120, bottom: 120, left: 220, right: 220 },
-            verticalAlign: VerticalAlign.CENTER,
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({ text: title, bold: true, size: 22, color: tier.fg }),
-                  new TextRun({
-                    text: `    ${count} enumerator${count === 1 ? "" : "s"}`,
-                    bold: true,
-                    size: 18,
-                    color: COLOR.subtle,
-                  }),
-                ],
-              }),
-            ],
-          }),
-        ],
+    children: [
+      new TextRun({ text: title, bold: true, size: 22, color: tier.fg }),
+      new TextRun({
+        text: `    ${count} enumerator${count === 1 ? "" : "s"}`,
+        bold: true,
+        size: 18,
+        color: COLOR.subtle,
       }),
     ],
   });
@@ -437,6 +427,7 @@ function enumeratorTable(enumerators: EnumeratorPerformance[]): Table {
 
   const headerRow = new TableRow({
     tableHeader: true,
+    cantSplit: true,
     children: headers.map((h) => headerCell(h.label, h.alignRight)),
   });
 
@@ -445,6 +436,7 @@ function enumeratorTable(enumerators: EnumeratorPerformance[]): Table {
     const fill = zebra ? COLOR.zebra : undefined;
     const tier = tierFor(e.submissionTargetAttainment);
     return new TableRow({
+      cantSplit: true,
       children: [
         dataCell(e.name, { bold: true, color: COLOR.ink, fill }),
         dataCell(e.district, { fill }),
@@ -466,6 +458,7 @@ function enumeratorTable(enumerators: EnumeratorPerformance[]): Table {
   if (dataRows.length === 0) {
     dataRows.push(
       new TableRow({
+        cantSplit: true,
         children: [
           new TableCell({
             columnSpan: headers.length,
@@ -548,6 +541,7 @@ function summaryPanel(
     },
     rows: [
       new TableRow({
+        cantSplit: true,
         children: [
           new TableCell({
             shading: { type: ShadingType.CLEAR, color: "auto", fill },
@@ -755,7 +749,7 @@ function buildSectionContent(
     sectionHeading("Enumerator Performance by Target Category"),
     paragraph(
       "Enumerators are grouped by submission-based target attainment, calculated as submissions ÷ (working days × 10) × 100.",
-      { spacingAfter: 180 }
+      { spacingAfter: 180, keepNext: true }
     ),
 
     categoryBanner(

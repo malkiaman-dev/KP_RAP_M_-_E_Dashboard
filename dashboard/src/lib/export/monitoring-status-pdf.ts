@@ -94,38 +94,13 @@ function bulletPanel(bullets: string[], fill: string, accent: string): Content {
   };
 }
 
-function categoryBanner(title: string, count: number, tier: PerformanceTier): Content {
-  return {
-    margin: [0, 10, 0, 6],
-    table: {
-      widths: ["*"],
-      body: [
-        [
-          {
-            text: [
-              { text: title, bold: true, color: tier.fg },
-              { text: `    ${count} enumerator${count === 1 ? "" : "s"}`, color: C.subtle },
-            ],
-            fillColor: tier.bg,
-            margin: [10, 6, 10, 6],
-          },
-        ],
-      ],
-    },
-    layout: {
-      hLineWidth: () => 0,
-      vLineWidth: (i: number) => (i === 0 ? 3 : 0),
-      vLineColor: () => tier.fg,
-      paddingLeft: () => 0,
-      paddingRight: () => 0,
-      paddingTop: () => 0,
-      paddingBottom: () => 0,
-    },
-  };
-}
-
-function enumeratorTable(enumerators: EnumeratorPerformance[]): Content {
-  const header = [
+function categoryTable(
+  title: string,
+  count: number,
+  tier: PerformanceTier,
+  enumerators: EnumeratorPerformance[]
+): Content {
+  const columns = [
     { text: "Enumerator", style: "tableHeader" },
     { text: "District", style: "tableHeader" },
     { text: "Subs", style: "tableHeader", alignment: "right" as const },
@@ -136,22 +111,35 @@ function enumeratorTable(enumerators: EnumeratorPerformance[]): Content {
     { text: "Status", style: "tableHeader", alignment: "center" as const },
   ];
 
-  const body = [header] as Content[][];
+  const titleRow = [
+    {
+      text: [
+        { text: title, bold: true, color: tier.fg },
+        { text: `    ${count} enumerator${count === 1 ? "" : "s"}`, color: C.subtle },
+      ],
+      colSpan: columns.length,
+      fillColor: tier.bg,
+      margin: [8, 6, 8, 6],
+    },
+    ...Array.from({ length: columns.length - 1 }, () => ""),
+  ] as Content[];
+
+  const body = [titleRow, columns] as Content[][];
 
   if (enumerators.length === 0) {
     body.push([
       {
         text: "No enumerators in this category.",
-        colSpan: header.length,
+        colSpan: columns.length,
         italics: true,
         color: C.subtle,
         margin: [4, 6, 4, 6],
       },
-      ...Array.from({ length: header.length - 1 }, () => ""),
+      ...Array.from({ length: columns.length - 1 }, () => ""),
     ] as Content[]);
   } else {
     for (const e of enumerators) {
-      const tier = tierFor(e.submissionTargetAttainment);
+      const tier2 = tierFor(e.submissionTargetAttainment);
       body.push([
         { text: e.name, bold: true, color: C.ink },
         { text: e.district },
@@ -159,21 +147,29 @@ function enumeratorTable(enumerators: EnumeratorPerformance[]): Content {
         { text: num(e.trackedGirls), alignment: "right" as const, color: C.brand, bold: true },
         { text: num(e.activeDays), alignment: "right" as const },
         { text: Math.round(e.avgSubmissionsPerDay).toString(), alignment: "right" as const },
-        { text: pct(e.submissionTargetAttainment, 0), alignment: "right" as const, color: tier.fg, bold: true },
-        { text: tier.label, alignment: "center" as const, color: tier.fg, bold: true },
+        { text: pct(e.submissionTargetAttainment, 0), alignment: "right" as const, color: tier2.fg, bold: true },
+        { text: tier2.label, alignment: "center" as const, color: tier2.fg, bold: true },
       ]);
     }
   }
 
   return {
     table: {
-      headerRows: 1,
+      headerRows: 2,
+      keepWithHeaderRows: 1,
+      dontBreakRows: true,
       widths: ["*", "auto", "auto", "auto", "auto", "auto", "auto", "auto"],
       body,
     },
     layout: {
       fillColor: (rowIndex: number) =>
-        rowIndex === 0 ? C.brand : rowIndex % 2 === 0 ? C.white : C.tile,
+        rowIndex === 0
+          ? tier.bg
+          : rowIndex === 1
+            ? C.brand
+            : rowIndex % 2 === 0
+              ? C.white
+              : C.tile,
       hLineColor: () => C.line,
       vLineColor: () => C.line,
       hLineWidth: () => 0.5,
@@ -183,7 +179,7 @@ function enumeratorTable(enumerators: EnumeratorPerformance[]): Content {
       paddingTop: () => 4,
       paddingBottom: () => 4,
     },
-    margin: [0, 0, 0, 8],
+    margin: [0, 10, 0, 10],
   };
 }
 
@@ -313,71 +309,98 @@ function buildSectionPdfContent(section: MonitoringReportSection): Content[] {
   const subTier = tierFor(metrics.submissionTargetAchievement);
 
   return [
-    { text: districtLabel, style: "districtTitle" },
     {
-      text: `${num(metrics.activeEnumerators)} enumerators · ${num(metrics.enumeratorDays)} enumerator-days · ${num(metrics.activeFieldDays)} actual field days · ${submissionsWithUniqueGirls(metrics)}`,
-      style: "districtMeta",
-      margin: [0, 0, 0, 12],
+      unbreakable: true,
+      stack: [
+        { text: districtLabel, style: "districtTitle" },
+        {
+          text: `${num(metrics.activeEnumerators)} enumerators · ${num(metrics.enumeratorDays)} enumerator-days · ${num(metrics.activeFieldDays)} actual field days · ${submissionsWithUniqueGirls(metrics)}`,
+          style: "districtMeta",
+          margin: [0, 0, 0, 12],
+        },
+        sectionTitle("Executive Summary"),
+        bulletPanel(
+          buildExecutiveSummaryBullets(districtLabel, metrics, categories),
+          C.brandSoft,
+          C.brand
+        ),
+      ],
     },
-    sectionTitle("Executive Summary"),
-    bulletPanel(
-      buildExecutiveSummaryBullets(districtLabel, metrics, categories),
-      C.brandSoft,
-      C.brand
-    ),
-    sectionTitle("Overall Tracking Status"),
-    { text: buildStatusSummary(metrics), bold: true, color: subTier.fg, margin: [0, 0, 0, 6] },
     {
-      text: `${num(metrics.activeEnumerators)} active enumerators worked across ${num(metrics.enumeratorDays)} enumerator-days (${num(metrics.activeFieldDays)} actual field days). ${submissionsWithUniqueGirls(metrics)} were received against an expected ${num(metrics.expectedSubmissions)} (${metrics.dailyTarget} girls per enumerator per working day). ${num(metrics.totalTracked)} girls were successfully tracked, a tracking success rate of ${pct(metrics.trackingSuccessRate, 0)}.`,
-      style: "body",
-      margin: [0, 0, 0, 10],
+      unbreakable: true,
+      stack: [
+        sectionTitle("Overall Tracking Status"),
+        { text: buildStatusSummary(metrics), bold: true, color: subTier.fg, margin: [0, 0, 0, 6] },
+        {
+          text: `${num(metrics.activeEnumerators)} active enumerators worked across ${num(metrics.enumeratorDays)} enumerator-days (${num(metrics.activeFieldDays)} actual field days). ${submissionsWithUniqueGirls(metrics)} were received against an expected ${num(metrics.expectedSubmissions)} (${metrics.dailyTarget} girls per enumerator per working day). ${num(metrics.totalTracked)} girls were successfully tracked, a tracking success rate of ${pct(metrics.trackingSuccessRate, 0)}.`,
+          style: "body",
+          margin: [0, 0, 0, 10],
+        },
+      ],
     },
-    sectionTitle("Daily Target Achievement"),
-    targetCallout(metrics),
     {
-      text: `Tracked-based achievement: ${pct(metrics.targetAchievement)} (${num(metrics.totalTracked)} of ${num(metrics.expectedTracked)} expected tracked girls).`,
-      style: "body",
-      margin: [0, 6, 0, 10],
+      unbreakable: true,
+      stack: [
+        sectionTitle("Daily Target Achievement"),
+        targetCallout(metrics),
+        {
+          text: `Tracked-based achievement: ${pct(metrics.targetAchievement)} (${num(metrics.totalTracked)} of ${num(metrics.expectedTracked)} expected tracked girls).`,
+          style: "body",
+          margin: [0, 6, 0, 10],
+        },
+      ],
     },
-    sectionTitle("Key Performance Indicators"),
-    buildKpiGrid(metrics),
-    sectionTitle("Enumerator Performance by Target Category"),
     {
-      text: "Enumerators are grouped by submission-based target attainment, calculated as submissions ÷ (working days × 10) × 100.",
-      style: "body",
-      margin: [0, 0, 0, 8],
+      unbreakable: true,
+      stack: [sectionTitle("Key Performance Indicators"), buildKpiGrid(metrics)],
     },
-    categoryBanner(
+    {
+      unbreakable: true,
+      stack: [
+        sectionTitle("Enumerator Performance by Target Category"),
+        {
+          text: "Enumerators are grouped by submission-based target attainment, calculated as submissions ÷ (working days × 10) × 100.",
+          style: "body",
+          margin: [0, 0, 0, 0],
+        },
+      ],
+    },
+    categoryTable(
       "Category 1 — High Performers (≥ 70%)",
       categories.onOrNearTarget.length,
-      { fg: C.high, bg: C.highBg, label: "On Track" }
+      { fg: C.high, bg: C.highBg, label: "On Track" },
+      categories.onOrNearTarget
     ),
-    enumeratorTable(categories.onOrNearTarget),
-    categoryBanner(
+    categoryTable(
       "Category 2 — Medium Performers (> 50% and < 70%)",
       categories.belowTarget.length,
-      { fg: C.med, bg: C.medBg, label: "Below" }
+      { fg: C.med, bg: C.medBg, label: "Below" },
+      categories.belowTarget
     ),
-    enumeratorTable(categories.belowTarget),
-    categoryBanner(
+    categoryTable(
       "Category 3 — Low Performers (≤ 50%)",
       categories.critical.length,
-      { fg: C.low, bg: C.lowBg, label: "Critical" }
-    ),
-    enumeratorTable(categories.critical),
-    sectionTitle("Report Summary"),
-    bulletPanel(
-      buildReportSummaryBullets(districtLabel, metrics, categories),
-      C.tile,
-      C.brandDark
+      { fg: C.low, bg: C.lowBg, label: "Critical" },
+      categories.critical
     ),
     {
-      text: `— End of ${districtLabel} Report —`,
-      alignment: "center",
-      italics: true,
-      color: C.subtle,
-      fontSize: 8,
-      margin: [0, 12, 0, 0],
+      unbreakable: true,
+      stack: [
+        sectionTitle("Report Summary"),
+        bulletPanel(
+          buildReportSummaryBullets(districtLabel, metrics, categories),
+          C.tile,
+          C.brandDark
+        ),
+        {
+          text: `— End of ${districtLabel} Report —`,
+          alignment: "center",
+          italics: true,
+          color: C.subtle,
+          fontSize: 8,
+          margin: [0, 12, 0, 0],
+        },
+      ],
     },
   ];
 }
