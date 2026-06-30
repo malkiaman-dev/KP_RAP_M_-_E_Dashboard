@@ -204,6 +204,67 @@ function cleanEnumeratorName(name?: string): string {
   return name.replace(/\(.*\)/, "").trim();
 }
 
+/**
+ * Canonical identity for an enumerator.
+ *
+ * The raw data sometimes assigns the *same* field worker two different
+ * `enumerator_id` values (and the name casing/spacing varies between forms),
+ * which previously caused the same person to appear as two separate rows in the
+ * monitoring report (e.g. "Lati khan" and "Lati Khan"). Keying on a normalized
+ * name scoped to the district merges those records back into one enumerator.
+ */
+export function enumeratorIdentityKey(row: TrackingRow): string {
+  const name = cleanEnumeratorName(row.enumerator_name)
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+  const district = (row.district || "").trim();
+  if (name && name !== "unknown") return `${district}::${name}`;
+  return row.enumerator_id || row.enumerator_name || "unknown";
+}
+
+function enumeratorIdentityFromSummary(
+  g: Pick<GirlSummary, "enumeratorId" | "enumeratorName" | "district">
+): string {
+  const name = cleanEnumeratorName(g.enumeratorName)
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+  const district = (g.district || "").trim();
+  if (name && name !== "unknown") return `${district}::${name}`;
+  return g.enumeratorId || g.enumeratorName || "unknown";
+}
+
+/** Pick the most frequently submitted name variant for display. */
+function preferredEnumeratorName(subs: TrackingRow[]): string {
+  const counts = new Map<string, number>();
+  for (const r of subs) {
+    const name = cleanEnumeratorName(r.enumerator_name);
+    if (!name || name === "Unknown") continue;
+    counts.set(name, (counts.get(name) || 0) + 1);
+  }
+  if (counts.size === 0) {
+    return cleanEnumeratorName(subs[0]?.enumerator_name) || "Unknown";
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+}
+
+function buildEnumeratorOptions(rows: TrackingRow[]) {
+  const groups = new Map<string, TrackingRow[]>();
+  for (const r of rows) {
+    const key = enumeratorIdentityKey(r);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(r);
+  }
+  return [...groups.entries()]
+    .filter(([key]) => key && key !== "unknown")
+    .map(([value, subs]) => ({
+      value,
+      label: preferredEnumeratorName(subs),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 function resolveSchoolLabel(row: TrackingRow): string | undefined {
   const label = row.school_label || row.new_school_label;
   if (label?.trim()) return label.trim();
@@ -777,7 +838,7 @@ export function applyTrackingFilters(
   return rows.filter((r) => {
     if (filters.district !== "all" && r.district !== filters.district)
       return false;
-    if (filters.enumerator !== "all" && r.enumerator_id !== filters.enumerator)
+    if (filters.enumerator !== "all" && enumeratorIdentityKey(r) !== filters.enumerator)
       return false;
     if (filters.village !== "all" && resolveVillageLabel(r) !== filters.village)
       return false;
@@ -959,7 +1020,7 @@ export function computeTrackingMetrics(
     rows.map((r) => resolveSchoolLabel(r)).filter(Boolean)
   );
   const enumerators = new Set(
-    rows.map((r) => r.enumerator_id).filter(Boolean)
+    rows.map((r) => enumeratorIdentityKey(r)).filter((id) => id !== "unknown")
   );
 
   const districtIds = [...new Set(girls.map((g) => g.district).filter(Boolean))];
@@ -1015,10 +1076,10 @@ export function computeTrackingMetrics(
     { id: string; name: string; district: string; total: number; untracked: number }
   >();
   for (const g of girls) {
-    const id = g.enumeratorId || g.enumeratorName;
+    const id = enumeratorIdentityFromSummary(g);
     if (!enumeratorStats.has(id)) {
       enumeratorStats.set(id, {
-        id: g.enumeratorId || id,
+        id,
         name: g.enumeratorName,
         district: g.districtLabel,
         total: 0,
@@ -1110,17 +1171,7 @@ export function computeTrackingMetrics(
   const schoolOptions = [
     ...new Set(rows.map((r) => resolveSchoolLabel(r)).filter(Boolean)),
   ].map((s) => ({ value: s!, label: s! }));
-  const enumeratorOptions = [
-    ...new Map(
-      rows.map((r) => [
-        r.enumerator_id || "",
-        {
-          value: r.enumerator_id || "",
-          label: cleanEnumeratorName(r.enumerator_name),
-        },
-      ])
-    ).values(),
-  ].filter((e) => e.value);
+  const enumeratorOptions = buildEnumeratorOptions(rows);
 
   // Partition every attempted girl into one of two listing years so the two
   // buckets always sum to uniqueGirlsAttempted. A girl is counted as "2024" if
@@ -1355,7 +1406,7 @@ export function computeMonitoringMetrics(
   // ---- Per-enumerator aggregation ----
   const byEnumerator = new Map<string, TrackingRow[]>();
   for (const r of rows) {
-    const id = r.enumerator_id || r.enumerator_name || "unknown";
+    const id = enumeratorIdentityKey(r);
     if (!byEnumerator.has(id)) byEnumerator.set(id, []);
     byEnumerator.get(id)!.push(r);
   }
@@ -1364,7 +1415,7 @@ export function computeMonitoringMetrics(
   let enumeratorDaysMeetingTarget = 0;
 
   const enumeratorPerformance: EnumeratorPerformance[] = [...byEnumerator.entries()]
-    .map(([id, subs]) => {
+    .map(([identityKey, subs]) => {
       const uniqueGirls = new Set(subs.map(girlKey)).size;
       const trackedGirls = new Set(
         subs.filter(isTrackedSubmission).map(girlKey)
@@ -1396,8 +1447,8 @@ export function computeMonitoringMetrics(
       const expectedSubmissions = allDays.size * target;
 
       return {
-        id,
-        name: cleanEnumeratorName(subs[0]?.enumerator_name) || id,
+        id: identityKey,
+        name: preferredEnumeratorName(subs),
         district: districtLabel(
           subs[0]?.district || "",
           subs[0]?.district_label
@@ -1437,7 +1488,7 @@ export function computeMonitoringMetrics(
   const dailyTrend: DailyMonitoringPoint[] = [...byDay.entries()]
     .map(([date, subs]) => {
       const activeEnumerators = new Set(
-        subs.map((r) => r.enumerator_id || r.enumerator_name || "unknown")
+        subs.map((r) => enumeratorIdentityKey(r))
       ).size;
       const trackedGirls = new Set(
         subs.filter(isTrackedSubmission).map(girlKey)
