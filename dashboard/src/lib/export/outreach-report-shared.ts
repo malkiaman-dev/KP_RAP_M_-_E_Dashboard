@@ -219,7 +219,7 @@ function sanitizeFilenamePart(value: string): string {
 
 export function buildOutreachReportFilename(
   scopeLabel: string,
-  filters: TrackingFilters,
+  _filters: TrackingFilters,
   format: ReportFormat = "pdf"
 ): string {
   const district =
@@ -227,24 +227,10 @@ export function buildOutreachReportFilename(
       ? "All_Districts"
       : sanitizeFilenamePart(scopeLabel);
 
-  const fmt = (iso: string) => formatDisplayDate(iso) || iso;
-
-  let datePart: string;
-  if (filters.todayOnly) {
-    datePart = fmt(toIsoDateString(new Date()));
-  } else if (filters.dateFrom && filters.dateTo) {
-    datePart =
-      filters.dateFrom === filters.dateTo
-        ? fmt(filters.dateFrom)
-        : `${fmt(filters.dateFrom)}_to_${fmt(filters.dateTo)}`;
-  } else if (filters.dateFrom) {
-    datePart = fmt(filters.dateFrom);
-  } else if (filters.dateTo) {
-    datePart = fmt(filters.dateTo);
-  } else {
-    datePart = "All_Dates";
-  }
+  const generatedDate = sanitizeFilenamePart(
+    formatDisplayDate(toIsoDateString(new Date())) || toIsoDateString(new Date())
+  );
 
   const ext = format === "pdf" ? "pdf" : "docx";
-  return `KPRAP_Tracking_Progress_${district}_${datePart}.${ext}`;
+  return `KPRAP_Tracking_Progress_${district}_Report_${generatedDate}.${ext}`;
 }
