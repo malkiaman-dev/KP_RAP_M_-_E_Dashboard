@@ -39,6 +39,10 @@ export function num(n: number): string {
   return n.toLocaleString();
 }
 
+export function submissionsWithUniqueGirls(metrics: MonitoringMetrics): string {
+  return `${num(metrics.totalSubmissions)} submissions (${num(metrics.uniqueGirls)} unique girls)`;
+}
+
 export function tierFor(value: number, high = 70, med = 50): PerformanceTier {
   if (value >= high) return { fg: "#15803D", bg: "#DCFCE7", label: "On Track" };
   if (value > med) return { fg: "#B45309", bg: "#FEF3C7", label: "Below" };
@@ -104,7 +108,7 @@ export function buildExecutiveSummaryBullets(
 
   return [
     `Scope: ${districtLabel} — ${num(metrics.activeEnumerators)} active enumerators across ${num(metrics.enumeratorDays)} enumerator-days (${num(metrics.activeFieldDays)} actual field days).`,
-    `Daily target achievement (submissions): ${pct(metrics.submissionTargetAchievement)} — ${subTier.label}. ${num(metrics.totalSubmissions)} of ${num(metrics.expectedSubmissions)} expected submissions at ${metrics.dailyTarget} girls per enumerator per working day.`,
+    `Daily target achievement (submissions): ${pct(metrics.submissionTargetAchievement)} — ${subTier.label}. ${submissionsWithUniqueGirls(metrics)} of ${num(metrics.expectedSubmissions)} expected submissions at ${metrics.dailyTarget} girls per enumerator per working day.`,
     `Tracking outcome: ${num(metrics.totalTracked)} girls successfully tracked from ${num(metrics.uniqueGirls)} attempted (${pct(metrics.trackingSuccessRate, 0)} success rate). Tracked-based target: ${pct(metrics.targetAchievement)}.`,
     `Enumerator performance: ${high} high (≥70%), ${med} medium (>50%–<70%), ${low} low (≤50%). ${num(metrics.enumeratorsOnTrack)} of ${num(metrics.activeEnumerators)} enumerators averaging ≥${metrics.dailyTarget} tracked girls per day.`,
     top
@@ -129,7 +133,7 @@ export function buildReportSummaryBullets(
       : 0;
 
   const recapBullets = [
-    `${districtLabel}: ${num(metrics.totalSubmissions)} submissions, ${num(metrics.totalTracked)} girls tracked, ${pct(metrics.submissionTargetAchievement)} of daily submission target achieved (${subTier.label}).`,
+    `${districtLabel}: ${submissionsWithUniqueGirls(metrics)}, ${num(metrics.totalTracked)} girls tracked, ${pct(metrics.submissionTargetAchievement)} of daily submission target achieved (${subTier.label}).`,
     `Field coverage: ${num(metrics.activeEnumerators)} enumerators · ${num(metrics.enumeratorDays)} enumerator-days · ${num(metrics.activeFieldDays)} actual field days · ${pct(metrics.pctDaysMeetingTarget, 0)} of enumerator-days met the tracked target.`,
     `Productivity averages: ${avgSubsPerDay.toFixed(1)} submissions and ${metrics.avgTrackedPerEnumeratorPerDay.toFixed(1)} tracked girls per enumerator per day (target: ${metrics.dailyTarget}).`,
     `Performance distribution: ${high} high performer${high === 1 ? "" : "s"}, ${med} medium performer${med === 1 ? "" : "s"}, ${low} low performer${low === 1 ? "" : "s"} (submission-based target %).`,
