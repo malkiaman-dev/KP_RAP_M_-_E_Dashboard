@@ -124,13 +124,10 @@ function categoryBanner(title: string, count: number, tier: PerformanceTier): Co
   };
 }
 
-function enumeratorTable(
-  enumerators: EnumeratorPerformance[],
-  showDistrict: boolean
-): Content {
+function enumeratorTable(enumerators: EnumeratorPerformance[]): Content {
   const header = [
     { text: "Enumerator", style: "tableHeader" },
-    ...(showDistrict ? [{ text: "District", style: "tableHeader" }] : []),
+    { text: "District", style: "tableHeader" },
     { text: "Subs", style: "tableHeader", alignment: "right" as const },
     { text: "Tracked", style: "tableHeader", alignment: "right" as const },
     { text: "Days", style: "tableHeader", alignment: "right" as const },
@@ -157,7 +154,7 @@ function enumeratorTable(
       const tier = tierFor(e.submissionTargetAttainment);
       body.push([
         { text: e.name, bold: true, color: C.ink },
-        ...(showDistrict ? [{ text: e.district }] : []),
+        { text: e.district },
         { text: num(e.submissions), alignment: "right" as const },
         { text: num(e.trackedGirls), alignment: "right" as const, color: C.brand, bold: true },
         { text: num(e.activeDays), alignment: "right" as const },
@@ -171,9 +168,7 @@ function enumeratorTable(
   return {
     table: {
       headerRows: 1,
-      widths: showDistrict
-        ? ["*", "auto", "auto", "auto", "auto", "auto", "auto", "auto"]
-        : ["*", "auto", "auto", "auto", "auto", "auto", "auto"],
+      widths: ["*", "auto", "auto", "auto", "auto", "auto", "auto", "auto"],
       body,
     },
     layout: {
@@ -312,10 +307,7 @@ function targetCallout(metrics: MonitoringReportSection["metrics"]): Content {
   };
 }
 
-function buildSectionPdfContent(
-  section: MonitoringReportSection,
-  showDistrictInTables: boolean
-): Content[] {
+function buildSectionPdfContent(section: MonitoringReportSection): Content[] {
   const { metrics, districtLabel } = section;
   const categories = categorizeEnumerators(metrics.enumeratorPerformance);
   const subTier = tierFor(metrics.submissionTargetAchievement);
@@ -360,19 +352,19 @@ function buildSectionPdfContent(
       categories.onOrNearTarget.length,
       { fg: C.high, bg: C.highBg, label: "On Track" }
     ),
-    enumeratorTable(categories.onOrNearTarget, showDistrictInTables),
+    enumeratorTable(categories.onOrNearTarget),
     categoryBanner(
       "Category 2 — Medium Performers (> 50% and < 70%)",
       categories.belowTarget.length,
       { fg: C.med, bg: C.medBg, label: "Below" }
     ),
-    enumeratorTable(categories.belowTarget, showDistrictInTables),
+    enumeratorTable(categories.belowTarget),
     categoryBanner(
       "Category 3 — Low Performers (≤ 50%)",
       categories.critical.length,
       { fg: C.low, bg: C.lowBg, label: "Critical" }
     ),
-    enumeratorTable(categories.critical, showDistrictInTables),
+    enumeratorTable(categories.critical),
     sectionTitle("Report Summary"),
     bulletPanel(
       buildReportSummaryBullets(districtLabel, metrics, categories),
@@ -396,8 +388,6 @@ export function buildMonitoringStatusPdfDefinition(
   const generatedLabel = formatDisplayDate(
     input.generatedAt.toISOString().slice(0, 10)
   );
-  const isMultiDistrict = input.sections.length > 1;
-
   const content: Content[] = [
     {
       table: {
@@ -429,10 +419,8 @@ export function buildMonitoringStatusPdfDefinition(
 
   for (let i = 0; i < input.sections.length; i++) {
     const section = input.sections[i]!;
-    const showDistrict =
-      isMultiDistrict && section.districtLabel !== "All Districts";
     if (i > 0) content.push({ text: "", pageBreak: "before" });
-    content.push(...buildSectionPdfContent(section, showDistrict));
+    content.push(...buildSectionPdfContent(section));
   }
 
   return {

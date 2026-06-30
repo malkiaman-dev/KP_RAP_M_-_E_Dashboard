@@ -423,13 +423,10 @@ function statusCell(tier: Tier, zebra: boolean): TableCell {
   });
 }
 
-function enumeratorTable(
-  enumerators: EnumeratorPerformance[],
-  showDistrict: boolean
-): Table {
+function enumeratorTable(enumerators: EnumeratorPerformance[]): Table {
   const headers: { label: string; alignRight: boolean }[] = [
     { label: "Enumerator", alignRight: false },
-    ...(showDistrict ? [{ label: "District", alignRight: false }] : []),
+    { label: "District", alignRight: false },
     { label: "Subs", alignRight: true },
     { label: "Tracked", alignRight: true },
     { label: "Days", alignRight: true },
@@ -450,7 +447,7 @@ function enumeratorTable(
     return new TableRow({
       children: [
         dataCell(e.name, { bold: true, color: COLOR.ink, fill }),
-        ...(showDistrict ? [dataCell(e.district, { fill })] : []),
+        dataCell(e.district, { fill }),
         dataCell(num(e.submissions), { alignRight: true, fill }),
         dataCell(num(e.trackedGirls), { alignRight: true, color: COLOR.brand, bold: true, fill }),
         dataCell(num(e.activeDays), { alignRight: true, fill }),
@@ -614,8 +611,7 @@ function buildReportSummary(data: SectionSummaryData): (Paragraph | Table)[] {
 /* -------------------------------------------------------------------------- */
 
 function buildSectionContent(
-  section: MonitoringReportSection,
-  showDistrictInTables: boolean
+  section: MonitoringReportSection
 ): (Paragraph | Table)[] {
   const { metrics, districtLabel } = section;
   const categories = sharedCategorizeEnumerators(metrics.enumeratorPerformance);
@@ -767,7 +763,7 @@ function buildSectionContent(
       categories.onOrNearTarget.length,
       { fg: COLOR.high, bg: COLOR.highBg, label: "On Track" }
     ),
-    enumeratorTable(categories.onOrNearTarget, showDistrictInTables),
+    enumeratorTable(categories.onOrNearTarget),
 
     new Paragraph({ spacing: { after: 120 }, children: [] }),
     categoryBanner(
@@ -775,7 +771,7 @@ function buildSectionContent(
       categories.belowTarget.length,
       { fg: COLOR.med, bg: COLOR.medBg, label: "Below" }
     ),
-    enumeratorTable(categories.belowTarget, showDistrictInTables),
+    enumeratorTable(categories.belowTarget),
 
     new Paragraph({ spacing: { after: 120 }, children: [] }),
     categoryBanner(
@@ -783,7 +779,7 @@ function buildSectionContent(
       categories.critical.length,
       { fg: COLOR.low, bg: COLOR.lowBg, label: "Critical" }
     ),
-    enumeratorTable(categories.critical, showDistrictInTables),
+    enumeratorTable(categories.critical),
 
     new Paragraph({ spacing: { after: 160 }, children: [] }),
     ...buildReportSummary(summaryData),
@@ -800,7 +796,6 @@ export function buildMonitoringStatusReport(
   const generatedLabel = formatDisplayDate(
     input.generatedAt.toISOString().slice(0, 10)
   );
-  const isMultiDistrict = input.sections.length > 1;
 
   const children: (Paragraph | Table)[] = [
     coverBanner(input, generatedLabel),
@@ -809,9 +804,7 @@ export function buildMonitoringStatusReport(
 
   for (let i = 0; i < input.sections.length; i++) {
     const section = input.sections[i]!;
-    const showDistrict =
-      isMultiDistrict && section.districtLabel !== "All Districts";
-    children.push(...buildSectionContent(section, showDistrict));
+    children.push(...buildSectionContent(section));
     if (i < input.sections.length - 1) {
       children.push(new Paragraph({ pageBreakBefore: true, children: [] }));
     }
