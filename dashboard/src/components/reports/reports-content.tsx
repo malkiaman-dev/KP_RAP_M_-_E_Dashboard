@@ -9,11 +9,15 @@ import { TrackingFiltersPanel } from "@/components/tracking/tracking-filters";
 import { TrackingActiveFilters } from "@/components/tracking/tracking-active-filters";
 import { ReportCard } from "@/components/reports/report-card";
 import { TrackingStatusReportCard } from "@/components/reports/tracking-status-report-card";
+import { TrackingProgressReportCard } from "@/components/reports/tracking-progress-report-card";
+import { cn } from "@/lib/utils";
 import {
   defaultMonitoringFilters,
   type TrackingFilters,
   type TrackingMetrics,
 } from "@/lib/data/tracking-metrics";
+
+type ReportMode = "operations" | "progress";
 
 async function fetchTracking(): Promise<TrackingMetrics> {
   const res = await fetch("/api/tracking");
@@ -87,6 +91,7 @@ export function ReportsContent() {
   const [filters, setFilters] = useState<TrackingFilters>(() =>
     defaultMonitoringFilters()
   );
+  const [reportMode, setReportMode] = useState<ReportMode>("progress");
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["tracking-metrics"],
@@ -119,12 +124,38 @@ export function ReportsContent() {
           Reports
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Generate and export executive reports, donor briefs, and field
-          operation summaries. Download district-wise or all-district reports
-          in Word or PDF for tracking, with Girls and Household reports coming
-          soon.
+          Generate and export tracking reports for field operations or programme
+          progress summaries. Download district-wise or all-district reports in
+          PDF or Word, with Girls and Household reports coming soon.
         </p>
       </motion.div>
+
+      <div className="mb-6 inline-flex rounded-xl border border-border/60 bg-muted/30 p-1">
+        <button
+          type="button"
+          onClick={() => setReportMode("progress")}
+          className={cn(
+            "rounded-lg px-4 py-2 text-xs font-medium transition-colors",
+            reportMode === "progress"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Progress Summary
+        </button>
+        <button
+          type="button"
+          onClick={() => setReportMode("operations")}
+          className={cn(
+            "rounded-lg px-4 py-2 text-xs font-medium transition-colors",
+            reportMode === "operations"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Field Operations
+        </button>
+      </div>
 
       <TrackingFiltersPanel
         filterOptions={data?.filterOptions}
@@ -142,12 +173,21 @@ export function ReportsContent() {
       />
 
       <div className="mt-6 space-y-4">
-        <TrackingStatusReportCard
-          allSubmissions={data?.allSubmissions}
-          filters={filters}
-          districtOptions={districts}
-          loading={isLoading}
-        />
+        {reportMode === "progress" ? (
+          <TrackingProgressReportCard
+            allSubmissions={data?.allSubmissions}
+            filters={filters}
+            districtOptions={districts}
+            loading={isLoading}
+          />
+        ) : (
+          <TrackingStatusReportCard
+            allSubmissions={data?.allSubmissions}
+            filters={filters}
+            districtOptions={districts}
+            loading={isLoading}
+          />
+        )}
 
         <ReportCard
           icon={Users}
