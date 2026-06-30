@@ -18,6 +18,7 @@ import {
 } from "docx";
 import { formatDisplayDate } from "@/lib/utils";
 import {
+  buildDocumentExecutiveSummaryParagraph,
   buildProgressConclusionBullets,
   buildProgressExecutiveSummaryBullets,
   buildProgressKpiTiles,
@@ -191,6 +192,22 @@ function kpiGrid(tiles: ProgressKpiTile[]): Table {
   });
 }
 
+function documentExecutiveSummary(scopeLabel: string): (Paragraph | Table)[] {
+  return [
+    sectionHeading("Executive Summary"),
+    new Paragraph({
+      spacing: { after: 240, line: 276 },
+      children: [
+        new TextRun({
+          text: buildDocumentExecutiveSummaryParagraph(scopeLabel),
+          color: COLOR.body,
+          size: 20,
+        }),
+      ],
+    }),
+  ];
+}
+
 function summaryPanel(bullets: string[]): Table {
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -345,7 +362,7 @@ function buildSectionContent(
         }),
       ],
     }),
-    sectionHeading("Executive Summary"),
+    sectionHeading("Summary"),
     summaryPanel(buildProgressExecutiveSummaryBullets(districtLabel, metrics)),
     new Paragraph({ spacing: { after: 160 }, children: [] }),
     sectionHeading("Tracking Progress Indicators"),
@@ -389,6 +406,7 @@ export function buildOutreachReport(input: OutreachReportInput): Document {
   const children: (Paragraph | Table)[] = [
     coverBanner(input, generatedLabel),
     new Paragraph({ spacing: { after: 120 }, children: [] }),
+    ...documentExecutiveSummary(input.scopeLabel),
   ];
 
   const hasOverall = input.sections.some((s) => s.districtLabel === "All Districts");

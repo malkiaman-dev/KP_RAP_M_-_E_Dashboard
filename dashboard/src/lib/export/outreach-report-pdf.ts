@@ -1,6 +1,7 @@
 import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
 import { formatDisplayDate } from "@/lib/utils";
 import {
+  buildDocumentExecutiveSummaryParagraph,
   buildProgressConclusionBullets,
   buildProgressExecutiveSummaryBullets,
   buildProgressKpiTiles,
@@ -217,7 +218,7 @@ function buildSectionPdfContent(
           style: "districtMeta",
           margin: [0, 0, 0, 12],
         },
-        sectionTitle("Executive Summary"),
+        sectionTitle("Summary"),
         bulletPanel(
           buildProgressExecutiveSummaryBullets(districtLabel, metrics),
           C.brandSoft,
@@ -299,6 +300,18 @@ export function buildOutreachReportPdfDefinition(
       },
       layout: "noBorders",
       margin: [0, 0, 0, 16],
+    },
+    {
+      unbreakable: true,
+      stack: [
+        sectionTitle("Executive Summary"),
+        {
+          text: buildDocumentExecutiveSummaryParagraph(input.scopeLabel),
+          style: "body",
+          lineHeight: 1.4,
+          margin: [0, 0, 0, 16],
+        },
+      ],
     },
   ];
 

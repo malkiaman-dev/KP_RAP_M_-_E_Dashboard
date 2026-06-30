@@ -23,6 +23,13 @@ export interface OutreachReportInput {
   sections: OutreachReportSection[];
 }
 
+export function buildDocumentExecutiveSummaryParagraph(scopeLabel: string): string {
+  if (scopeLabel === "All Districts") {
+    return "This document contains a programme-wide summary of field tracking progress across all districts, covering villages and schools visited, girls attempted and successfully tracked, consent and revisit outcomes, and breakdowns by listing cohort and listing year, with district-level detail and comparison tables.";
+  }
+  return `This document contains a summary of field tracking progress for ${scopeLabel}, covering villages and schools visited, girls attempted and successfully tracked, consent and revisit outcomes, and breakdowns by listing cohort and listing year.`;
+}
+
 export interface ProgressKpiTile {
   label: string;
   value: string;
