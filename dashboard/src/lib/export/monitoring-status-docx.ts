@@ -19,21 +19,24 @@ import {
 import type {
   EnumeratorPerformance,
   MonitoringMetrics,
-  TrackingFilters,
 } from "@/lib/data/tracking-metrics";
-import { formatDisplayDate, toIsoDateString } from "@/lib/utils";
+import { formatDisplayDate } from "@/lib/utils";
+import {
+  buildExecutiveSummaryBullets,
+  buildReportSummaryBullets,
+  categorizeEnumerators as sharedCategorizeEnumerators,
+  num,
+  pct,
+  type EnumeratorCategories,
+  type MonitoringReportSection,
+  type MonitoringStatusReportInput,
+} from "@/lib/export/monitoring-report-shared";
 
-export interface MonitoringReportSection {
-  districtLabel: string;
-  metrics: MonitoringMetrics;
-}
-
-export interface MonitoringStatusReportInput {
-  scopeLabel: string;
-  dateRangeLabel: string;
-  generatedAt: Date;
-  sections: MonitoringReportSection[];
-}
+export type { MonitoringReportSection, MonitoringStatusReportInput };
+export {
+  buildDateRangeLabel,
+  buildMonitoringStatusReportFilename,
+} from "@/lib/export/monitoring-report-shared";
 
 /* -------------------------------------------------------------------------- */
 /*  Brand & status palette (hex without the leading #)                        */
@@ -72,75 +75,8 @@ function tierFor(value: number, high = 70, med = 50): Tier {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Filename + label helpers                                                  */
+/*  Filename + label helpers — see monitoring-report-shared.ts              */
 /* -------------------------------------------------------------------------- */
-
-function sanitizeFilenamePart(value: string): string {
-  return value
-    .trim()
-    .replace(/[^\w\-]+/g, "_")
-    .replace(/_+/g, "_")
-    .replace(/^_|_$/g, "");
-}
-
-export function buildMonitoringStatusReportFilename(
-  scopeLabel: string,
-  filters: TrackingFilters,
-  districtOptions?: { value: string; label: string }[]
-): string {
-  void districtOptions;
-  const district =
-    scopeLabel === "All_Districts"
-      ? "All_Districts"
-      : sanitizeFilenamePart(scopeLabel);
-
-  const fmt = (iso: string) => formatDisplayDate(iso) || iso;
-
-  let datePart: string;
-  if (filters.todayOnly) {
-    datePart = fmt(toIsoDateString(new Date()));
-  } else if (filters.dateFrom && filters.dateTo) {
-    datePart =
-      filters.dateFrom === filters.dateTo
-        ? fmt(filters.dateFrom)
-        : `${fmt(filters.dateFrom)}_to_${fmt(filters.dateTo)}`;
-  } else if (filters.dateFrom) {
-    datePart = fmt(filters.dateFrom);
-  } else if (filters.dateTo) {
-    datePart = fmt(filters.dateTo);
-  } else {
-    datePart = "All_Dates";
-  }
-
-  return `${district}_Tracking_Status_Report_${datePart}.docx`;
-}
-
-export function buildDateRangeLabel(filters: TrackingFilters): string {
-  if (filters.todayOnly) {
-    return `Today (${formatDisplayDate(toIsoDateString(new Date()))})`;
-  }
-  if (filters.dateFrom && filters.dateTo) {
-    if (filters.dateFrom === filters.dateTo) {
-      return formatDisplayDate(filters.dateFrom);
-    }
-    return `${formatDisplayDate(filters.dateFrom)} to ${formatDisplayDate(filters.dateTo)}`;
-  }
-  if (filters.dateFrom) {
-    return `From ${formatDisplayDate(filters.dateFrom)}`;
-  }
-  if (filters.dateTo) {
-    return `Up to ${formatDisplayDate(filters.dateTo)}`;
-  }
-  return "All dates";
-}
-
-function pct(n: number, digits = 1): string {
-  return `${n.toFixed(digits)}%`;
-}
-
-function num(n: number): string {
-  return n.toLocaleString();
-}
 
 /* -------------------------------------------------------------------------- */
 /*  Low-level building blocks                                                 */
@@ -387,21 +323,6 @@ function targetCallout(metrics: MonitoringMetrics): Table {
 
 /* ----- Enumerator category tables ---------------------------------------- */
 
-function categorizeEnumerators(enumerators: EnumeratorPerformance[]) {
-  const onOrNearTarget = enumerators
-    .filter((e) => e.submissionTargetAttainment >= 70)
-    .sort((a, b) => b.submissionTargetAttainment - a.submissionTargetAttainment);
-  const belowTarget = enumerators
-    .filter(
-      (e) => e.submissionTargetAttainment > 50 && e.submissionTargetAttainment < 70
-    )
-    .sort((a, b) => b.submissionTargetAttainment - a.submissionTargetAttainment);
-  const critical = enumerators
-    .filter((e) => e.submissionTargetAttainment <= 50)
-    .sort((a, b) => b.submissionTargetAttainment - a.submissionTargetAttainment);
-  return { onOrNearTarget, belowTarget, critical };
-}
-
 function categoryBanner(title: string, count: number, tier: Tier): Table {
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -585,6 +506,109 @@ function enumeratorTable(
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Executive summary & report summary                                        */
+/* -------------------------------------------------------------------------- */
+
+interface SectionSummaryData {
+  districtLabel: string;
+  metrics: MonitoringMetrics;
+  categories: EnumeratorCategories;
+}
+
+function summaryPanel(
+  title: string | null,
+  fill: string,
+  accent: string,
+  bullets: string[]
+): Table {
+  const titleParagraph =
+    title != null && title.length > 0
+      ? [
+          new Paragraph({
+            spacing: { after: 120 },
+            children: [
+              new TextRun({
+                text: title.toUpperCase(),
+                bold: true,
+                size: 22,
+                color: accent,
+              }),
+            ],
+          }),
+        ]
+      : [];
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 4, color: accent },
+      bottom: { style: BorderStyle.SINGLE, size: 4, color: accent },
+      left: { style: BorderStyle.SINGLE, size: 24, color: accent },
+      right: { style: BorderStyle.SINGLE, size: 4, color: accent },
+      insideHorizontal: NO_BORDER,
+      insideVertical: NO_BORDER,
+    },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            shading: { type: ShadingType.CLEAR, color: "auto", fill },
+            margins: { top: 200, bottom: 200, left: 280, right: 280 },
+            children: [
+              ...titleParagraph,
+              ...bullets.map(
+                (text) =>
+                  new Paragraph({
+                    spacing: { after: 80, line: 276 },
+                    bullet: { level: 0 },
+                    children: [
+                      new TextRun({ text, size: 19, color: COLOR.body }),
+                    ],
+                  })
+              ),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+function buildExecutiveSummary(data: SectionSummaryData): Table {
+  const bullets = buildExecutiveSummaryBullets(
+    data.districtLabel,
+    data.metrics,
+    data.categories
+  );
+  return summaryPanel(null, COLOR.brandSoft, COLOR.brand, bullets);
+}
+
+function buildReportSummary(data: SectionSummaryData): (Paragraph | Table)[] {
+  const recapBullets = buildReportSummaryBullets(
+    data.districtLabel,
+    data.metrics,
+    data.categories
+  );
+
+  return [
+    sectionHeading("Report Summary"),
+    summaryPanel(null, COLOR.tile, COLOR.brandDark, recapBullets),
+    new Paragraph({
+      spacing: { before: 160, after: 0 },
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: `— End of ${data.districtLabel} Report —`,
+          italics: true,
+          size: 17,
+          color: COLOR.subtle,
+        }),
+      ],
+    }),
+  ];
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Section assembly                                                          */
 /* -------------------------------------------------------------------------- */
 
@@ -593,11 +617,17 @@ function buildSectionContent(
   showDistrictInTables: boolean
 ): (Paragraph | Table)[] {
   const { metrics, districtLabel } = section;
-  const categories = categorizeEnumerators(metrics.enumeratorPerformance);
+  const categories = sharedCategorizeEnumerators(metrics.enumeratorPerformance);
   const avgSubsPerDay =
     metrics.enumeratorDays > 0
       ? metrics.totalSubmissions / metrics.enumeratorDays
       : 0;
+
+  const summaryData: SectionSummaryData = {
+    districtLabel,
+    metrics,
+    categories,
+  };
 
   const subTier = tierFor(metrics.submissionTargetAchievement);
   const statusSummary =
@@ -694,6 +724,10 @@ function buildSectionContent(
       ],
     }),
 
+    sectionHeading("Executive Summary"),
+    buildExecutiveSummary(summaryData),
+    new Paragraph({ spacing: { after: 160 }, children: [] }),
+
     sectionHeading("Overall Tracking Status"),
     new Paragraph({
       spacing: { after: 140, line: 276 },
@@ -749,6 +783,9 @@ function buildSectionContent(
       { fg: COLOR.low, bg: COLOR.lowBg, label: "Critical" }
     ),
     enumeratorTable(categories.critical, showDistrictInTables),
+
+    new Paragraph({ spacing: { after: 160 }, children: [] }),
+    ...buildReportSummary(summaryData),
   ];
 }
 
@@ -851,7 +888,7 @@ export function buildMonitoringStatusReport(
   });
 }
 
-export async function downloadMonitoringStatusReport(
+export async function downloadMonitoringStatusDocx(
   input: MonitoringStatusReportInput,
   filename: string
 ) {

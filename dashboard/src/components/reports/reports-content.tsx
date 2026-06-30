@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Download, Home, Users } from "lucide-react";
+import { FilterSelect } from "@/components/ui/filter-select";
 import { TrackingFiltersPanel } from "@/components/tracking/tracking-filters";
 import { TrackingActiveFilters } from "@/components/tracking/tracking-active-filters";
 import { ReportCard } from "@/components/reports/report-card";
@@ -21,33 +22,44 @@ async function fetchTracking(): Promise<TrackingMetrics> {
 }
 
 function ComingSoonReportActions({
-  idPrefix,
   districts,
 }: {
-  idPrefix: string;
   districts: { value: string; label: string }[];
 }) {
+  const districtSelectOptions = [
+    { value: "", label: "Select a district…" },
+    ...districts,
+  ];
+
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
       <div className="min-w-[200px] flex-1 sm:max-w-xs">
-        <label
-          htmlFor={`${idPrefix}-district`}
-          className="mb-1 block text-[11px] font-medium text-muted-foreground"
-        >
+        <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
           District
         </label>
-        <select
-          id={`${idPrefix}-district`}
+        <FilterSelect
+          value=""
+          options={districtSelectOptions}
+          onChange={() => {}}
           disabled
-          className="w-full cursor-not-allowed rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
-        >
-          <option value="">Select a district…</option>
-          {districts.map((d) => (
-            <option key={d.value} value={d.value}>
-              {d.label}
-            </option>
-          ))}
-        </select>
+          aria-label="Report district"
+        />
+      </div>
+
+      <div className="min-w-[200px] flex-1 sm:max-w-xs">
+        <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+          Format
+        </label>
+        <FilterSelect
+          value="docx"
+          options={[
+            { value: "docx", label: "Microsoft Word (.docx)" },
+            { value: "pdf", label: "PDF (.pdf)" },
+          ]}
+          onChange={() => {}}
+          disabled
+          aria-label="Report format"
+        />
       </div>
 
       <button
@@ -108,8 +120,9 @@ export function ReportsContent() {
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
           Generate and export executive reports, donor briefs, and field
-          operation summaries. Download district-wise or all-district Word
-          reports for tracking, with Girls and Household reports coming soon.
+          operation summaries. Download district-wise or all-district reports
+          in Word or PDF for tracking, with Girls and Household reports coming
+          soon.
         </p>
       </motion.div>
 
@@ -142,9 +155,9 @@ export function ReportsContent() {
           description="Completion status, enumerator productivity, and district-level summary for the Girls survey module."
           status="coming-soon"
           accentClass="bg-sky-500/10 text-sky-500"
-          footer="Format: DOCX · District-wise and all-district downloads"
+          footer="Formats: Word (.docx) & PDF · District-wise and all-district downloads"
         >
-          <ComingSoonReportActions idPrefix="girls" districts={districts} />
+          <ComingSoonReportActions districts={districts} />
         </ReportCard>
 
         <ReportCard
@@ -153,9 +166,9 @@ export function ReportsContent() {
           description="Household completion rates, parent respondent coverage, and field progress by district."
           status="coming-soon"
           accentClass="bg-amber-500/10 text-amber-600 dark:text-amber-400"
-          footer="Format: DOCX · District-wise and all-district downloads"
+          footer="Formats: Word (.docx) & PDF · District-wise and all-district downloads"
         >
-          <ComingSoonReportActions idPrefix="hh" districts={districts} />
+          <ComingSoonReportActions districts={districts} />
         </ReportCard>
       </div>
     </div>

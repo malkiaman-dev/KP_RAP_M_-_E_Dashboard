@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Download, MapPin } from "lucide-react";
+import { FilterSelect } from "@/components/ui/filter-select";
 import {
   applyTrackingFilters,
   computeMonitoringMetrics,
@@ -9,13 +10,19 @@ import {
   type TrackingRow,
 } from "@/lib/data/tracking-metrics";
 import { DAILY_TRACKING_TARGET_PER_ENUMERATOR } from "@/lib/data/protocol";
+import { downloadMonitoringStatusReport } from "@/lib/export/monitoring-report-download";
 import {
   buildDateRangeLabel,
   buildMonitoringStatusReportFilename,
-  downloadMonitoringStatusReport,
   type MonitoringReportSection,
-} from "@/lib/export/monitoring-status-docx";
+  type ReportFormat,
+} from "@/lib/export/monitoring-report-shared";
 import { ReportCard } from "@/components/reports/report-card";
+
+const FORMAT_OPTIONS = [
+  { value: "docx", label: "Microsoft Word (.docx)" },
+  { value: "pdf", label: "PDF (.pdf)" },
+] as const;
 
 export function TrackingStatusReportCard({
   allSubmissions,
@@ -29,11 +36,16 @@ export function TrackingStatusReportCard({
   loading?: boolean;
 }) {
   const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [format, setFormat] = useState<ReportFormat>("docx");
   const [downloading, setDownloading] = useState<"district" | "all" | null>(
     null
   );
 
   const districts = districtOptions ?? [];
+  const districtSelectOptions = useMemo(
+    () => [{ value: "", label: "Select a district…" }, ...districts],
+    [districts]
+  );
 
   const baseRows = useMemo(() => {
     if (!allSubmissions) return [];
@@ -93,7 +105,8 @@ export function TrackingStatusReportCard({
           generatedAt: new Date(),
           sections: [section],
         },
-        buildMonitoringStatusReportFilename(district.label, filters, districts)
+        buildMonitoringStatusReportFilename(district.label, filters, format),
+        format
       );
     } finally {
       setDownloading(null);
@@ -112,11 +125,8 @@ export function TrackingStatusReportCard({
           generatedAt: new Date(),
           sections: buildAllDistrictsSections(),
         },
-        buildMonitoringStatusReportFilename(
-          "All_Districts",
-          filters,
-          districts
-        )
+        buildMonitoringStatusReportFilename("All_Districts", filters, format),
+        format
       );
     } finally {
       setDownloading(null);
@@ -131,36 +141,41 @@ export function TrackingStatusReportCard({
     !!selectedDistrict &&
     baseRows.some((r) => r.district === selectedDistrict);
 
+  const formatLabel = format === "pdf" ? "PDF" : "Word";
+
   return (
     <ReportCard
       icon={MapPin}
       title="Tracking Status Report"
-      description={`Word report with overall tracking status, key KPIs, the ${DAILY_TRACKING_TARGET_PER_ENUMERATOR} girls per enumerator per day target (submission-based), and enumerators grouped into three performance categories.`}
+      description={`Downloadable report with executive summary, overall tracking status, key KPIs, the ${DAILY_TRACKING_TARGET_PER_ENUMERATOR} girls per enumerator per day target (submission-based), and enumerators grouped into three performance categories.`}
       status="available"
-      footer={`Period: ${dateRangeLabel} · Format: DOCX · Categories: ≥70% · >50% and <70% · ≤50%`}
+      footer={`Period: ${dateRangeLabel} · Formats: Word (.docx) & PDF · Categories: ≥70% · >50% and <70% · ≤50%`}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="min-w-[200px] flex-1 sm:max-w-xs">
-          <label
-            htmlFor="tracking-report-district"
-            className="mb-1 block text-[11px] font-medium text-muted-foreground"
-          >
+          <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
             District
           </label>
-          <select
-            id="tracking-report-district"
+          <FilterSelect
             value={selectedDistrict}
-            onChange={(e) => setSelectedDistrict(e.target.value)}
+            options={districtSelectOptions}
+            onChange={setSelectedDistrict}
             disabled={!allSubmissions || baseRows.length === 0}
-            className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-xs outline-none focus:border-teal disabled:opacity-50"
-          >
-            <option value="">Select a district…</option>
-            {districts.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </select>
+            aria-label="Report district"
+          />
+        </div>
+
+        <div className="min-w-[200px] flex-1 sm:max-w-xs">
+          <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+            Format
+          </label>
+          <FilterSelect
+            value={format}
+            options={[...FORMAT_OPTIONS]}
+            onChange={(value) => setFormat(value as ReportFormat)}
+            disabled={!allSubmissions || baseRows.length === 0}
+            aria-label="Report format"
+          />
         </div>
 
         <button
@@ -174,7 +189,7 @@ export function TrackingStatusReportCard({
           <Download className="h-3.5 w-3.5" aria-hidden="true" />
           {downloading === "district"
             ? "Generating…"
-            : "Download district report"}
+            : `Download district report (${formatLabel})`}
         </button>
 
         <button
@@ -186,7 +201,7 @@ export function TrackingStatusReportCard({
           <Download className="h-3.5 w-3.5" aria-hidden="true" />
           {downloading === "all"
             ? "Generating…"
-            : "Download all districts report"}
+            : `Download all districts report (${formatLabel})`}
         </button>
       </div>
     </ReportCard>

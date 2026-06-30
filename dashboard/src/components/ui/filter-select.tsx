@@ -44,6 +44,7 @@ interface FilterSelectProps {
   options: SelectOption[];
   onChange: (value: string) => void;
   className?: string;
+  disabled?: boolean;
   "aria-label"?: string;
 }
 
@@ -52,6 +53,7 @@ export function FilterSelect({
   options,
   onChange,
   className,
+  disabled = false,
   "aria-label": ariaLabel,
 }: FilterSelectProps) {
   const [open, setOpen] = useState(false);
@@ -71,11 +73,13 @@ export function FilterSelect({
   useDismissiblePanel(open, close, anchorRef, panelRef);
 
   const selectOption = (optionValue: string) => {
+    if (disabled) return;
     onChange(optionValue);
     close();
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (disabled) return;
     if (!open) {
       if (
         event.key === "Enter" ||
@@ -119,11 +123,16 @@ export function FilterSelect({
         aria-haspopup="listbox"
         aria-controls={listId}
         aria-label={ariaLabel}
-        onClick={() => setOpen((current) => !current)}
+        disabled={disabled}
+        onClick={() => {
+          if (disabled) return;
+          setOpen((current) => !current);
+        }}
         onKeyDown={handleKeyDown}
         className={cn(
           filterFieldClassName,
-          open && "border-teal/60 ring-2 ring-teal/20"
+          open && "border-teal/60 ring-2 ring-teal/20",
+          disabled && "cursor-not-allowed opacity-50"
         )}
       >
         <span className="truncate">{selected?.label}</span>
