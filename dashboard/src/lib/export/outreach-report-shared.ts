@@ -159,7 +159,7 @@ export function buildProgressExecutiveSummaryBullets(
     `By listing cohort, ${num(metrics.trackedGirlsBaseline)} baseline girls and ${num(metrics.trackedGirlsNewSample)} new-sample girls were successfully tracked.`,
     `By listing year, ${num(metrics.trackedGirls2023)} girls were successfully tracked from the 2022-2023 listing (including all baseline girls) and ${num(metrics.trackedGirls2024)} from the 2023-2024 listing.`,
     `Consent was obtained from ${pct(metrics.consentRate, 0)} of located households; ${num(metrics.consentRefused)} girls had consent refused. ${num(metrics.revisitsNeeded)} girls still require a revisit and ${num(metrics.totalRevisitedGirls)} have been revisited to date.`,
-    `Note: the baseline survey does not record an academic session explicitly. For this report, all baseline girls are counted under the 2022-2023 listing year alongside new-sample batch 1. Figures can be cross-verified against source data if needed.`,
+    `Note: the baseline survey does not record an academic session explicitly. For this report, all baseline girls are counted under the 2022-2023 listing year alongside new-sample batch 1.`,
   ];
 }
 
@@ -177,14 +177,12 @@ export function buildProgressConclusionBullets(
   ];
 
   if (metrics.totalNotTrackedGirls > 0) {
-    bullets.push(
-      `${num(metrics.totalNotTrackedGirls)} girls remain not tracked; follow-up should focus on consent, revisit, and household-location cases still open in the field.`
-    );
+    bullets.push(`${num(metrics.totalNotTrackedGirls)} girls remain not tracked.`);
   }
 
   if (metrics.revisitsNeeded > 0) {
     bullets.push(
-      `${num(metrics.revisitsNeeded)} revisits are still required to conclude outstanding tracking attempts.`
+      `${num(metrics.revisitsNeeded)} revisits are still required; we have documented those for the follow-ups.`
     );
   }
 

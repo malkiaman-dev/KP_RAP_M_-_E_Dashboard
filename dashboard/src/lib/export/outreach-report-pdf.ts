@@ -285,7 +285,7 @@ export function buildOutreachReportPdfDefinition(
                 },
                 { text: input.scopeLabel, color: C.white, bold: true, fontSize: 12 },
                 {
-                  text: `Reporting period: ${input.dateRangeLabel}    |    Generated: ${generatedLabel}`,
+                  text: `Generated: ${generatedLabel}`,
                   color: C.brandSoft,
                   fontSize: 8,
                   margin: [0, 6, 0, 0],

@@ -115,7 +115,7 @@ function coverBanner(input: OutreachReportInput, generatedLabel: string) {
               new Paragraph({
                 children: [
                   new TextRun({
-                    text: `Reporting period: ${input.dateRangeLabel}    |    Generated: ${generatedLabel}`,
+                    text: `Generated: ${generatedLabel}`,
                     size: 18,
                     color: COLOR.brandSoft,
                   }),
