@@ -648,6 +648,7 @@ function buildSectionContent(
     {
       label: "Enumerator-Days",
       value: num(metrics.enumeratorDays),
+      sub: `${num(metrics.activeFieldDays)} field days`,
       accent: COLOR.neutral,
       bg: COLOR.tile,
     },
@@ -686,7 +687,7 @@ function buildSectionContent(
       },
       children: [
         new TextRun({
-          text: `${num(metrics.activeEnumerators)} enumerators · ${num(metrics.enumeratorDays)} enumerator-days · ${num(metrics.totalSubmissions)} submissions`,
+          text: `${num(metrics.activeEnumerators)} enumerators · ${num(metrics.enumeratorDays)} enumerator-days · ${num(metrics.activeFieldDays)} actual field days · ${num(metrics.totalSubmissions)} submissions`,
           size: 18,
           color: COLOR.subtle,
         }),
@@ -701,7 +702,7 @@ function buildSectionContent(
       ],
     }),
     paragraph(
-      `${num(metrics.activeEnumerators)} active enumerators worked across ${num(metrics.enumeratorDays)} enumerator-days. ${num(metrics.totalSubmissions)} submissions were received against an expected ${num(metrics.expectedSubmissions)} (${metrics.dailyTarget} girls per enumerator per working day). ${num(metrics.totalTracked)} girls were successfully tracked, a tracking success rate of ${pct(metrics.trackingSuccessRate, 0)}.`
+      `${num(metrics.activeEnumerators)} active enumerators worked across ${num(metrics.enumeratorDays)} enumerator-days (${num(metrics.activeFieldDays)} actual field days). ${num(metrics.totalSubmissions)} submissions were received against an expected ${num(metrics.expectedSubmissions)} (${metrics.dailyTarget} girls per enumerator per working day). ${num(metrics.totalTracked)} girls were successfully tracked, a tracking success rate of ${pct(metrics.trackingSuccessRate, 0)}.`
     ),
 
     sectionHeading("Daily Target Achievement"),
