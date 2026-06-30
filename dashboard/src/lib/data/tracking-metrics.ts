@@ -313,7 +313,7 @@ function resolveEnrollStatus(
   return "";
 }
 
-function girlKey(r: TrackingRow): string {
+export function girlKey(r: TrackingRow): string {
   const newSampleGirl = r.girl_1 || r.girl_2;
   return String(r.girl_id || r.girl || newSampleGirl || r.KEY);
 }

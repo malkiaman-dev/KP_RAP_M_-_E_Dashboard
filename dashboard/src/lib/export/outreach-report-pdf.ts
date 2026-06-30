@@ -1,8 +1,9 @@
 import type { Content, TDocumentDefinitions } from "pdfmake/interfaces";
 import { formatDisplayDate } from "@/lib/utils";
 import {
+  buildProgressConclusionBullets,
+  buildProgressExecutiveSummaryBullets,
   buildProgressKpiTiles,
-  buildProgressSummaryBullets,
   type OutreachReportInput,
   type OutreachReportSection,
   type ProgressKpiTile,
@@ -148,8 +149,10 @@ function districtComparisonTable(sections: OutreachReportSection[]): Content {
     { text: "Revisited", style: "tableHeader", alignment: "right" as const },
     { text: "Consent Ref.", style: "tableHeader", alignment: "right" as const },
     { text: "Consent %", style: "tableHeader", alignment: "right" as const },
-    { text: "Baseline", style: "tableHeader", alignment: "right" as const },
-    { text: "New Sample", style: "tableHeader", alignment: "right" as const },
+    { text: "Trk Baseline", style: "tableHeader", alignment: "right" as const },
+    { text: "Trk New Smp", style: "tableHeader", alignment: "right" as const },
+    { text: "Trk 2023", style: "tableHeader", alignment: "right" as const },
+    { text: "Trk 2024", style: "tableHeader", alignment: "right" as const },
   ];
 
   const body = [header] as Content[][];
@@ -169,6 +172,8 @@ function districtComparisonTable(sections: OutreachReportSection[]): Content {
       { text: pct(m.consentRate, 0), alignment: "right" as const, fontSize: 7 },
       { text: num(m.trackedGirlsBaseline), alignment: "right" as const, fontSize: 7 },
       { text: num(m.trackedGirlsNewSample), alignment: "right" as const, fontSize: 7 },
+      { text: num(m.trackedGirls2023), alignment: "right" as const, fontSize: 7 },
+      { text: num(m.trackedGirls2024), alignment: "right" as const, fontSize: 7 },
     ]);
   }
 
@@ -176,7 +181,7 @@ function districtComparisonTable(sections: OutreachReportSection[]): Content {
     table: {
       headerRows: 1,
       dontBreakRows: true,
-      widths: ["*", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto"],
+      widths: ["*", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto"],
       body,
     },
     layout: {
@@ -212,9 +217,9 @@ function buildSectionPdfContent(
           style: "districtMeta",
           margin: [0, 0, 0, 12],
         },
-        sectionTitle("Summary"),
+        sectionTitle("Executive Summary"),
         bulletPanel(
-          buildProgressSummaryBullets(districtLabel, metrics),
+          buildProgressExecutiveSummaryBullets(districtLabel, metrics),
           C.brandSoft,
           C.brand
         ),
@@ -236,6 +241,12 @@ function buildSectionPdfContent(
   content.push({
     unbreakable: true,
     stack: [
+      sectionTitle("Conclusion"),
+      bulletPanel(
+        buildProgressConclusionBullets(districtLabel, metrics),
+        C.tile,
+        C.brandDark
+      ),
       {
         text: `— End of ${districtLabel} Section —`,
         alignment: "center",

@@ -18,8 +18,9 @@ import {
 } from "docx";
 import { formatDisplayDate } from "@/lib/utils";
 import {
+  buildProgressConclusionBullets,
+  buildProgressExecutiveSummaryBullets,
   buildProgressKpiTiles,
-  buildProgressSummaryBullets,
   type OutreachReportInput,
   type OutreachReportSection,
   type ProgressKpiTile,
@@ -274,8 +275,10 @@ function districtComparisonTable(sections: OutreachReportSection[]): Table {
     "Revisited",
     "Consent Ref.",
     "Consent %",
-    "Baseline",
-    "New Sample",
+    "Trk Baseline",
+    "Trk New Smp",
+    "Trk 2023",
+    "Trk 2024",
   ];
 
   const headerRow = new TableRow({
@@ -303,6 +306,8 @@ function districtComparisonTable(sections: OutreachReportSection[]): Table {
         dataCell(pct(m.consentRate, 0), { alignRight: true, fill }),
         dataCell(num(m.trackedGirlsBaseline), { alignRight: true, fill }),
         dataCell(num(m.trackedGirlsNewSample), { alignRight: true, fill }),
+        dataCell(num(m.trackedGirls2023), { alignRight: true, fill }),
+        dataCell(num(m.trackedGirls2024), { alignRight: true, fill }),
       ],
     });
   });
@@ -340,8 +345,8 @@ function buildSectionContent(
         }),
       ],
     }),
-    sectionHeading("Summary"),
-    summaryPanel(buildProgressSummaryBullets(districtLabel, metrics)),
+    sectionHeading("Executive Summary"),
+    summaryPanel(buildProgressExecutiveSummaryBullets(districtLabel, metrics)),
     new Paragraph({ spacing: { after: 160 }, children: [] }),
     sectionHeading("Tracking Progress Indicators"),
     kpiGrid(tiles),
@@ -356,6 +361,9 @@ function buildSectionContent(
   }
 
   blocks.push(
+    new Paragraph({ spacing: { after: 160 }, children: [] }),
+    sectionHeading("Conclusion"),
+    summaryPanel(buildProgressConclusionBullets(districtLabel, metrics)),
     new Paragraph({ spacing: { before: 240, after: 0 }, children: [] }),
     new Paragraph({
       alignment: AlignmentType.CENTER,

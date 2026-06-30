@@ -116,21 +116,35 @@ export function buildProgressKpiTiles(
       bg: consentTier.bg,
     },
     {
-      label: "Tracked Girls — Baseline",
+      label: "Baseline Girls Successfully Tracked",
       value: num(metrics.trackedGirlsBaseline),
       accent: "#134E4A",
       bg: "#F8FAFC",
     },
     {
-      label: "Tracked Girls — New Sample",
+      label: "New Sample Girls Successfully Tracked",
       value: num(metrics.trackedGirlsNewSample),
       accent: "#134E4A",
       bg: "#F8FAFC",
     },
+    {
+      label: "Successfully Tracked — 2023 & Baseline",
+      value: num(metrics.trackedGirls2023),
+      accent: "#0F766E",
+      bg: "#CCFBF1",
+      sub: "2022-2023 listing",
+    },
+    {
+      label: "Successfully Tracked — 2024",
+      value: num(metrics.trackedGirls2024),
+      accent: "#0F766E",
+      bg: "#CCFBF1",
+      sub: "2023-2024 listing",
+    },
   ];
 }
 
-export function buildProgressSummaryBullets(
+export function buildProgressExecutiveSummaryBullets(
   districtLabel: string,
   metrics: OutreachReportMetrics
 ): string[] {
@@ -142,10 +156,51 @@ export function buildProgressSummaryBullets(
   return [
     `${scope}, field teams submitted ${num(metrics.totalSubmissions)} tracking forms covering ${num(metrics.totalVillages)} villages and ${num(metrics.totalSchools)} schools.`,
     `${num(metrics.totalAttemptedGirls)} girls were attempted; ${num(metrics.totalTrackedGirls)} were successfully tracked (${pct(metrics.trackingSuccessRate, 0)} success rate) and ${num(metrics.totalNotTrackedGirls)} remain not tracked.`,
-    `Consent was obtained from ${pct(metrics.consentRate, 0)} of located households; ${num(metrics.consentRefused)} girls had consent refused.`,
-    `${num(metrics.revisitsNeeded)} girls still require a revisit; ${num(metrics.totalRevisitedGirls)} girls have been revisited to date.`,
-    `By tracking cohort: ${num(metrics.trackedGirlsBaseline)} baseline girls and ${num(metrics.trackedGirlsNewSample)} new-sample girls were successfully tracked.`,
+    `By listing cohort, ${num(metrics.trackedGirlsBaseline)} baseline girls and ${num(metrics.trackedGirlsNewSample)} new-sample girls were successfully tracked.`,
+    `By listing year, ${num(metrics.trackedGirls2023)} girls were successfully tracked from the 2022-2023 listing (including all baseline girls) and ${num(metrics.trackedGirls2024)} from the 2023-2024 listing.`,
+    `Consent was obtained from ${pct(metrics.consentRate, 0)} of located households; ${num(metrics.consentRefused)} girls had consent refused. ${num(metrics.revisitsNeeded)} girls still require a revisit and ${num(metrics.totalRevisitedGirls)} have been revisited to date.`,
+    `Note: the baseline survey does not record an academic session explicitly. For this report, all baseline girls are counted under the 2022-2023 listing year alongside new-sample batch 1. Figures can be cross-verified against source data if needed.`,
   ];
+}
+
+export function buildProgressConclusionBullets(
+  districtLabel: string,
+  metrics: OutreachReportMetrics
+): string[] {
+  const scope =
+    districtLabel === "All Districts"
+      ? "Overall"
+      : districtLabel;
+
+  const bullets = [
+    `${scope} tracking progress stands at ${pct(metrics.trackingSuccessRate, 0)} (${num(metrics.totalTrackedGirls)} of ${num(metrics.totalAttemptedGirls)} attempted girls successfully tracked).`,
+  ];
+
+  if (metrics.totalNotTrackedGirls > 0) {
+    bullets.push(
+      `${num(metrics.totalNotTrackedGirls)} girls remain not tracked; follow-up should focus on consent, revisit, and household-location cases still open in the field.`
+    );
+  }
+
+  if (metrics.revisitsNeeded > 0) {
+    bullets.push(
+      `${num(metrics.revisitsNeeded)} revisits are still required to conclude outstanding tracking attempts.`
+    );
+  }
+
+  bullets.push(
+    `Listing-year totals (${num(metrics.trackedGirls2023)} in 2022-2023 / baseline and ${num(metrics.trackedGirls2024)} in 2023-2024) reflect only girls who met the full successful-tracking criteria.`
+  );
+
+  return bullets;
+}
+
+/** @deprecated Use buildProgressExecutiveSummaryBullets */
+export function buildProgressSummaryBullets(
+  districtLabel: string,
+  metrics: OutreachReportMetrics
+): string[] {
+  return buildProgressExecutiveSummaryBullets(districtLabel, metrics);
 }
 
 function sanitizeFilenamePart(value: string): string {
