@@ -91,7 +91,7 @@ export function ReportsContent() {
   const [filters, setFilters] = useState<TrackingFilters>(() =>
     defaultMonitoringFilters()
   );
-  const [reportMode, setReportMode] = useState<ReportMode>("progress");
+  const [reportMode, setReportMode] = useState<ReportMode>("operations");
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["tracking-metrics"],
@@ -133,18 +133,6 @@ export function ReportsContent() {
       <div className="mb-6 inline-flex rounded-xl border border-border/60 bg-muted/30 p-1">
         <button
           type="button"
-          onClick={() => setReportMode("progress")}
-          className={cn(
-            "rounded-lg px-4 py-2 text-xs font-medium transition-colors",
-            reportMode === "progress"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Progress Summary
-        </button>
-        <button
-          type="button"
           onClick={() => setReportMode("operations")}
           className={cn(
             "rounded-lg px-4 py-2 text-xs font-medium transition-colors",
@@ -154,6 +142,18 @@ export function ReportsContent() {
           )}
         >
           Field Operations
+        </button>
+        <button
+          type="button"
+          onClick={() => setReportMode("progress")}
+          className={cn(
+            "rounded-lg px-4 py-2 text-xs font-medium transition-colors",
+            reportMode === "progress"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Progress Summary
         </button>
       </div>
 
