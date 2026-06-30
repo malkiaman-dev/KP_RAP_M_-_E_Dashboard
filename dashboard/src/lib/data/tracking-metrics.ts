@@ -1464,6 +1464,7 @@ export function computeMonitoringMetrics(
   const activeEnumerators = byEnumerator.size;
   const activeFieldDays = byDay.size;
   const expectedTracked = enumeratorDays * target;
+  const expectedSubmissions = enumeratorDays * target;
 
   const topPerformer = enumeratorPerformance[0];
   const lowPerformer = [...enumeratorPerformance]
@@ -1480,8 +1481,13 @@ export function computeMonitoringMetrics(
     activeFieldDays,
     enumeratorDays,
     expectedTracked,
+    expectedSubmissions,
     targetAchievement:
       expectedTracked > 0 ? (totalTracked / expectedTracked) * 100 : 0,
+    submissionTargetAchievement:
+      expectedSubmissions > 0
+        ? (rows.length / expectedSubmissions) * 100
+        : 0,
     avgGirlsPerEnumeratorPerDay:
       enumeratorDays > 0 ? uniqueGirls / enumeratorDays : 0,
     avgTrackedPerEnumeratorPerDay:

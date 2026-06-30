@@ -1,10 +1,5 @@
-import { PlaceholderPage } from "@/components/placeholder-page";
+import { ReportsContent } from "@/components/reports/reports-content";
 
 export default function ReportsPage() {
-  return (
-    <PlaceholderPage
-      title="Reports"
-      description="Generate and export executive reports, donor briefs, and field operation summaries."
-    />
-  );
+  return <ReportsContent />;
 }

@@ -139,6 +139,15 @@ export function MonitoringEnumeratorTable({
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div
+            className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-1.5"
+            title={`${metrics.totalSubmissions.toLocaleString()} submissions of ${metrics.expectedSubmissions.toLocaleString()} expected (${metrics.dailyTarget}/day)`}
+          >
+            <span className="text-[11px] text-muted-foreground">
+              Target achieved
+            </span>
+            <TargetPercentCell value={metrics.submissionTargetAchievement} />
+          </div>
           <button
             type="button"
             onClick={() => {

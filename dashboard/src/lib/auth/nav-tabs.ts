@@ -8,7 +8,7 @@ export interface NavTab {
 export const NAV_TABS: NavTab[] = [
   { href: "/", label: "Dashboard", section: "Overview", apis: ["/api/metrics"] },
   { href: "/analytics", label: "Analytics", section: "Overview", apis: [] },
-  { href: "/reports", label: "Reports", section: "Overview", apis: [] },
+  { href: "/reports", label: "Reports", section: "Overview", apis: ["/api/tracking"] },
   { href: "/surveys", label: "All Surveys", section: "Surveys", apis: ["/api/metrics", "/api/errors"] },
   { href: "/tracking", label: "Tracking", section: "Surveys", apis: ["/api/tracking"] },
   {

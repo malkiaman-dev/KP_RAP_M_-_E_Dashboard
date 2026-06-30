@@ -1,0 +1,163 @@
+"use client";
+
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import { Download, Home, Users } from "lucide-react";
+import { TrackingFiltersPanel } from "@/components/tracking/tracking-filters";
+import { TrackingActiveFilters } from "@/components/tracking/tracking-active-filters";
+import { ReportCard } from "@/components/reports/report-card";
+import { TrackingStatusReportCard } from "@/components/reports/tracking-status-report-card";
+import {
+  defaultMonitoringFilters,
+  type TrackingFilters,
+  type TrackingMetrics,
+} from "@/lib/data/tracking-metrics";
+
+async function fetchTracking(): Promise<TrackingMetrics> {
+  const res = await fetch("/api/tracking");
+  if (!res.ok) throw new Error("Failed to load tracking data");
+  return res.json();
+}
+
+function ComingSoonReportActions({
+  idPrefix,
+  districts,
+}: {
+  idPrefix: string;
+  districts: { value: string; label: string }[];
+}) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+      <div className="min-w-[200px] flex-1 sm:max-w-xs">
+        <label
+          htmlFor={`${idPrefix}-district`}
+          className="mb-1 block text-[11px] font-medium text-muted-foreground"
+        >
+          District
+        </label>
+        <select
+          id={`${idPrefix}-district`}
+          disabled
+          className="w-full cursor-not-allowed rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
+        >
+          <option value="">Select a district…</option>
+          {districts.map((d) => (
+            <option key={d.value} value={d.value}>
+              {d.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <button
+        type="button"
+        disabled
+        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground"
+      >
+        <Download className="h-3.5 w-3.5" aria-hidden="true" />
+        Download district report
+      </button>
+
+      <button
+        type="button"
+        disabled
+        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground"
+      >
+        <Download className="h-3.5 w-3.5" aria-hidden="true" />
+        Download all districts report
+      </button>
+    </div>
+  );
+}
+
+export function ReportsContent() {
+  const [filters, setFilters] = useState<TrackingFilters>(() =>
+    defaultMonitoringFilters()
+  );
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["tracking-metrics"],
+    queryFn: fetchTracking,
+  });
+
+  const districts = data?.filterOptions?.districts ?? [];
+
+  if (isError) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/5 p-8 text-center">
+        <div>
+          <p className="font-semibold text-red-600">Failed to load report data</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Ensure survey data files are available in the Surveys folder.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-6"
+      >
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          Reports
+        </h1>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          Generate and export executive reports, donor briefs, and field
+          operation summaries. Download district-wise or all-district Word
+          reports for tracking, with Girls and Household reports coming soon.
+        </p>
+      </motion.div>
+
+      <TrackingFiltersPanel
+        filterOptions={data?.filterOptions}
+        filters={filters}
+        onChange={setFilters}
+        showTodayToggle
+        resetFilters={defaultMonitoringFilters}
+      />
+
+      <TrackingActiveFilters
+        filters={filters}
+        onChange={setFilters}
+        filterOptions={data?.filterOptions}
+        resetFilters={defaultMonitoringFilters}
+      />
+
+      <div className="mt-6 space-y-4">
+        <TrackingStatusReportCard
+          allSubmissions={data?.allSubmissions}
+          filters={filters}
+          districtOptions={districts}
+          loading={isLoading}
+        />
+
+        <ReportCard
+          icon={Users}
+          title="Girls Survey Report"
+          description="Completion status, enumerator productivity, and district-level summary for the Girls survey module."
+          status="coming-soon"
+          accentClass="bg-sky-500/10 text-sky-500"
+          footer="Format: DOCX · District-wise and all-district downloads"
+        >
+          <ComingSoonReportActions idPrefix="girls" districts={districts} />
+        </ReportCard>
+
+        <ReportCard
+          icon={Home}
+          title="Household Survey Report"
+          description="Household completion rates, parent respondent coverage, and field progress by district."
+          status="coming-soon"
+          accentClass="bg-amber-500/10 text-amber-600 dark:text-amber-400"
+          footer="Format: DOCX · District-wise and all-district downloads"
+        >
+          <ComingSoonReportActions idPrefix="hh" districts={districts} />
+        </ReportCard>
+      </div>
+    </div>
+  );
+}
