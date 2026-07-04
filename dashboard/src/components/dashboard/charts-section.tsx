@@ -392,7 +392,7 @@ function ChartCard({
         stiffness: 240,
         damping: 26,
       }}
-      className="surface-card chart-accent group relative overflow-hidden rounded-2xl p-6"
+      className="surface-card chart-accent group relative overflow-x-hidden overflow-y-visible rounded-2xl p-6"
     >
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>

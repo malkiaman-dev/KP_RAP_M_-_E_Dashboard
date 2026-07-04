@@ -10,6 +10,20 @@ export const tooltipStyle = {
   padding: "8px 12px",
 } as const;
 
+/** Recharts outer margins — leave room for axis ticks and legends inside the card. */
+export const chartMargin = {
+  default: { top: 8, right: 16, left: 8, bottom: 20 },
+  verticalBar: { top: 8, right: 16, left: 8, bottom: 28 },
+  withLegend: { top: 8, right: 16, left: 8, bottom: 40 },
+  rotatedLabels: { top: 8, right: 12, left: 4, bottom: 56 },
+  withLegendRotated: { top: 8, right: 12, left: 4, bottom: 72 },
+} as const;
+
+export const legendProps = {
+  wrapperStyle: { fontSize: 11, paddingTop: 4 },
+  verticalAlign: "bottom" as const,
+};
+
 type Stop = { from: string; to: string };
 
 const GRADIENTS: Record<string, Stop> = {

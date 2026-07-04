@@ -38,7 +38,7 @@ export function ChartCard({
       }}
       className={cn(
         "surface-card chart-accent group relative flex h-full min-h-[300px] min-w-0 flex-col rounded-2xl p-5 lg:min-h-0",
-        allowOverflow ? "overflow-visible" : "overflow-hidden",
+        allowOverflow ? "overflow-visible" : "overflow-x-hidden overflow-y-visible",
         className
       )}
     >
@@ -55,8 +55,8 @@ export function ChartCard({
 
 export function ChartArea({ children }: { children: React.ReactElement }) {
   return (
-    <div className="h-full min-h-[240px] w-full min-w-0 flex-1">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-full min-h-[240px] w-full min-w-0 flex-1 pb-1">
+      <ResponsiveContainer width="100%" height="100%" debounce={50}>
         {children}
       </ResponsiveContainer>
     </div>

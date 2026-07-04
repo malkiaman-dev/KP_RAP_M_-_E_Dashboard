@@ -30,7 +30,7 @@ import {
   ChartCard,
   ChartGridSkeleton,
 } from "@/components/ui/chart-card";
-import { tooltipStyle, ChartGradients } from "@/components/ui/chart-theme";
+import { tooltipStyle, ChartGradients, chartMargin, legendProps } from "@/components/ui/chart-theme";
 import { formatDisplayDate } from "@/lib/utils";
 
 const dateTick = (value: string) => formatDisplayDate(value) || value;
@@ -51,7 +51,7 @@ export function MonitoringCharts({
     return (
       <ChartGridSkeleton
         count={4}
-        className="grid gap-6 lg:grid-cols-2 lg:grid-rows-[320px_360px]"
+        className="grid gap-6 lg:grid-cols-2 lg:grid-rows-[340px_380px]"
       />
     );
   }
@@ -86,14 +86,14 @@ export function MonitoringCharts({
     .slice(0, 15);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2 lg:grid-rows-[320px_360px] lg:items-stretch">
+    <div className="grid gap-6 lg:grid-cols-2 lg:grid-rows-[340px_380px] lg:items-stretch">
       <ChartCard
         title="Daily Tracking vs Target"
         subtitle={`Girls tracked per day vs expected (active enumerators × ${target}) · ${CHART_CLICK_HINT}`}
         className="lg:col-start-1 lg:row-start-1"
       >
         <ChartArea>
-          <ComposedChart data={metrics.dailyTrend} margin={{ left: 4, right: 12 }}>
+          <ComposedChart data={metrics.dailyTrend} margin={chartMargin.withLegend}>
             <ChartGradients />
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis
@@ -104,7 +104,7 @@ export function MonitoringCharts({
             />
             <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
             <Tooltip contentStyle={tooltipStyle} cursor={false} labelFormatter={dateLabel} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Legend {...legendProps} />
             <Bar
               dataKey="trackedGirls"
               name="Tracked"
@@ -144,7 +144,7 @@ export function MonitoringCharts({
         className="lg:col-start-2 lg:row-start-1"
       >
         <ChartArea>
-          <ComposedChart data={metrics.dailyTrend} margin={{ left: 4, right: 12 }}>
+          <ComposedChart data={metrics.dailyTrend} margin={chartMargin.withLegend}>
             <ChartGradients />
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis
@@ -161,7 +161,7 @@ export function MonitoringCharts({
               allowDecimals={false}
             />
             <Tooltip contentStyle={tooltipStyle} cursor={false} labelFormatter={dateLabel} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Legend {...legendProps} />
             <Bar
               yAxisId="left"
               dataKey="submissions"
@@ -212,7 +212,7 @@ export function MonitoringCharts({
         className="lg:col-start-1 lg:row-start-2"
       >
         <ChartArea>
-          <BarChart data={topByAvg} margin={{ left: 4, right: 12, bottom: 56 }}>
+          <BarChart data={topByAvg} margin={chartMargin.rotatedLabels}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis
               dataKey="name"
@@ -271,7 +271,7 @@ export function MonitoringCharts({
         <ChartArea>
           <BarChart
             data={topBySubmissions}
-            margin={{ left: 4, right: 12, bottom: 56 }}
+            margin={chartMargin.withLegendRotated}
             barGap={2}
           >
             <ChartGradients />
@@ -290,7 +290,7 @@ export function MonitoringCharts({
               cursor={false}
               labelFormatter={enumeratorTooltipLabel}
             />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Legend {...legendProps} />
             <Bar
               dataKey="submissions"
               name="Submissions"

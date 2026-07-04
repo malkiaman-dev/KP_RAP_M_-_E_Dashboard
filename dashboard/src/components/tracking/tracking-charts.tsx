@@ -32,7 +32,7 @@ import {
   ChartCard,
   ChartGridSkeleton,
 } from "@/components/ui/chart-card";
-import { tooltipStyle, ChartGradients } from "@/components/ui/chart-theme";
+import { tooltipStyle, ChartGradients, chartMargin, legendProps } from "@/components/ui/chart-theme";
 
 import { formatDisplayDate } from "@/lib/utils";
 
@@ -161,7 +161,7 @@ export function TrackingCharts({
     return (
       <ChartGridSkeleton
         count={8}
-        className="grid gap-6 lg:grid-cols-3 lg:grid-rows-[300px_300px_380px]"
+        className="grid gap-6 lg:grid-cols-3 lg:grid-rows-[320px_320px_400px]"
       />
     );
   }
@@ -203,7 +203,7 @@ export function TrackingCharts({
   ].filter((d) => d.value > 0);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3 lg:grid-rows-[300px_300px_380px] lg:items-stretch">
+    <div className="grid gap-6 lg:grid-cols-3 lg:grid-rows-[320px_320px_400px] lg:items-stretch">
       <ChartCard
         title="Top Villages with Untracked Girls"
         subtitle={`Unique girls not yet tracked · ${CHART_CLICK_HINT}`}
@@ -213,7 +213,7 @@ export function TrackingCharts({
           <BarChart
             data={metrics.topVillagesUntracked}
             layout="vertical"
-            margin={{ left: 8, right: 16, top: 6, bottom: 6 }}
+            margin={chartMargin.verticalBar}
           >
             <ChartGradients />
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
@@ -259,7 +259,7 @@ export function TrackingCharts({
           <BarChart
             data={metrics.trackedByDistrict}
             layout="vertical"
-            margin={{ top: 6, bottom: 6 }}
+            margin={chartMargin.verticalBar}
           >
             <ChartGradients />
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
@@ -304,7 +304,7 @@ export function TrackingCharts({
           <BarChart
             data={metrics.untrackedReasons}
             layout="vertical"
-            margin={{ left: 8, right: 16, top: 6, bottom: 6 }}
+            margin={chartMargin.verticalBar}
           >
             <ChartGradients />
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
@@ -355,7 +355,7 @@ export function TrackingCharts({
           <BarChart
             data={metrics.trackedByDistrict}
             layout="vertical"
-            margin={{ top: 6, bottom: 6 }}
+            margin={chartMargin.verticalBar}
           >
             <ChartGradients />
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
@@ -397,7 +397,7 @@ export function TrackingCharts({
         className="lg:col-start-2 lg:row-start-2"
       >
         <ChartArea>
-          <LineChart data={metrics.trackingTrend}>
+          <LineChart data={metrics.trackingTrend} margin={chartMargin.default}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis
               dataKey="date"
@@ -456,7 +456,7 @@ export function TrackingCharts({
         className="lg:col-start-3 lg:row-start-2"
       >
         <ChartArea>
-          <PieChart>
+          <PieChart margin={chartMargin.withLegend}>
             <Pie
               data={primaryAlternateData}
               cx="50%"
@@ -480,7 +480,7 @@ export function TrackingCharts({
               ))}
             </Pie>
             <Tooltip contentStyle={tooltipStyle} cursor={false} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Legend {...legendProps} />
           </PieChart>
         </ChartArea>
       </ChartCard>
@@ -491,13 +491,13 @@ export function TrackingCharts({
         className="lg:col-span-2 lg:col-start-1 lg:row-start-3"
       >
         <ChartArea>
-          <BarChart data={metrics.cohortProgress}>
+          <BarChart data={metrics.cohortProgress} margin={chartMargin.withLegend}>
             <ChartGradients />
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis dataKey="cohort" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
             <Tooltip content={CohortProgressTooltip} cursor={false} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Legend {...legendProps} />
             <Bar
               dataKey="tracked"
               name="Successfully tracked"
@@ -552,7 +552,7 @@ export function TrackingCharts({
           <BarChart
             data={metrics.enumeratorUntrackedRate}
             layout="vertical"
-            margin={{ left: 4, right: 12, top: 4, bottom: 4 }}
+            margin={chartMargin.verticalBar}
           >
             <ChartGradients />
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
