@@ -213,6 +213,36 @@ function cleanEnumeratorName(name?: string): string {
 }
 
 /**
+ * Same field worker, different spelling or ID in the raw data (district-scoped).
+ * Keys are normalized slugs; values are the canonical slug used in identity keys.
+ */
+const ENUMERATOR_NAME_ALIASES: Record<string, Record<string, string>> = {
+  "1": {
+    javairia: "javeria",
+    jaweria: "javeria",
+    javeria: "javeria",
+    naureen: "naureen khan",
+    "naureen khan": "naureen khan",
+  },
+};
+
+function normalizeEnumeratorNameSlug(name: string, district: string): string {
+  const slug = name.toLowerCase().replace(/\s+/g, " ").trim();
+  return ENUMERATOR_NAME_ALIASES[district]?.[slug] ?? slug;
+}
+
+/** Preferred display label for a merged enumerator identity. */
+const CANONICAL_ENUMERATOR_LABELS: Record<string, string> = {
+  "1::javeria": "Javeria",
+  "1::naureen khan": "Naureen Khan",
+};
+
+function displayEnumeratorName(subs: TrackingRow[]): string {
+  const key = enumeratorIdentityKey(subs[0]!);
+  return CANONICAL_ENUMERATOR_LABELS[key] ?? preferredEnumeratorName(subs);
+}
+
+/**
  * Canonical identity for an enumerator.
  *
  * The raw data sometimes assigns the *same* field worker two different
@@ -222,11 +252,14 @@ function cleanEnumeratorName(name?: string): string {
  * name scoped to the district merges those records back into one enumerator.
  */
 export function enumeratorIdentityKey(row: TrackingRow): string {
-  const name = cleanEnumeratorName(row.enumerator_name)
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
   const district = (row.district || "").trim();
+  const name = normalizeEnumeratorNameSlug(
+    cleanEnumeratorName(row.enumerator_name)
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim(),
+    district
+  );
   if (name && name !== "unknown") return `${district}::${name}`;
   return row.enumerator_id || row.enumerator_name || "unknown";
 }
@@ -234,11 +267,14 @@ export function enumeratorIdentityKey(row: TrackingRow): string {
 function enumeratorIdentityFromSummary(
   g: Pick<GirlSummary, "enumeratorId" | "enumeratorName" | "district">
 ): string {
-  const name = cleanEnumeratorName(g.enumeratorName)
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
   const district = (g.district || "").trim();
+  const name = normalizeEnumeratorNameSlug(
+    cleanEnumeratorName(g.enumeratorName)
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim(),
+    district
+  );
   if (name && name !== "unknown") return `${district}::${name}`;
   return g.enumeratorId || g.enumeratorName || "unknown";
 }
@@ -268,7 +304,7 @@ function buildEnumeratorOptions(rows: TrackingRow[]) {
     .filter(([key]) => key && key !== "unknown")
     .map(([value, subs]) => ({
       value,
-      label: preferredEnumeratorName(subs),
+      label: displayEnumeratorName(subs),
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }
@@ -581,6 +617,8 @@ export interface RevisitGirlExportRow {
   consent: string;
   surveyStatus: string;
   revisitCategory: string;
+  /** Set on duplicate exports — may combine multiple labels, e.g. "Exact duplicate · Revisit duplicate" */
+  duplicateType?: string;
 }
 
 export interface RevisitDetailData extends RevisitDetailMetrics {
@@ -809,6 +847,114 @@ export function computeRevisitDetailMetrics(
   };
 }
 
+export type DuplicateDetailListKey =
+  | "totalDuplicates"
+  | "exactDuplicates"
+  | "revisitDuplicates"
+  | "differentEnumeratorDuplicates";
+
+export interface DuplicateDetailMetrics {
+  /** Submission rows belonging to a girl + visit group with more than one submission */
+  totalDuplicates: number;
+  /** Same girl, visit, and enumerator submitted more than once */
+  exactDuplicates: number;
+  /** Duplicate submissions on visit 2 or 3 */
+  revisitDuplicates: number;
+  /** Same girl and visit submitted by more than one enumerator */
+  differentEnumeratorDuplicates: number;
+  /** Count of girl + visit combinations with duplicates */
+  duplicateGroups: number;
+}
+
+export interface DuplicateDetailData extends DuplicateDetailMetrics {
+  lists: Record<DuplicateDetailListKey, RevisitGirlExportRow[]>;
+}
+
+function emptyDuplicateLists(): Record<
+  DuplicateDetailListKey,
+  RevisitGirlExportRow[]
+> {
+  return {
+    totalDuplicates: [],
+    exactDuplicates: [],
+    revisitDuplicates: [],
+    differentEnumeratorDuplicates: [],
+  };
+}
+
+function classifyDuplicateGroup(subs: TrackingRow[]): string {
+  const visit = parseVisitNum(subs[0]!);
+  const enumKeys = new Set(subs.map(enumeratorIdentityKey));
+  const types: string[] = [];
+
+  if (enumKeys.size === 1) {
+    types.push("Exact duplicate");
+  } else {
+    types.push("Different enumerator duplicate");
+  }
+
+  if (visit >= 2) {
+    types.push("Revisit duplicate");
+  }
+
+  return types.join(" · ");
+}
+
+export function computeDuplicateDetailMetrics(
+  rows: TrackingRow[]
+): DuplicateDetailData {
+  const visitGroups = new Map<string, TrackingRow[]>();
+  for (const row of rows) {
+    const k = `${girlKey(row)}_${row.visit_num || "1"}`;
+    if (!visitGroups.has(k)) visitGroups.set(k, []);
+    visitGroups.get(k)!.push(row);
+  }
+
+  const lists = emptyDuplicateLists();
+  let duplicateGroups = 0;
+
+  for (const subs of visitGroups.values()) {
+    if (subs.length <= 1) continue;
+    duplicateGroups += 1;
+
+    const duplicateType = classifyDuplicateGroup(subs);
+    const isExact = duplicateType.includes("Exact duplicate");
+    const isRevisit = duplicateType.includes("Revisit duplicate");
+    const isDiffEnum = duplicateType.includes("Different enumerator duplicate");
+
+    for (const row of subs) {
+      const exportRow: RevisitGirlExportRow = {
+        ...toGirlExportRow(row, duplicateType),
+        duplicateType,
+      };
+      lists.totalDuplicates.push(exportRow);
+      if (isExact) lists.exactDuplicates.push(exportRow);
+      if (isRevisit) lists.revisitDuplicates.push(exportRow);
+      if (isDiffEnum) lists.differentEnumeratorDuplicates.push(exportRow);
+    }
+  }
+
+  const sortByDate = (
+    a: RevisitGirlExportRow,
+    b: RevisitGirlExportRow
+  ) =>
+    new Date(b.submissionDate || 0).getTime() -
+    new Date(a.submissionDate || 0).getTime();
+
+  for (const key of Object.keys(lists) as DuplicateDetailListKey[]) {
+    lists[key].sort(sortByDate);
+  }
+
+  return {
+    totalDuplicates: lists.totalDuplicates.length,
+    exactDuplicates: lists.exactDuplicates.length,
+    revisitDuplicates: lists.revisitDuplicates.length,
+    differentEnumeratorDuplicates: lists.differentEnumeratorDuplicates.length,
+    duplicateGroups,
+    lists,
+  };
+}
+
 export interface EnumeratorSummaryExportRow {
   enumeratorId: string;
   enumeratorName: string;
@@ -909,7 +1055,8 @@ function emptyOperationalKpiLists(): OperationalKpiLists {
 function computeOperationalKpiLists(
   rows: TrackingRow[],
   allRows: TrackingRow[],
-  revisitDetail: RevisitDetailData
+  revisitDetail: RevisitDetailData,
+  duplicateDetail: DuplicateDetailData
 ): OperationalKpiLists {
   const lists = emptyOperationalKpiLists();
   const byGirl = groupFilteredRowsByGirl(rows);
@@ -1017,19 +1164,7 @@ function computeOperationalKpiLists(
     revisitCategory: "3rd follow-up visit",
   }));
 
-  const visitGroups = new Map<string, TrackingRow[]>();
-  for (const row of rows) {
-    const k = `${girlKey(row)}_${row.visit_num || "1"}`;
-    if (!visitGroups.has(k)) visitGroups.set(k, []);
-    visitGroups.get(k)!.push(row);
-  }
-  for (const subs of visitGroups.values()) {
-    if (subs.length > 1) {
-      for (const row of subs) {
-        pushSubmission("duplicateSubmissions", row, "Duplicate visit");
-      }
-    }
-  }
+  lists.duplicateSubmissions.rows = duplicateDetail.lists.totalDuplicates;
 
   const enumeratorStats = new Map<
     string,
@@ -1474,7 +1609,13 @@ export function computeTrackingMetrics(
 
   const revisit = computeRevisitMetrics(rows, allRows);
   const revisitDetail = computeRevisitDetailMetrics(rows, allRows);
-  const operationalKpiLists = computeOperationalKpiLists(rows, allRows, revisitDetail);
+  const duplicateDetail = computeDuplicateDetailMetrics(rows);
+  const operationalKpiLists = computeOperationalKpiLists(
+    rows,
+    allRows,
+    revisitDetail,
+    duplicateDetail
+  );
 
   const districts = districtIds.map((d) => ({
     value: d,
@@ -1644,6 +1785,7 @@ export function computeTrackingMetrics(
       locatedGirls: locatedGirlKeys.size,
     },
     revisitDetail,
+    duplicateDetail,
     operationalKpiLists,
     filterOptions: {
       districts,
@@ -1766,7 +1908,7 @@ export function computeMonitoringMetrics(
 
       return {
         id: identityKey,
-        name: preferredEnumeratorName(subs),
+        name: displayEnumeratorName(subs),
         district: districtLabel(
           subs[0]?.district || "",
           subs[0]?.district_label

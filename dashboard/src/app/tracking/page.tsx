@@ -8,6 +8,7 @@ import { TrackingActiveFilters } from "@/components/tracking/tracking-active-fil
 import { TrackingKpis } from "@/components/tracking/tracking-kpis";
 import { TrackingSecondaryKpis } from "@/components/tracking/tracking-secondary-kpis";
 import { TrackingRevisitSection } from "@/components/tracking/tracking-revisit-section";
+import { TrackingDuplicateSection } from "@/components/tracking/tracking-duplicate-section";
 import { TrackingCharts } from "@/components/tracking/tracking-charts";
 import { TrackingCohortOverview } from "@/components/tracking/tracking-cohort-overview";
 import { TrackingCohortSection } from "@/components/tracking/tracking-cohort-section";
@@ -151,6 +152,8 @@ export default function TrackingPage() {
       <TrackingSecondaryKpis metrics={display} loading={isLoading} />
 
       <TrackingRevisitSection metrics={display} loading={isLoading} />
+
+      <TrackingDuplicateSection metrics={display} loading={isLoading} />
 
       {display && !isLoading && (
         <p className="mb-4 text-xs text-muted-foreground">
