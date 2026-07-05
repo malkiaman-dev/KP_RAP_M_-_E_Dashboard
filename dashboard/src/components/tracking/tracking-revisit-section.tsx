@@ -43,19 +43,19 @@ const cards: {
   {
     label: "Revisits Still Needed",
     exportLabel: "revisits-still-needed",
-    hint: "Girls who still need a 2nd or 3rd follow-up · click to download",
+    hint: "Girls who still need a 2nd or 3rd follow-up",
     icon: Target,
     color: "text-amber-600",
     group: "general",
     value: (d) => d.revisitsNeedToBeDone,
     getList: (d) => d.lists.revisitsNeedToBeDone,
     hoverDetail: (d) =>
-      `2nd attempt still needed: ${d.revisitsNeed2nd} · 3rd attempt still needed: ${d.revisitsNeed3rd} · Click to download`,
+      `2nd attempt still needed: ${d.revisitsNeed2nd} · 3rd attempt still needed: ${d.revisitsNeed3rd}`,
   },
   {
     label: "Total Remaining Revisits",
     exportLabel: "total-remaining-revisits",
-    hint: "Revisits still needed minus girls concluded via revisit (tracked on 2nd/3rd, or 3rd attempt done) · click to download",
+    hint: "Revisits still needed minus girls concluded via revisit (tracked on 2nd/3rd, or 3rd attempt done)",
     icon: RefreshCw,
     color: "text-amber-700",
     group: "general",
@@ -67,7 +67,7 @@ const cards: {
   {
     label: "Total Revisited Girls",
     exportLabel: "total-revisited-girls",
-    hint: "Unique girls with a 2nd or 3rd follow-up visit · click to download",
+    hint: "Unique girls with a 2nd or 3rd follow-up visit",
     icon: RefreshCw,
     color: "text-teal",
     group: "general",
@@ -77,7 +77,7 @@ const cards: {
   {
     label: "Tracked via Revisit",
     exportLabel: "tracked-via-revisit",
-    hint: "Girls finally tracked thanks to a 2nd or 3rd follow-up · click to download",
+    hint: "Girls finally tracked thanks to a 2nd or 3rd follow-up",
     icon: CheckCircle2,
     color: "text-green-600",
     group: "general",
@@ -88,12 +88,12 @@ const cards: {
         ...d.lists.girlsTrackedOn3rdRevisit,
       ]),
     hoverDetail: (d) =>
-      `Tracked on 2nd: ${d.girlsTrackedOn2ndRevisit} · Tracked on 3rd: ${d.girlsTrackedOn3rdRevisit} · Click to download`,
+      `Tracked on 2nd: ${d.girlsTrackedOn2ndRevisit} · Tracked on 3rd: ${d.girlsTrackedOn3rdRevisit}`,
   },
   {
     label: "2nd Attempt Still Needed",
     exportLabel: "2nd-attempt-still-needed",
-    hint: "1st visit done, girl temporarily not located - click to download",
+    hint: "1st visit done, girl temporarily not located",
     icon: Target,
     color: "text-amber-500",
     group: "2nd",
@@ -103,7 +103,7 @@ const cards: {
   {
     label: "2nd Revisited Girls",
     exportLabel: "2nd-revisited-girls",
-    hint: "Girls with an actual 2nd follow-up visit · click to download",
+    hint: "Girls with an actual 2nd follow-up visit",
     icon: Users,
     color: "text-sky-600",
     group: "2nd",
@@ -113,7 +113,7 @@ const cards: {
   {
     label: "Tracked on 2nd Revisit",
     exportLabel: "tracked-on-2nd-revisit",
-    hint: "Successfully tracked on the 2nd follow-up form · click to download",
+    hint: "Successfully tracked on the 2nd follow-up form",
     icon: CheckCircle2,
     color: "text-teal",
     group: "2nd",
@@ -123,7 +123,7 @@ const cards: {
   {
     label: "Not Tracked on 2nd Revisit",
     exportLabel: "not-tracked-on-2nd-revisit",
-    hint: "2nd follow-up completed but not tracked on that visit · click to download",
+    hint: "2nd follow-up completed but not tracked on that visit",
     icon: UserX,
     color: "text-orange-600",
     group: "2nd",
@@ -133,7 +133,7 @@ const cards: {
   {
     label: "3rd Attempt Still Needed",
     exportLabel: "3rd-attempt-still-needed",
-    hint: "2nd visit done but girl still not located - click to download",
+    hint: "2nd visit done but girl still not located",
     icon: Target,
     color: "text-orange-600",
     group: "3rd",
@@ -143,7 +143,7 @@ const cards: {
   {
     label: "3rd Revisited Girls",
     exportLabel: "3rd-revisited-girls",
-    hint: "Girls with an actual 3rd follow-up visit · click to download",
+    hint: "Girls with an actual 3rd follow-up visit",
     icon: Users,
     color: "text-indigo-600",
     group: "3rd",
@@ -153,7 +153,7 @@ const cards: {
   {
     label: "Tracked on 3rd Revisit",
     exportLabel: "tracked-on-3rd-revisit",
-    hint: "Successfully tracked on the 3rd follow-up form · click to download",
+    hint: "Successfully tracked on the 3rd follow-up form",
     icon: CheckCircle2,
     color: "text-deep-teal",
     group: "3rd",
@@ -163,7 +163,7 @@ const cards: {
   {
     label: "Not Tracked on 3rd Revisit",
     exportLabel: "not-tracked-on-3rd-revisit",
-    hint: "3rd follow-up completed but not tracked on that visit · click to download",
+    hint: "3rd follow-up completed but not tracked on that visit",
     icon: UserX,
     color: "text-red-500",
     group: "3rd",
