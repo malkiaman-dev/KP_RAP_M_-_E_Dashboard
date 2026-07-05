@@ -22,23 +22,34 @@ type Detail = NonNullable<TrackingMetrics["duplicateDetail"]>;
 const cards: {
   label: string;
   hint: string;
-  exportLabel: string;
+  exportLabel?: string;
   icon: typeof Copy;
   color: string;
-  listKey: DuplicateDetailListKey;
+  listKey?: DuplicateDetailListKey;
+  exportable?: boolean;
   value: (d: Detail) => number;
   hoverDetail?: (d: Detail) => string;
 }[] = [
   {
-    label: "Total Duplicates",
+    label: "Duplicate Rows",
     exportLabel: "total-duplicates",
-    hint: "All submissions where the same girl and visit was submitted more than once",
+    hint: "Every submission row in a duplicated girl + visit group (original + copies)",
     icon: Copy,
     color: "text-purple-600",
     listKey: "totalDuplicates",
     value: (d) => d.totalDuplicates,
     hoverDetail: (d) =>
-      `${d.duplicateGroups} girl + visit group(s) · ${d.totalDuplicates} submission row(s)`,
+      `${d.duplicateGroups} duplicated girl + visit group(s) · ${d.totalDuplicates} row(s) including originals`,
+  },
+  {
+    label: "Redundant Submissions",
+    hint: "Extra copies only — subtract this from Total Submissions to get unique girl + visit slots",
+    icon: Copy,
+    color: "text-purple-700",
+    exportable: false,
+    value: (d) => d.extraDuplicates,
+    hoverDetail: (d) =>
+      `${d.extraDuplicates} extra row(s) · ${d.uniqueGirlVisitSlots} unique girl + visit slots after removal`,
   },
   {
     label: "Exact Duplicates",
@@ -99,17 +110,46 @@ export function TrackingDuplicateSection({
             </p>
             {!expanded && d && (
               <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-700">
-                {d.totalDuplicates} duplicate submission
-                {d.totalDuplicates === 1 ? "" : "s"}
+                {d.extraDuplicates} redundant · {d.totalDuplicates} duplicate
+                row{d.totalDuplicates === 1 ? "" : "s"}
               </span>
             )}
           </div>
-          {expanded && (
-            <p className="mt-1 text-[10px] text-muted-foreground">
-              Same girl and visit submitted more than once · click any card to
-              download an Excel list · total duplicates includes a Duplicate
-              Type column
-            </p>
+          {expanded && d && metrics && (
+            <div className="mt-1 space-y-1 text-[10px] text-muted-foreground">
+              <p>
+                Same girl and visit submitted more than once · click a card to
+                download an Excel list (Duplicate Type column included on full
+                export)
+              </p>
+              <p>
+                <span className="font-medium text-foreground">
+                  {metrics.totalSubmissions.toLocaleString()} submissions
+                </span>
+                {" − "}
+                <span className="font-medium text-foreground">
+                  {d.extraDuplicates.toLocaleString()} redundant
+                </span>
+                {" = "}
+                <span className="font-medium text-foreground">
+                  {d.uniqueGirlVisitSlots.toLocaleString()} unique girl + visit
+                  slots
+                </span>
+                . Girls Attempted (
+                {metrics.secondaryKpis.uniqueGirlsAttempted.toLocaleString()})
+                counts unique girls —{" "}
+                {(
+                  d.uniqueGirlVisitSlots -
+                  metrics.secondaryKpis.uniqueGirlsAttempted
+                ).toLocaleString()}{" "}
+                lower because that many girls have more than one visit number on
+                file. Only{" "}
+                {metrics.secondaryKpis.revisitGirls.toLocaleString()} are
+                protocol follow-up attempts (see Follow-up Attempts); most of
+                the rest are visit 2/3 forms filed after the girl was already
+                tracked on visit 1.
+              </p>
+            </div>
           )}
         </div>
         <button
@@ -140,12 +180,15 @@ export function TrackingDuplicateSection({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3 xl:grid-cols-5">
               {loading
                 ? cards.map((_, i) => <StatCardSkeleton key={i} count={1} />)
                 : cards.map((card, i) => {
-                    const list = d!.lists[card.listKey];
-                    const hasExport = list.length > 0;
+                    const list =
+                      card.exportable !== false && card.listKey
+                        ? d!.lists[card.listKey]
+                        : undefined;
+                    const hasExport = (list?.length ?? 0) > 0;
 
                     return (
                       <StatCard
@@ -159,8 +202,9 @@ export function TrackingDuplicateSection({
                         hint={card.hint}
                         hoverDetail={card.hoverDetail?.(d!)}
                         onClick={
-                          hasExport
-                            ? () => downloadCardList(list, card.exportLabel)
+                          hasExport && card.exportLabel
+                            ? () =>
+                                downloadCardList(list!, card.exportLabel!)
                             : undefined
                         }
                       />

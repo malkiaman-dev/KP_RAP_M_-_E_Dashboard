@@ -856,6 +856,10 @@ export type DuplicateDetailListKey =
 export interface DuplicateDetailMetrics {
   /** Submission rows belonging to a girl + visit group with more than one submission */
   totalDuplicates: number;
+  /** Extra submission rows beyond one per girl + visit (what you subtract from total submissions) */
+  extraDuplicates: number;
+  /** Distinct girl + visit combinations after removing redundant duplicate rows */
+  uniqueGirlVisitSlots: number;
   /** Same girl, visit, and enumerator submitted more than once */
   exactDuplicates: number;
   /** Duplicate submissions on visit 2 or 3 */
@@ -945,8 +949,13 @@ export function computeDuplicateDetailMetrics(
     lists[key].sort(sortByDate);
   }
 
+  const totalDuplicates = lists.totalDuplicates.length;
+  const extraDuplicates = totalDuplicates - duplicateGroups;
+
   return {
-    totalDuplicates: lists.totalDuplicates.length,
+    totalDuplicates,
+    extraDuplicates,
+    uniqueGirlVisitSlots: visitGroups.size,
     exactDuplicates: lists.exactDuplicates.length,
     revisitDuplicates: lists.revisitDuplicates.length,
     differentEnumeratorDuplicates: lists.differentEnumeratorDuplicates.length,
