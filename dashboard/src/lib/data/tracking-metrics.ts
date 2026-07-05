@@ -442,6 +442,114 @@ function classifyUntrackedGirl(
   return "incomplete";
 }
 
+const UNTRACKED_REASON_LABELS: Record<UntrackedReasonKey, string> = {
+  girlNotFound: "Girl not found",
+  noConsent: "No consent",
+  houseNotLocated: "House not located",
+  houseUntraceable: "House untraceable",
+  incomplete: "Incomplete survey",
+};
+
+function describeTrackingGaps(row: TrackingRow): string[] {
+  const gaps: string[] = [];
+
+  if (row.house_found === "3") {
+    gaps.push("house untraceable");
+  } else if (row.house_found !== "1" && row.house_found !== "2") {
+    gaps.push("house not located");
+  }
+
+  if (
+    (row.house_found === "1" || row.house_found === "2") &&
+    row.girl_found !== "1"
+  ) {
+    gaps.push("girl not found");
+  }
+
+  if (
+    (row.house_found === "1" || row.house_found === "2") &&
+    row.girl_found === "1"
+  ) {
+    if (row.consent === "0" || row.consent === "2") {
+      gaps.push("consent refused");
+    } else if (row.consent !== "1") {
+      gaps.push("consent not obtained");
+    }
+  }
+
+  if (row.survey_status === "2") {
+    gaps.push("survey marked incomplete");
+  } else if (row.survey_status === "99") {
+    gaps.push("survey other status");
+  } else if (row.survey_status !== "1") {
+    gaps.push("survey not complete");
+  }
+
+  return gaps;
+}
+
+function describeGirlNotFoundReason(subs: TrackingRow[]): string {
+  const located = subs.filter(
+    (r) => r.house_found === "1" || r.house_found === "2"
+  );
+  const row = latestGirlSubmission(located.length > 0 ? located : subs);
+
+  if (row.house_found === "2") {
+    return "Household located (family moved) but girl not found — may have moved with family or be elsewhere";
+  }
+
+  if (row.girl_found === "0") {
+    return "Household located but girl temporarily not available (girl_found = Not found) — follow-up revisit may apply";
+  }
+
+  if (!row.girl_found?.trim()) {
+    return "Household located but girl location not recorded on the form";
+  }
+
+  return "Household located but girl not found on visit";
+}
+
+function describeNotTrackedReason(subs: TrackingRow[]): string {
+  const reason = classifyUntrackedGirl(subs);
+  const primary = UNTRACKED_REASON_LABELS[reason];
+
+  if (reason === "girlNotFound") {
+    return `${primary} — ${describeGirlNotFoundReason(subs)}`;
+  }
+
+  if (reason === "noConsent") {
+    const withConsentStep = subs.filter(
+      (r) =>
+        (r.house_found === "1" || r.house_found === "2") &&
+        r.girl_found === "1"
+    );
+    const refused = withConsentStep.some(
+      (r) => r.consent === "0" || r.consent === "2"
+    );
+    if (refused) {
+      return `${primary} — consent explicitly refused on form`;
+    }
+    return `${primary} — girl located but consent not recorded as given`;
+  }
+
+  if (reason === "houseUntraceable") {
+    return `${primary} — household could not be traced (house_found = Untraceable)`;
+  }
+
+  if (reason === "houseNotLocated") {
+    return `${primary} — household never successfully located`;
+  }
+
+  const gaps = new Set<string>();
+  for (const row of subs) {
+    for (const gap of describeTrackingGaps(row)) gaps.add(gap);
+  }
+
+  return gaps.size > 0
+    ? `${primary} — missing success criteria: ${[...gaps].join("; ")}`
+    : primary;
+}
+
 function computeUntrackedBreakdown(rows: TrackingRow[]): UntrackedBreakdown {
   const map = new Map<string, TrackingRow[]>();
   for (const r of rows) {
@@ -658,6 +766,8 @@ export interface RevisitGirlExportRow {
   revisitCategory: string;
   /** Set on duplicate exports — may combine multiple labels, e.g. "Exact duplicate · Revisit duplicate" */
   duplicateType?: string;
+  /** Human-readable reason for not tracked / girl not found exports */
+  exportReason?: string;
 }
 
 export interface RevisitDetailData extends RevisitDetailMetrics {
@@ -1215,7 +1325,12 @@ function computeOperationalKpiLists(
     rows.filter(isTrackedSubmission).map((r) => girlKey(r))
   );
 
-  const pushGirl = (key: OperationalKpiKey, subs: TrackingRow[], category: string) => {
+  const pushGirl = (
+    key: OperationalKpiKey,
+    subs: TrackingRow[],
+    category: string,
+    exportReason?: string
+  ) => {
     const row = toGirlExportRow(latestGirlSubmission(subs), category);
     if (!row.girlName) {
       for (const sub of subs) {
@@ -1226,6 +1341,7 @@ function computeOperationalKpiLists(
         }
       }
     }
+    if (exportReason) row.exportReason = exportReason;
     lists[key].rows.push(row);
   };
 
@@ -1244,10 +1360,21 @@ function computeOperationalKpiLists(
       pushGirl("trackedGirls", subs, "Successfully tracked");
       pushGirl("successRate", subs, "Successfully tracked");
     } else {
-      pushGirl("attemptedNotTracked", subs, "Not tracked");
+      pushGirl(
+        "attemptedNotTracked",
+        subs,
+        "Not tracked",
+        describeNotTrackedReason(subs)
+      );
       const reason = classifyUntrackedGirl(subs);
-      if (reason === "girlNotFound") pushGirl("girlNotFound", subs, "Girl not found");
-      else if (reason === "noConsent") pushGirl("noConsentGirls", subs, "No consent");
+      if (reason === "girlNotFound") {
+        pushGirl(
+          "girlNotFound",
+          subs,
+          "Girl not found",
+          describeGirlNotFoundReason(subs)
+        );
+      } else if (reason === "noConsent") pushGirl("noConsentGirls", subs, "No consent");
       else if (reason === "incomplete") pushGirl("incompleteGirls", subs, "Incomplete");
       else if (reason === "houseNotLocated")
         pushGirl("houseNotLocatedGirls", subs, "House not located");

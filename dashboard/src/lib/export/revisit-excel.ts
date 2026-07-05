@@ -3,6 +3,7 @@ import type { RevisitGirlExportRow } from "@/lib/data/tracking-metrics";
 
 function toSheetRows(rows: RevisitGirlExportRow[]) {
   const includeDuplicateType = rows.some((r) => r.duplicateType);
+  const includeReason = rows.some((r) => r.exportReason);
 
   return rows.map((row) => {
     const base: Record<string, string> = {
@@ -27,6 +28,10 @@ function toSheetRows(rows: RevisitGirlExportRow[]) {
 
     if (includeDuplicateType) {
       base["Duplicate Type"] = row.duplicateType || "";
+    }
+
+    if (includeReason) {
+      base.Reason = row.exportReason || "";
     }
 
     return base;
