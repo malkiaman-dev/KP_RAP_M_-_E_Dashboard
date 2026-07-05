@@ -157,7 +157,8 @@ export function toggleTrackingFilters(
 
 function untrackedGirlKeysForReason(
   rows: TrackingRow[],
-  reason: UntrackedReasonKey
+  reason: UntrackedReasonKey,
+  allRows: TrackingRow[] = rows
 ): Set<string> {
   const map = new Map<string, TrackingRow[]>();
   for (const r of rows) {
@@ -166,9 +167,10 @@ function untrackedGirlKeysForReason(
     map.get(key)!.push(r);
   }
   const result = new Set<string>();
-  for (const [key, subs] of map) {
-    if (subs.some(isTrackedSubmission)) continue;
-    if (classifyUntrackedGirl(subs) === reason) result.add(key);
+  for (const [key] of map) {
+    if (girlIsTrackedAcrossAttempts(allRows, key)) continue;
+    const allSubs = chronologicalGirlSubmissions(allRows, key);
+    if (classifyUntrackedGirl(allSubs) === reason) result.add(key);
   }
   return result;
 }
@@ -552,7 +554,10 @@ function describeNotTrackedReason(subs: TrackingRow[]): string {
     : primary;
 }
 
-function computeUntrackedBreakdown(rows: TrackingRow[]): UntrackedBreakdown {
+function computeUntrackedBreakdown(
+  rows: TrackingRow[],
+  allRows: TrackingRow[] = rows
+): UntrackedBreakdown {
   const map = new Map<string, TrackingRow[]>();
   for (const r of rows) {
     const key = girlKey(r);
@@ -569,10 +574,11 @@ function computeUntrackedBreakdown(rows: TrackingRow[]): UntrackedBreakdown {
     incomplete: 0,
   };
 
-  for (const [, subs] of map) {
-    if (subs.some(isTrackedSubmission)) continue;
+  for (const [girl] of map) {
+    if (girlIsTrackedAcrossAttempts(allRows, girl)) continue;
     breakdown.total += 1;
-    breakdown[classifyUntrackedGirl(subs)] += 1;
+    breakdown[classifyUntrackedGirl(chronologicalGirlSubmissions(allRows, girl))] +=
+      1;
   }
 
   return breakdown;
@@ -604,6 +610,14 @@ function chronologicalGirlSubmissions(
       if (da !== db) return da - db;
       return parseVisitNum(a) - parseVisitNum(b);
     });
+}
+
+/** True if the girl meets full tracking success on any chronological attempt. */
+function girlIsTrackedAcrossAttempts(
+  allRows: TrackingRow[],
+  girl: string
+): boolean {
+  return chronologicalGirlSubmissions(allRows, girl).some(isTrackedSubmission);
 }
 
 /**
@@ -845,10 +859,6 @@ function toRevisitExportRow(
   return toGirlExportRow(row, revisitCategory);
 }
 
-function girlEverTracked(subs: TrackingRow[]): boolean {
-  return subs.some(isTrackedSubmission);
-}
-
 function latestActualRevisitSubmission(
   subs: TrackingRow[],
   allRows: TrackingRow[],
@@ -864,8 +874,8 @@ function latestActualRevisitSubmission(
 }
 
 function girlStillNeeds2nd(subs: TrackingRow[], allRows: TrackingRow[]): boolean {
-  if (girlEverTracked(subs)) return false;
   const girl = girlKey(subs[0]!);
+  if (girlIsTrackedAcrossAttempts(allRows, girl)) return false;
   const attempts = girlAttemptSequence(allRows, girl);
   if (attempts.length >= 2) return false;
   const first = attempts[0];
@@ -874,8 +884,8 @@ function girlStillNeeds2nd(subs: TrackingRow[], allRows: TrackingRow[]): boolean
 }
 
 function girlStillNeeds3rd(subs: TrackingRow[], allRows: TrackingRow[]): boolean {
-  if (girlEverTracked(subs)) return false;
   const girl = girlKey(subs[0]!);
+  if (girlIsTrackedAcrossAttempts(allRows, girl)) return false;
   const attempts = girlAttemptSequence(allRows, girl);
   if (attempts.length >= 3) return false;
   if (attempts.length < 2) return false;
@@ -1328,7 +1338,7 @@ function computeOperationalKpiLists(
   const lists = emptyOperationalKpiLists();
   const byGirl = groupFilteredRowsByGirl(rows);
   const trackedGirlKeys = new Set(
-    rows.filter(isTrackedSubmission).map((r) => girlKey(r))
+    allRows.filter(isTrackedSubmission).map((r) => girlKey(r))
   );
 
   const pushGirl = (
@@ -1356,7 +1366,8 @@ function computeOperationalKpiLists(
   };
 
   for (const [girl, subs] of byGirl) {
-    const tracked = subs.some(isTrackedSubmission);
+    const allSubs = chronologicalGirlSubmissions(allRows, girl);
+    const tracked = girlIsTrackedAcrossAttempts(allRows, girl);
     const session2024 = subs.some((r) => inferTrackingSession(r) === "2023-2024");
 
     pushGirl("uniqueGirlsAttempted", subs, "Attempted");
@@ -1368,24 +1379,26 @@ function computeOperationalKpiLists(
     } else {
       pushGirl(
         "attemptedNotTracked",
-        subs,
+        allSubs,
         "Not tracked",
-        describeNotTrackedReason(subs)
+        describeNotTrackedReason(allSubs)
       );
-      const reason = classifyUntrackedGirl(subs);
+      const reason = classifyUntrackedGirl(allSubs);
       if (reason === "girlNotFound") {
         pushGirl(
           "girlNotFound",
-          subs,
+          allSubs,
           "Girl not found",
-          describeGirlNotFoundReason(subs)
+          describeGirlNotFoundReason(allSubs)
         );
-      } else if (reason === "noConsent") pushGirl("noConsentGirls", subs, "No consent");
-      else if (reason === "incomplete") pushGirl("incompleteGirls", subs, "Incomplete");
+      } else if (reason === "noConsent")
+        pushGirl("noConsentGirls", allSubs, "No consent");
+      else if (reason === "incomplete")
+        pushGirl("incompleteGirls", allSubs, "Incomplete");
       else if (reason === "houseNotLocated")
-        pushGirl("houseNotLocatedGirls", subs, "House not located");
+        pushGirl("houseNotLocatedGirls", allSubs, "House not located");
       else if (reason === "houseUntraceable")
-        pushGirl("houseUntraceableGirls", subs, "Untraceable household");
+        pushGirl("houseUntraceableGirls", allSubs, "Untraceable household");
     }
 
     if (session2024) pushGirl("girls2024", subs, "2023-2024 listing");
@@ -1482,7 +1495,7 @@ function computeOperationalKpiLists(
     const enumKey = enumeratorIdentityKey(latestGirlSubmission(subs));
     if (!girlsByEnumerator.has(enumKey)) girlsByEnumerator.set(enumKey, new Set());
     girlsByEnumerator.get(enumKey)!.add(girl);
-    if (subs.some(isTrackedSubmission)) {
+    if (girlIsTrackedAcrossAttempts(allRows, girl)) {
       if (!trackedByEnumerator.has(enumKey)) trackedByEnumerator.set(enumKey, new Set());
       trackedByEnumerator.get(enumKey)!.add(girl);
     }
@@ -1629,7 +1642,10 @@ interface GirlSummary {
   latestDate: string;
 }
 
-function summarizeByGirl(rows: TrackingRow[]): GirlSummary[] {
+function summarizeByGirl(
+  rows: TrackingRow[],
+  allRows: TrackingRow[] = rows
+): GirlSummary[] {
   const map = new Map<string, TrackingRow[]>();
   for (const r of rows) {
     const key = girlKey(r);
@@ -1646,7 +1662,7 @@ function summarizeByGirl(rows: TrackingRow[]): GirlSummary[] {
     const latest = sorted[0];
     return {
       key,
-      tracked: subs.some(isTrackedSubmission),
+      tracked: girlIsTrackedAcrossAttempts(allRows, key),
       district: latest.district || "",
       districtLabel: districtLabel(
         latest.district || "",
@@ -1668,14 +1684,21 @@ function computeCohortMetrics(
   cohort: TrackingCohort,
   label: string,
   assignmentTarget: number,
-  successTarget: number
+  successTarget: number,
+  allRows: TrackingRow[] = rows
 ): CohortMetrics {
   const cohortRows = rows.filter((r) => inferTrackingCohort(r) === cohort);
-  const girls = summarizeByGirl(cohortRows);
+  const cohortAllRows = allRows.filter(
+    (r) => inferTrackingCohort(r) === cohort
+  );
+  const girls = summarizeByGirl(cohortRows, cohortAllRows);
   const trackedGirls = girls.filter((g) => g.tracked);
   const untrackedGirls = girls.filter((g) => !g.tracked);
   const totalTracked = trackedGirls.length;
-  const untrackedBreakdown = computeUntrackedBreakdown(cohortRows);
+  const untrackedBreakdown = computeUntrackedBreakdown(
+    cohortRows,
+    cohortAllRows
+  );
   const sessionsInData = [
     ...new Set(
       cohortRows
@@ -1721,7 +1744,7 @@ export function computeTrackingMetrics(
   targets: TrackingTargets = DEFAULT_TRACKING_TARGETS,
   allRows: TrackingRow[] = rows
 ) {
-  const girls = summarizeByGirl(rows);
+  const girls = summarizeByGirl(rows, allRows);
   const trackedGirls = girls.filter((g) => g.tracked);
   const untrackedGirls = girls.filter((g) => !g.tracked);
 
@@ -1741,14 +1764,16 @@ export function computeTrackingMetrics(
       "baseline",
       "Baseline Tracking",
       targets.baselineAssignment,
-      targets.baselineSuccessTarget
+      targets.baselineSuccessTarget,
+      allRows
     ),
     newSample: computeCohortMetrics(
       rows,
       "new-sample",
       "New Sample Tracking",
       targets.newSampleAssignment,
-      targets.newSampleSuccessTarget
+      targets.newSampleSuccessTarget,
+      allRows
     ),
   };
 
@@ -1933,7 +1958,7 @@ export function computeTrackingMetrics(
   // tracked on a revisit are not untraceable, so exclude any girl with a tracked
   // submission. This keeps the KPI consistent with the untracked breakdown.
   const trackedGirlKeys = new Set(
-    rows.filter(isTrackedSubmission).map(girlKey)
+    allRows.filter(isTrackedSubmission).map(girlKey)
   );
   const houseUntraceableGirls = new Set(
     rows
@@ -1987,7 +2012,7 @@ export function computeTrackingMetrics(
       ? (rows.filter((r) => r.survey_status === "1").length / rows.length) * 100
       : 0;
 
-  const untrackedBreakdown = computeUntrackedBreakdown(rows);
+  const untrackedBreakdown = computeUntrackedBreakdown(rows, allRows);
 
   const untrackedReasons = [
     { reason: "Girl not found", count: untrackedBreakdown.girlNotFound },

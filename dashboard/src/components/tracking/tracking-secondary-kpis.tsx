@@ -73,7 +73,7 @@ const cards: {
     key: "attemptedNotTracked",
     exportLabel: "not-tracked",
     label: "Not Tracked",
-    hint: "Attempted but missing success criteria",
+    hint: "Never successfully tracked on any visit (excludes girls tracked on 2nd or 3rd attempt)",
     icon: UserX,
     color: "text-orange-600",
   },
