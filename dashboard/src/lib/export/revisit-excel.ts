@@ -22,7 +22,9 @@ function toSheetRows(rows: RevisitGirlExportRow[]) {
       "House Found": row.houseFound,
       "Girl Found": row.girlFound,
       Consent: row.consent,
-      "Survey Status": row.surveyStatus,
+      survey_status: row.surveyStatus,
+      survey_status_othr: row.surveyStatusOthr,
+      survey_comments: row.surveyComments,
       Category: row.revisitCategory,
     };
 

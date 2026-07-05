@@ -35,6 +35,8 @@ export interface TrackingRow {
   girl_found_confirm_dropped?: string;
   consent?: string;
   survey_status?: string;
+  survey_status_othr?: string;
+  survey_comments?: string;
   visit_num?: string;
   enrollstat_label?: string;
   formdef_version?: string;
@@ -763,6 +765,8 @@ export interface RevisitGirlExportRow {
   girlFound: string;
   consent: string;
   surveyStatus: string;
+  surveyStatusOthr: string;
+  surveyComments: string;
   revisitCategory: string;
   /** Set on duplicate exports — may combine multiple labels, e.g. "Exact duplicate · Revisit duplicate" */
   duplicateType?: string;
@@ -828,6 +832,8 @@ function toGirlExportRow(
     girlFound: girlFoundLabel(row.girl_found),
     consent: row.consent?.trim() || "",
     surveyStatus: row.survey_status?.trim() || "",
+    surveyStatusOthr: row.survey_status_othr?.trim() || "",
+    surveyComments: row.survey_comments?.trim() || "",
     revisitCategory: category,
   };
 }
