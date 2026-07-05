@@ -14,12 +14,18 @@ import {
   UserX,
 } from "lucide-react";
 import { StatCard, StatCardSkeleton } from "@/components/ui/stat-card";
-import type { TrackingMetrics } from "@/lib/data/tracking-metrics";
+import type {
+  OperationalKpiKey,
+  OperationalKpiLists,
+  TrackingMetrics,
+} from "@/lib/data/tracking-metrics";
+import { downloadOperationalKpiExcel } from "@/lib/export/operational-kpi-excel";
 
 type SecondaryKpis = TrackingMetrics["secondaryKpis"];
 
 const cards: {
-  key: keyof SecondaryKpis;
+  key: OperationalKpiKey;
+  exportLabel: string;
   label: string;
   hint: string;
   icon: typeof Users;
@@ -29,22 +35,25 @@ const cards: {
 }[] = [
   {
     key: "uniqueGirlsAttempted",
+    exportLabel: "girls-attempted",
     label: "Girls Attempted",
-    hint: "Unique girls in filtered export",
+    hint: "Unique girls in filtered export · click to download",
     icon: Users,
     color: "text-teal",
   },
   {
     key: "trackedGirls",
+    exportLabel: "tracked-girls",
     label: "Tracked Girls",
-    hint: "Unique girls meeting the full tracking success criteria",
+    hint: "Unique girls meeting the full tracking success criteria · click to download",
     icon: CheckCircle2,
     color: "text-teal",
   },
   {
     key: "dataCoverageRate",
+    exportLabel: "field-coverage",
     label: "Field Coverage %",
-    hint: "Attempted vs assignment pool target",
+    hint: "Attempted vs assignment pool target · click to download girl list",
     icon: Percent,
     color: "text-blue-600",
     suffix: "%",
@@ -52,8 +61,9 @@ const cards: {
   },
   {
     key: "successRate",
+    exportLabel: "success-rate",
     label: "Success Rate %",
-    hint: "Successfully tracked girls vs protocol success target",
+    hint: "Successfully tracked girls vs protocol success target · click to download",
     icon: Percent,
     color: "text-teal",
     suffix: "%",
@@ -61,71 +71,81 @@ const cards: {
   },
   {
     key: "attemptedNotTracked",
+    exportLabel: "not-tracked",
     label: "Not Tracked",
-    hint: "Attempted but missing success criteria",
+    hint: "Attempted but missing success criteria · click to download",
     icon: UserX,
     color: "text-orange-600",
   },
   {
     key: "girlNotFound",
+    exportLabel: "girl-not-found",
     label: "Girl Not Found",
-    hint: "House located but girl not found",
+    hint: "House located but girl not found · click to download",
     icon: UserX,
     color: "text-red-500",
   },
   {
     key: "noConsentGirls",
+    exportLabel: "no-consent",
     label: "No Consent",
-    hint: "Consent explicitly refused (consent = 0 or 2)",
+    hint: "Consent explicitly refused (consent = 0 or 2) · click to download",
     icon: Handshake,
     color: "text-amber-600",
   },
   {
     key: "revisitSubmissions",
+    exportLabel: "follow-up-attempts",
     label: "Follow-up Attempts",
-    hint: "2nd & 3rd visits when the girl was not yet located on a prior attempt",
+    hint: "2nd & 3rd visits when the girl was not yet located on a prior attempt · click to download",
     icon: RefreshCw,
     color: "text-amber-600",
   },
   {
     key: "revisitGirls",
+    exportLabel: "girls-revisited",
     label: "Girls Revisited",
-    hint: "Girls with an actual follow-up visit after a prior unsuccessful attempt",
+    hint: "Girls with an actual follow-up visit after a prior unsuccessful attempt · click to download",
     icon: RefreshCw,
     color: "text-amber-500",
   },
   {
     key: "girls2023",
+    exportLabel: "girls-2023",
     label: "Girls 2023",
-    hint: "Unique girls from the 2022-2023 listing (baseline + new sample batch 1)",
+    hint: "Unique girls from the 2022-2023 listing (baseline + new sample batch 1) · click to download",
     icon: Users,
     color: "text-teal",
   },
   {
     key: "girls2024",
+    exportLabel: "girls-2024",
     label: "Girls 2024",
-    hint: "Unique girls from the 2023-2024 listing (new sample batch 2)",
+    hint: "Unique girls from the 2023-2024 listing (new sample batch 2) · click to download",
     icon: Users,
     color: "text-deep-teal",
   },
   {
     key: "houseUntraceableGirls",
+    exportLabel: "untraceable-hh",
     label: "Untraceable HH",
-    hint: "House not found after checks",
+    hint: "House not found after checks · click to download",
     icon: MapPinOff,
     color: "text-red-500",
   },
   {
     key: "familyMovedGirls",
+    exportLabel: "family-moved",
     label: "Family Moved",
-    hint: "Tracked at new address",
+    hint: "Tracked at new address · click to download",
     icon: Truck,
     color: "text-deep-teal",
   },
   {
     key: "consentRate",
+    exportLabel: "consent-rate",
     label: "Consent Rate %",
-    hint: "Among located households",
+    hint: "Among located households · click to download",
     icon: Handshake,
     color: "text-teal",
     suffix: "%",
@@ -133,8 +153,9 @@ const cards: {
   },
   {
     key: "completionRate",
+    exportLabel: "form-completion",
     label: "Form Completion %",
-    hint: "Submissions marked complete",
+    hint: "Submissions marked complete · click to download submission list",
     icon: CheckCircle2,
     color: "text-green-600",
     suffix: "%",
@@ -142,26 +163,41 @@ const cards: {
   },
   {
     key: "incompleteSubmissions",
+    exportLabel: "incomplete-other",
     label: "Incomplete / Other",
-    hint: "Status incomplete or other",
+    hint: "Status incomplete or other · click to download",
     icon: AlertCircle,
     color: "text-orange-500",
   },
   {
     key: "duplicateSubmissions",
+    exportLabel: "duplicate-visits",
     label: "Duplicate Visits",
-    hint: "Same girl + visit submitted twice",
+    hint: "Same girl + visit submitted twice · click to download",
     icon: Copy,
     color: "text-purple-500",
   },
   {
     key: "avgGirlsPerEnumerator",
+    exportLabel: "girls-per-enumerator",
     label: "Girls / Enumerator",
-    hint: "Average unique girls per enumerator",
+    hint: "Average unique girls per enumerator · click to download enumerator summary",
     icon: BarChart3,
     color: "text-sky-600",
   },
 ];
+
+function downloadCardExport(
+  lists: OperationalKpiLists,
+  key: OperationalKpiKey,
+  exportLabel: string
+) {
+  const date = new Date().toISOString().slice(0, 10);
+  downloadOperationalKpiExcel(
+    lists[key],
+    `operational-${exportLabel}-${date}.xlsx`
+  );
+}
 
 export function TrackingSecondaryKpis({
   metrics,
@@ -178,37 +214,55 @@ export function TrackingSecondaryKpis({
     );
   }
 
-  if (!metrics?.secondaryKpis) return null;
+  if (!metrics?.secondaryKpis || !metrics.operationalKpiLists) return null;
 
-  const s = metrics.secondaryKpis;
+  const s: SecondaryKpis = metrics.secondaryKpis;
+  const lists = metrics.operationalKpiLists;
 
   return (
     <div className="mb-6">
       <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         Operational metrics
       </p>
+      <p className="mb-3 text-[10px] text-muted-foreground">
+        Click any card to download the underlying records as an Excel file.
+      </p>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-        {cards.map((card, i) => (
-          <StatCard
-            key={card.key}
-            index={i}
-            muted
-            label={card.label}
-            value={s[card.key] as number}
-            icon={card.icon}
-            color={card.color}
-            hint={card.hint}
-            suffix={card.suffix}
-            decimals={card.decimals}
-            hoverDetail={
-              card.key === "revisitSubmissions"
-                ? `2nd attempts: ${s.revisit2ndSubmissions} · 3rd attempts: ${s.revisit3rdSubmissions}`
-                : card.key === "revisitGirls"
-                  ? `2nd revisits: ${s.girls2ndRevisit} girls · 3rd revisits: ${s.girls3rdRevisit} girls`
+        {cards.map((card, i) => {
+          const exportData = lists[card.key];
+          const hasExport =
+            exportData.rows.length > 0 ||
+            (exportData.enumeratorSummary?.length ?? 0) > 0;
+
+          return (
+            <StatCard
+              key={card.key}
+              index={i}
+              muted
+              label={card.label}
+              value={s[card.key] as number}
+              icon={card.icon}
+              color={card.color}
+              hint={card.hint}
+              suffix={card.suffix}
+              decimals={card.decimals}
+              hoverDetail={
+                card.key === "revisitSubmissions"
+                  ? `2nd attempts: ${s.revisit2ndSubmissions} · 3rd attempts: ${s.revisit3rdSubmissions} · Click to download`
+                  : card.key === "revisitGirls"
+                    ? `2nd revisits: ${s.girls2ndRevisit} girls · 3rd revisits: ${s.girls3rdRevisit} girls · Click to download`
+                    : hasExport
+                      ? `${exportData.rows.length || exportData.enumeratorSummary?.length || 0} record(s) · Click to download`
+                      : undefined
+              }
+              onClick={
+                hasExport
+                  ? () => downloadCardExport(lists, card.key, card.exportLabel)
                   : undefined
-            }
-          />
-        ))}
+              }
+            />
+          );
+        })}
       </div>
     </div>
   );

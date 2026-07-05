@@ -18,6 +18,14 @@ export interface TrackingRow {
   girl?: string;
   girl_id?: string;
   girlname_label?: string;
+  /** New-sample listing name */
+  new_name?: string;
+  /** Survey-captured girl name (both cohorts) */
+  girl_name?: string;
+  /** Identity-confirmed name during tracking survey */
+  name?: string;
+  /** Composite listing label, e.g. "Sofia | Father | phone" */
+  girl_label?: string;
   school_label?: string;
   new_school_label?: string;
   school?: string;
@@ -271,6 +279,27 @@ function resolveSchoolLabel(row: TrackingRow): string | undefined {
   const school = String(row.school || "").trim();
   if (school && !/^\d+$/.test(school)) return school;
   return undefined;
+}
+
+/** Baseline listing uses `girlname_label`; new sample uses `new_name`, with survey fallbacks. */
+export function resolveGirlName(row: TrackingRow): string {
+  for (const field of [
+    row.girlname_label,
+    row.new_name,
+    row.girl_name,
+    row.name,
+  ]) {
+    const value = String(field || "").trim();
+    if (value) return value;
+  }
+
+  const label = String(row.girl_label || "").trim();
+  if (label) {
+    const first = label.split("|")[0]?.trim();
+    if (first) return first;
+  }
+
+  return "";
 }
 
 /**
@@ -588,15 +617,15 @@ function girlFoundLabel(v?: string): string {
   return v?.trim() || "";
 }
 
-function toRevisitExportRow(
+function toGirlExportRow(
   row: TrackingRow,
-  revisitCategory: string
+  category: string
 ): RevisitGirlExportRow {
   const cohort = inferTrackingCohort(row);
   const session = inferTrackingSession(row);
   return {
     girlId: girlKey(row),
-    girlName: (row.girlname_label || "").trim(),
+    girlName: resolveGirlName(row),
     district: districtLabel(row.district, row.district_label),
     village: resolveVillageLabel(row) || "",
     school: resolveSchoolLabel(row) || "",
@@ -610,8 +639,15 @@ function toRevisitExportRow(
     girlFound: girlFoundLabel(row.girl_found),
     consent: row.consent?.trim() || "",
     surveyStatus: row.survey_status?.trim() || "",
-    revisitCategory,
+    revisitCategory: category,
   };
+}
+
+function toRevisitExportRow(
+  row: TrackingRow,
+  revisitCategory: string
+): RevisitGirlExportRow {
+  return toGirlExportRow(row, revisitCategory);
 }
 
 function girlEverTracked(subs: TrackingRow[]): boolean {
@@ -769,6 +805,284 @@ export function computeRevisitDetailMetrics(
     totalRevisitedGirls,
     lists,
   };
+}
+
+export interface EnumeratorSummaryExportRow {
+  enumeratorId: string;
+  enumeratorName: string;
+  district: string;
+  uniqueGirls: number;
+  trackedGirls: number;
+  untrackedGirls: number;
+  submissions: number;
+}
+
+export interface OperationalKpiExportData {
+  rows: RevisitGirlExportRow[];
+  enumeratorSummary?: EnumeratorSummaryExportRow[];
+}
+
+export interface SecondaryKpis {
+  uniqueGirlsAttempted: number;
+  trackedGirls: number;
+  successRate: number;
+  dataCoverageRate: number;
+  revisitSubmissions: number;
+  revisitGirls: number;
+  revisit2ndSubmissions: number;
+  revisit3rdSubmissions: number;
+  girls2ndRevisit: number;
+  girls3rdRevisit: number;
+  girls2023: number;
+  girls2024: number;
+  houseUntraceableGirls: number;
+  familyMovedGirls: number;
+  consentRate: number;
+  incompleteSubmissions: number;
+  duplicateSubmissions: number;
+  avgSubmissionsPerEnumerator: number;
+  avgGirlsPerEnumerator: number;
+  completionRate: number;
+  girlNotFound: number;
+  noConsentGirls: number;
+  attemptedNotTracked: number;
+  houseNotLocatedGirls: number;
+  incompleteGirls: number;
+  locatedGirls: number;
+}
+
+export type OperationalKpiKey = keyof SecondaryKpis;
+export type OperationalKpiLists = Record<OperationalKpiKey, OperationalKpiExportData>;
+
+function latestGirlSubmission(subs: TrackingRow[]): TrackingRow {
+  return [...subs].sort(
+    (a, b) =>
+      new Date(b.SubmissionDate || 0).getTime() -
+      new Date(a.SubmissionDate || 0).getTime()
+  )[0]!;
+}
+
+function groupFilteredRowsByGirl(rows: TrackingRow[]): Map<string, TrackingRow[]> {
+  const map = new Map<string, TrackingRow[]>();
+  for (const row of rows) {
+    const key = girlKey(row);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(row);
+  }
+  return map;
+}
+
+function emptyOperationalKpiLists(): OperationalKpiLists {
+  const empty: OperationalKpiExportData = { rows: [] };
+  return {
+    uniqueGirlsAttempted: { rows: [] },
+    trackedGirls: { rows: [] },
+    dataCoverageRate: { rows: [] },
+    successRate: { rows: [] },
+    attemptedNotTracked: { rows: [] },
+    girlNotFound: { rows: [] },
+    noConsentGirls: { rows: [] },
+    revisitSubmissions: { rows: [] },
+    revisitGirls: { rows: [] },
+    girls2023: { rows: [] },
+    girls2024: { rows: [] },
+    houseUntraceableGirls: { rows: [] },
+    familyMovedGirls: { rows: [] },
+    consentRate: { rows: [] },
+    completionRate: { rows: [] },
+    incompleteSubmissions: { rows: [] },
+    duplicateSubmissions: { rows: [] },
+    avgGirlsPerEnumerator: { rows: [], enumeratorSummary: [] },
+    revisit2ndSubmissions: empty,
+    revisit3rdSubmissions: empty,
+    girls2ndRevisit: empty,
+    girls3rdRevisit: empty,
+    houseNotLocatedGirls: empty,
+    incompleteGirls: empty,
+    locatedGirls: empty,
+    avgSubmissionsPerEnumerator: empty,
+  };
+}
+
+function computeOperationalKpiLists(
+  rows: TrackingRow[],
+  allRows: TrackingRow[],
+  revisitDetail: RevisitDetailData
+): OperationalKpiLists {
+  const lists = emptyOperationalKpiLists();
+  const byGirl = groupFilteredRowsByGirl(rows);
+  const trackedGirlKeys = new Set(
+    rows.filter(isTrackedSubmission).map((r) => girlKey(r))
+  );
+
+  const pushGirl = (key: OperationalKpiKey, subs: TrackingRow[], category: string) => {
+    const row = toGirlExportRow(latestGirlSubmission(subs), category);
+    if (!row.girlName) {
+      for (const sub of subs) {
+        const name = resolveGirlName(sub);
+        if (name) {
+          row.girlName = name;
+          break;
+        }
+      }
+    }
+    lists[key].rows.push(row);
+  };
+
+  const pushSubmission = (key: OperationalKpiKey, row: TrackingRow, category: string) => {
+    lists[key].rows.push(toGirlExportRow(row, category));
+  };
+
+  for (const [girl, subs] of byGirl) {
+    const tracked = subs.some(isTrackedSubmission);
+    const session2024 = subs.some((r) => inferTrackingSession(r) === "2023-2024");
+
+    pushGirl("uniqueGirlsAttempted", subs, "Attempted");
+    pushGirl("dataCoverageRate", subs, "Attempted");
+
+    if (tracked) {
+      pushGirl("trackedGirls", subs, "Successfully tracked");
+      pushGirl("successRate", subs, "Successfully tracked");
+    } else {
+      pushGirl("attemptedNotTracked", subs, "Not tracked");
+      const reason = classifyUntrackedGirl(subs);
+      if (reason === "girlNotFound") pushGirl("girlNotFound", subs, "Girl not found");
+      else if (reason === "noConsent") pushGirl("noConsentGirls", subs, "No consent");
+      else if (reason === "incomplete") pushGirl("incompleteGirls", subs, "Incomplete");
+      else if (reason === "houseNotLocated")
+        pushGirl("houseNotLocatedGirls", subs, "House not located");
+      else if (reason === "houseUntraceable")
+        pushGirl("houseUntraceableGirls", subs, "Untraceable household");
+    }
+
+    if (session2024) pushGirl("girls2024", subs, "2023-2024 listing");
+    else pushGirl("girls2023", subs, "2022-2023 listing");
+
+    if (subs.some((r) => r.house_found === "3") && !trackedGirlKeys.has(girl)) {
+      if (!lists.houseUntraceableGirls.rows.some((r) => r.girlId === girl)) {
+        pushGirl("houseUntraceableGirls", subs, "Untraceable household");
+      }
+    }
+
+    if (subs.some((r) => r.house_found === "2") && !trackedGirlKeys.has(girl)) {
+      pushGirl("familyMovedGirls", subs, "Family moved");
+    }
+
+    const locatedSubs = subs.filter(
+      (r) => r.house_found === "1" || r.house_found === "2"
+    );
+    if (locatedSubs.length > 0) {
+      const hasConsent = locatedSubs.some((r) => r.consent === "1");
+      pushGirl(
+        "consentRate",
+        subs,
+        hasConsent ? "Consent given" : "Consent not given"
+      );
+      pushGirl("locatedGirls", subs, "Located household");
+    }
+  }
+
+  for (const row of rows) {
+    if (isActualRevisitSubmission(row, allRows)) {
+      pushSubmission("revisitSubmissions", row, "Follow-up attempt");
+      const visit = parseVisitNum(row);
+      if (visit === 2) pushSubmission("revisit2ndSubmissions", row, "2nd follow-up");
+      if (visit === 3) pushSubmission("revisit3rdSubmissions", row, "3rd follow-up");
+    }
+
+    const complete = row.survey_status === "1";
+    pushSubmission(
+      "completionRate",
+      row,
+      complete ? "Complete" : "Incomplete / other"
+    );
+
+    if (row.survey_status === "2" || row.survey_status === "99") {
+      pushSubmission("incompleteSubmissions", row, "Incomplete / other");
+    }
+  }
+
+  lists.revisitGirls.rows = revisitDetail.lists.totalRevisitedGirls.map((r) => ({
+    ...r,
+    revisitCategory: "Follow-up visit",
+  }));
+  lists.girls2ndRevisit.rows = revisitDetail.lists.girls2ndRevisited.map((r) => ({
+    ...r,
+    revisitCategory: "2nd follow-up visit",
+  }));
+  lists.girls3rdRevisit.rows = revisitDetail.lists.girls3rdRevisited.map((r) => ({
+    ...r,
+    revisitCategory: "3rd follow-up visit",
+  }));
+
+  const visitGroups = new Map<string, TrackingRow[]>();
+  for (const row of rows) {
+    const k = `${girlKey(row)}_${row.visit_num || "1"}`;
+    if (!visitGroups.has(k)) visitGroups.set(k, []);
+    visitGroups.get(k)!.push(row);
+  }
+  for (const subs of visitGroups.values()) {
+    if (subs.length > 1) {
+      for (const row of subs) {
+        pushSubmission("duplicateSubmissions", row, "Duplicate visit");
+      }
+    }
+  }
+
+  const enumeratorStats = new Map<
+    string,
+    EnumeratorSummaryExportRow & { key: string }
+  >();
+
+  for (const row of rows) {
+    const key = enumeratorIdentityKey(row);
+    if (!enumeratorStats.has(key)) {
+      enumeratorStats.set(key, {
+        key,
+        enumeratorId: (row.enumerator_id || "").trim(),
+        enumeratorName: cleanEnumeratorName(row.enumerator_name),
+        district: districtLabel(row.district, row.district_label),
+        uniqueGirls: 0,
+        trackedGirls: 0,
+        untrackedGirls: 0,
+        submissions: 0,
+      });
+    }
+    enumeratorStats.get(key)!.submissions += 1;
+  }
+
+  const girlsByEnumerator = new Map<string, Set<string>>();
+  const trackedByEnumerator = new Map<string, Set<string>>();
+  for (const [girl, subs] of byGirl) {
+    const enumKey = enumeratorIdentityKey(latestGirlSubmission(subs));
+    if (!girlsByEnumerator.has(enumKey)) girlsByEnumerator.set(enumKey, new Set());
+    girlsByEnumerator.get(enumKey)!.add(girl);
+    if (subs.some(isTrackedSubmission)) {
+      if (!trackedByEnumerator.has(enumKey)) trackedByEnumerator.set(enumKey, new Set());
+      trackedByEnumerator.get(enumKey)!.add(girl);
+    }
+  }
+
+  lists.avgGirlsPerEnumerator.enumeratorSummary = [...enumeratorStats.values()]
+    .map((stat) => {
+      const girls = girlsByEnumerator.get(stat.key)?.size ?? 0;
+      const tracked = trackedByEnumerator.get(stat.key)?.size ?? 0;
+      return {
+        enumeratorId: stat.enumeratorId,
+        enumeratorName: stat.enumeratorName,
+        district: stat.district,
+        uniqueGirls: girls,
+        trackedGirls: tracked,
+        untrackedGirls: Math.max(0, girls - tracked),
+        submissions: stat.submissions,
+      };
+    })
+    .sort((a, b) => b.uniqueGirls - a.uniqueGirls);
+
+  lists.avgSubmissionsPerEnumerator.enumeratorSummary =
+    lists.avgGirlsPerEnumerator.enumeratorSummary;
+
+  return lists;
 }
 
 /** @deprecated Use TrackingSessionId */
@@ -1158,6 +1472,7 @@ export function computeTrackingMetrics(
 
   const revisit = computeRevisitMetrics(rows, allRows);
   const revisitDetail = computeRevisitDetailMetrics(rows, allRows);
+  const operationalKpiLists = computeOperationalKpiLists(rows, allRows, revisitDetail);
 
   const districts = districtIds.map((d) => ({
     value: d,
@@ -1327,6 +1642,7 @@ export function computeTrackingMetrics(
       locatedGirls: locatedGirlKeys.size,
     },
     revisitDetail,
+    operationalKpiLists,
     filterOptions: {
       districts,
       villages: villageOptions,
