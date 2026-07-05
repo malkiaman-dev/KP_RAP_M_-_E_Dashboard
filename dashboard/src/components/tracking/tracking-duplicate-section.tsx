@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Copy,
   RefreshCw,
+  UserX,
   Users,
 } from "lucide-react";
 import { StatCard, StatCardSkeleton } from "@/components/ui/stat-card";
@@ -31,19 +32,28 @@ const cards: {
   hoverDetail?: (d: Detail) => string;
 }[] = [
   {
-    label: "Duplicate Rows",
-    exportLabel: "total-duplicates",
-    hint: "Every submission row in a duplicated girl + visit group (original + copies)",
+    label: "All Unnecessary Rows",
+    exportLabel: "all-unnecessary",
+    hint: "Every submission flagged as duplicate or unnecessary (full export includes Duplicate Type)",
     icon: Copy,
     color: "text-purple-600",
     listKey: "totalDuplicates",
-    value: (d) => d.totalDuplicates,
-    hoverDetail: (d) =>
-      `${d.duplicateGroups} duplicated girl + visit group(s) · ${d.totalDuplicates} row(s) including originals`,
+    value: (d) => d.totalUnnecessaryRows,
   },
   {
-    label: "Redundant Submissions",
-    hint: "Extra copies only — subtract this from Total Submissions to get unique girl + visit slots",
+    label: "Same-Visit Duplicates",
+    exportLabel: "same-visit-duplicates",
+    hint: "Same girl and same visit submitted more than once",
+    icon: Copy,
+    color: "text-violet-600",
+    listKey: "sameVisitDuplicates",
+    value: (d) => d.sameVisitDuplicateRows,
+    hoverDetail: (d) =>
+      `${d.duplicateGroups} group(s) · ${d.extraDuplicates} redundant copy(ies) beyond one per girl + visit`,
+  },
+  {
+    label: "Redundant Copies",
+    hint: "Extra same-visit copies only — subtract from Total Submissions for unique girl + visit slots",
     icon: Copy,
     color: "text-purple-700",
     exportable: false,
@@ -52,20 +62,40 @@ const cards: {
       `${d.extraDuplicates} extra row(s) · ${d.uniqueGirlVisitSlots} unique girl + visit slots after removal`,
   },
   {
+    label: "Superseded Failed Attempts",
+    exportLabel: "superseded-failed-attempts",
+    hint: "Prior failed attempts replaced by a later chronological attempt — form visit # may be wrong",
+    icon: UserX,
+    color: "text-orange-600",
+    listKey: "supersededUnsuccessful",
+    value: (d) => d.supersededUnsuccessful,
+    hoverDetail: () =>
+      "By attempt order (not form visit #): A1 fail only → 0 · A1+A2 fail → 1 · A1+A2+A3 → 2",
+  },
+  {
+    label: "Unnecessary Follow-up",
+    exportLabel: "unnecessary-follow-up",
+    hint: "Visit 2 or 3 filed after the girl was already tracked on an earlier visit",
+    icon: RefreshCw,
+    color: "text-amber-600",
+    listKey: "unnecessaryFollowUp",
+    value: (d) => d.unnecessaryFollowUp,
+  },
+  {
     label: "Exact Duplicates",
     exportLabel: "exact-duplicates",
     hint: "Same girl, visit, and enumerator submitted more than once",
     icon: Copy,
-    color: "text-violet-600",
+    color: "text-indigo-600",
     listKey: "exactDuplicates",
     value: (d) => d.exactDuplicates,
   },
   {
     label: "Revisit Duplicates",
     exportLabel: "revisit-duplicates",
-    hint: "Duplicate submissions on a 2nd or 3rd follow-up visit",
+    hint: "Same girl and same follow-up visit submitted more than once",
     icon: RefreshCw,
-    color: "text-indigo-600",
+    color: "text-indigo-500",
     listKey: "revisitDuplicates",
     value: (d) => d.revisitDuplicates,
   },
@@ -98,7 +128,7 @@ export function TrackingDuplicateSection({
   const [expanded, setExpanded] = useState(false);
   const d = metrics?.duplicateDetail;
 
-  if (!loading && (!d || d.totalDuplicates === 0)) return null;
+  if (!loading && (!d || d.totalUnnecessaryRows === 0)) return null;
 
   return (
     <div className="mb-6 overflow-hidden rounded-2xl border border-border/60 bg-card/40 shadow-sm">
@@ -110,44 +140,34 @@ export function TrackingDuplicateSection({
             </p>
             {!expanded && d && (
               <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-700">
-                {d.extraDuplicates} redundant · {d.totalDuplicates} duplicate
-                row{d.totalDuplicates === 1 ? "" : "s"}
+                {d.totalUnnecessaryRows} unnecessary row
+                {d.totalUnnecessaryRows === 1 ? "" : "s"}
               </span>
             )}
           </div>
           {expanded && d && metrics && (
             <div className="mt-1 space-y-1 text-[10px] text-muted-foreground">
               <p>
-                Same girl and visit submitted more than once · click a card to
-                download an Excel list (Duplicate Type column included on full
-                export)
+                Same-visit resubmits and obsolete failed attempts · click a card
+                to download (Duplicate Type on full export)
               </p>
               <p>
+                Same-visit only:{" "}
                 <span className="font-medium text-foreground">
-                  {metrics.totalSubmissions.toLocaleString()} submissions
-                </span>
-                {" − "}
-                <span className="font-medium text-foreground">
-                  {d.extraDuplicates.toLocaleString()} redundant
-                </span>
-                {" = "}
-                <span className="font-medium text-foreground">
+                  {metrics.totalSubmissions.toLocaleString()} submissions −{" "}
+                  {d.extraDuplicates.toLocaleString()} redundant ={" "}
                   {d.uniqueGirlVisitSlots.toLocaleString()} unique girl + visit
                   slots
                 </span>
-                . Girls Attempted (
-                {metrics.secondaryKpis.uniqueGirlsAttempted.toLocaleString()})
-                counts unique girls —{" "}
-                {(
-                  d.uniqueGirlVisitSlots -
-                  metrics.secondaryKpis.uniqueGirlsAttempted
-                ).toLocaleString()}{" "}
-                lower because that many girls have more than one visit number on
-                file. Only{" "}
-                {metrics.secondaryKpis.revisitGirls.toLocaleString()} are
-                protocol follow-up attempts (see Follow-up Attempts); most of
-                the rest are visit 2/3 forms filed after the girl was already
-                tracked on visit 1.
+                . Superseded failed attempts (
+                {d.supersededUnsuccessful.toLocaleString()}) use chronological
+                attempt order — a form marked visit 3 with no prior submissions
+                counts as attempt 1. Rule per girl: A1 fail only → 0 · A1+A2
+                fail → 1 · A1+A2+A3 → 2. Active failures stay in the revisit
+                queue (
+                {metrics.revisitDetail?.revisitsNeedToBeDone.toLocaleString() ??
+                  "—"}{" "}
+                still needed).
               </p>
             </div>
           )}
@@ -180,7 +200,7 @@ export function TrackingDuplicateSection({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
               {loading
                 ? cards.map((_, i) => <StatCardSkeleton key={i} count={1} />)
                 : cards.map((card, i) => {

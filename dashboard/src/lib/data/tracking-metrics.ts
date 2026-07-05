@@ -497,6 +497,44 @@ function chronologicalGirlSubmissions(
 }
 
 /**
+ * Chronological attempt order for a girl. Form `visit_num` may be wrong or
+ * skipped (e.g. visit 3 filed with no visit 1/2) — that submission is attempt 1.
+ */
+interface GirlAttempt {
+  row: TrackingRow;
+  attemptNumber: number;
+  formVisitNum: number;
+}
+
+function girlAttemptSequence(
+  allRows: TrackingRow[],
+  girl: string
+): GirlAttempt[] {
+  return chronologicalGirlSubmissions(allRows, girl).map((row, i) => ({
+    row,
+    attemptNumber: i + 1,
+    formVisitNum: parseVisitNum(row),
+  }));
+}
+
+function attemptNumberForRow(
+  allRows: TrackingRow[],
+  row: TrackingRow
+): number {
+  return (
+    girlAttemptSequence(allRows, girlKey(row)).find((a) => a.row.KEY === row.KEY)
+      ?.attemptNumber ?? 1
+  );
+}
+
+function firstAttemptSubmission(
+  allRows: TrackingRow[],
+  girl: string
+): TrackingRow | undefined {
+  return girlAttemptSequence(allRows, girl)[0]?.row;
+}
+
+/**
  * Tracking-stage revisit rule (KPRAP Tracking Survey Field Protocol §2 & §3).
  *
  * A revisit is required ONLY when:
@@ -510,7 +548,7 @@ function chronologicalGirlSubmissions(
  *   - consent refused (`consent = 0` or `2`)             -> Case 4
  *   - case already completed                             -> Case 1
  *
- * Maximum of two revisits (visit_num 2 and 3) is enforced by the callers.
+ * Maximum of three chronological attempts is enforced by the callers.
  */
 function priorAttemptRequiresRevisit(row: TrackingRow): boolean {
   // Case 1: completed survey -> no revisit.
@@ -524,21 +562,22 @@ function priorAttemptRequiresRevisit(row: TrackingRow): boolean {
 }
 
 /**
- * Actual follow-up attempt: visit_num 2 or 3 after a prior visit when the girl
- * was not yet tracked and the household was not closed as untraceable.
+ * Actual follow-up attempt: chronological attempt 2 or 3 after a prior failed
+ * attempt when revisit was required. Form visit_num is ignored for ordering.
  */
 export function isActualRevisitSubmission(
   submission: TrackingRow,
   allRows: TrackingRow[]
 ): boolean {
-  const visit = parseVisitNum(submission);
-  if (visit !== 2 && visit !== 3) return false;
-
-  const subs = chronologicalGirlSubmissions(allRows, girlKey(submission));
-  const idx = subs.findIndex((r) => r.KEY === submission.KEY);
+  const girl = girlKey(submission);
+  const attempts = girlAttemptSequence(allRows, girl);
+  const idx = attempts.findIndex((a) => a.row.KEY === submission.KEY);
   if (idx <= 0) return false;
 
-  const before = subs.slice(0, idx);
+  const attemptNumber = attempts[idx]!.attemptNumber;
+  if (attemptNumber < 2 || attemptNumber > 3) return false;
+
+  const before = attempts.slice(0, idx).map((a) => a.row);
   if (before.some(isTrackedSubmission)) return false;
 
   const lastPrior = before[before.length - 1]!;
@@ -561,8 +600,8 @@ export function computeRevisitMetrics(
   const actual = filteredRows.filter((r) =>
     isActualRevisitSubmission(r, allRows)
   );
-  const second = actual.filter((r) => parseVisitNum(r) === 2);
-  const third = actual.filter((r) => parseVisitNum(r) === 3);
+  const second = actual.filter((r) => attemptNumberForRow(allRows, r) === 2);
+  const third = actual.filter((r) => attemptNumberForRow(allRows, r) === 3);
 
   return {
     revisitSubmissions: actual.length,
@@ -697,42 +736,34 @@ function girlEverTracked(subs: TrackingRow[]): boolean {
 function latestActualRevisitSubmission(
   subs: TrackingRow[],
   allRows: TrackingRow[],
-  visit: 2 | 3
+  attemptNumber: 2 | 3
 ): TrackingRow | undefined {
-  const matches = subs.filter(
-    (r) => parseVisitNum(r) === visit && isActualRevisitSubmission(r, allRows)
+  const girl = girlKey(subs[0]!);
+  const matches = girlAttemptSequence(allRows, girl).filter(
+    (a) =>
+      a.attemptNumber === attemptNumber &&
+      isActualRevisitSubmission(a.row, allRows)
   );
-  return matches[matches.length - 1];
+  return matches[matches.length - 1]?.row;
 }
 
-function firstVisitSubmission(subs: TrackingRow[]): TrackingRow | undefined {
-  const firstAttempts = subs.filter((r) => parseVisitNum(r) === 1);
-  return firstAttempts[0] ?? subs[0];
-}
-
-function latestVisitSubmission(
-  subs: TrackingRow[],
-  visit: 2 | 3
-): TrackingRow | undefined {
-  const matches = subs.filter((r) => parseVisitNum(r) === visit);
-  return matches[matches.length - 1];
-}
-
-function girlStillNeeds2nd(subs: TrackingRow[], _allRows: TrackingRow[]): boolean {
+function girlStillNeeds2nd(subs: TrackingRow[], allRows: TrackingRow[]): boolean {
   if (girlEverTracked(subs)) return false;
-  if (latestVisitSubmission(subs, 2)) return false;
-  if (latestVisitSubmission(subs, 3)) return false;
-  const first = firstVisitSubmission(subs);
+  const girl = girlKey(subs[0]!);
+  const attempts = girlAttemptSequence(allRows, girl);
+  if (attempts.length >= 2) return false;
+  const first = attempts[0];
   if (!first) return false;
-  return priorAttemptRequiresRevisit(first);
+  return priorAttemptRequiresRevisit(first.row);
 }
 
-function girlStillNeeds3rd(subs: TrackingRow[], _allRows: TrackingRow[]): boolean {
+function girlStillNeeds3rd(subs: TrackingRow[], allRows: TrackingRow[]): boolean {
   if (girlEverTracked(subs)) return false;
-  if (latestVisitSubmission(subs, 3)) return false;
-  const second = latestVisitSubmission(subs, 2);
-  if (!second) return false;
-  return priorAttemptRequiresRevisit(second);
+  const girl = girlKey(subs[0]!);
+  const attempts = girlAttemptSequence(allRows, girl);
+  if (attempts.length >= 3) return false;
+  if (attempts.length < 2) return false;
+  return priorAttemptRequiresRevisit(attempts[1]!.row);
 }
 
 /** Next follow-up still outstanding: 3rd takes priority over 2nd (mutually exclusive per girl). */
@@ -772,7 +803,8 @@ export function computeRevisitDetailMetrics(
     const pending = girlPendingRevisit(subs, allRows);
     if (pending === "2nd") {
       revisitsNeed2nd += 1;
-      const row = firstVisitSubmission(subs) ?? subs[subs.length - 1]!;
+      const row =
+        firstAttemptSubmission(allRows, girl) ?? subs[subs.length - 1]!;
       const exportRow = toRevisitExportRow(row, "2nd attempt still needed");
       lists.revisitsNeed2nd.push(exportRow);
       lists.revisitsNeedToBeDone.push(exportRow);
@@ -849,24 +881,33 @@ export function computeRevisitDetailMetrics(
 
 export type DuplicateDetailListKey =
   | "totalDuplicates"
+  | "sameVisitDuplicates"
   | "exactDuplicates"
   | "revisitDuplicates"
-  | "differentEnumeratorDuplicates";
+  | "differentEnumeratorDuplicates"
+  | "supersededUnsuccessful"
+  | "unnecessaryFollowUp";
 
 export interface DuplicateDetailMetrics {
+  /** Every unnecessary submission row across all duplicate categories (deduped by Key ID) */
+  totalUnnecessaryRows: number;
   /** Submission rows belonging to a girl + visit group with more than one submission */
-  totalDuplicates: number;
-  /** Extra submission rows beyond one per girl + visit (what you subtract from total submissions) */
+  sameVisitDuplicateRows: number;
+  /** Extra submission rows beyond one per girl + visit (same-visit copies only) */
   extraDuplicates: number;
-  /** Distinct girl + visit combinations after removing redundant duplicate rows */
+  /** Distinct girl + visit combinations after removing same-visit redundant rows */
   uniqueGirlVisitSlots: number;
   /** Same girl, visit, and enumerator submitted more than once */
   exactDuplicates: number;
-  /** Duplicate submissions on visit 2 or 3 */
+  /** Duplicate submissions on visit 2 or 3 (same girl + same visit twice) */
   revisitDuplicates: number;
   /** Same girl and visit submitted by more than one enumerator */
   differentEnumeratorDuplicates: number;
-  /** Count of girl + visit combinations with duplicates */
+  /** Earlier failed visit made obsolete once a higher visit exists (excludes active revisit queue) */
+  supersededUnsuccessful: number;
+  /** Visit 2/3 submitted after the girl was already tracked on an earlier visit */
+  unnecessaryFollowUp: number;
+  /** Count of girl + visit combinations with same-visit duplicates */
   duplicateGroups: number;
 }
 
@@ -880,9 +921,12 @@ function emptyDuplicateLists(): Record<
 > {
   return {
     totalDuplicates: [],
+    sameVisitDuplicates: [],
     exactDuplicates: [],
     revisitDuplicates: [],
     differentEnumeratorDuplicates: [],
+    supersededUnsuccessful: [],
+    unnecessaryFollowUp: [],
   };
 }
 
@@ -902,6 +946,91 @@ function classifyDuplicateGroup(subs: TrackingRow[]): string {
   }
 
   return types.join(" · ");
+}
+
+const SUPERSEDED_FAILED_ATTEMPT_TYPE = "Superseded failed attempt";
+const UNNECESSARY_FOLLOWUP_TYPE = "Unnecessary follow-up after success";
+
+/**
+ * Flags prior failed attempts that are obsolete once a later chronological
+ * attempt exists. Uses attempt order (submission date), not form visit_num.
+ *
+ * Revisit duplicate / garbage count grows as later attempts are filed:
+ * - Attempt 1 fails, no attempt 2 yet → 0 (still in revisit queue)
+ * - Attempt 1 fails, attempt 2 fails, no attempt 3 yet → 1 (attempt 1 obsolete)
+ * - Attempts 1 & 2 fail, attempt 3 done (fail or success) → 2 (attempts 1 & 2 obsolete)
+ */
+function computeSequentialDuplicateIssues(
+  rows: TrackingRow[]
+): Pick<
+  Record<DuplicateDetailListKey, RevisitGirlExportRow[]>,
+  "supersededUnsuccessful" | "unnecessaryFollowUp"
+> {
+  const supersededUnsuccessful: RevisitGirlExportRow[] = [];
+  const unnecessaryFollowUp: RevisitGirlExportRow[] = [];
+  const girls = [...new Set(rows.map(girlKey))];
+
+  for (const girl of girls) {
+    const attempts = girlAttemptSequence(rows, girl);
+
+    for (let i = 0; i < attempts.length; i++) {
+      const { row, attemptNumber } = attempts[i]!;
+      const before = attempts.slice(0, i).map((a) => a.row);
+
+      if (attemptNumber >= 2 && before.some(isTrackedSubmission)) {
+        unnecessaryFollowUp.push({
+          ...toGirlExportRow(row, UNNECESSARY_FOLLOWUP_TYPE),
+          duplicateType: UNNECESSARY_FOLLOWUP_TYPE,
+          visitNum: String(attemptNumber),
+        });
+        continue;
+      }
+
+      if (isTrackedSubmission(row)) continue;
+
+      const hasLaterAttempt = attemptNumber < attempts.length;
+      if (!hasLaterAttempt) continue;
+
+      supersededUnsuccessful.push({
+        ...toGirlExportRow(row, SUPERSEDED_FAILED_ATTEMPT_TYPE),
+        duplicateType: SUPERSEDED_FAILED_ATTEMPT_TYPE,
+        visitNum: String(attemptNumber),
+      });
+    }
+  }
+
+  return { supersededUnsuccessful, unnecessaryFollowUp };
+}
+
+function mergeDuplicateExportRows(
+  ...groups: RevisitGirlExportRow[][]
+): RevisitGirlExportRow[] {
+  const byKey = new Map<string, RevisitGirlExportRow>();
+
+  for (const group of groups) {
+    for (const row of group) {
+      const existing = byKey.get(row.keyId);
+      if (!existing) {
+        byKey.set(row.keyId, { ...row });
+        continue;
+      }
+
+      const types = new Set(
+        `${existing.duplicateType} · ${row.duplicateType}`
+          .split(" · ")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      );
+      const duplicateType = [...types].join(" · ");
+      byKey.set(row.keyId, {
+        ...existing,
+        duplicateType,
+        revisitCategory: duplicateType,
+      });
+    }
+  }
+
+  return [...byKey.values()];
 }
 
 export function computeDuplicateDetailMetrics(
@@ -931,12 +1060,22 @@ export function computeDuplicateDetailMetrics(
         ...toGirlExportRow(row, duplicateType),
         duplicateType,
       };
-      lists.totalDuplicates.push(exportRow);
+      lists.sameVisitDuplicates.push(exportRow);
       if (isExact) lists.exactDuplicates.push(exportRow);
       if (isRevisit) lists.revisitDuplicates.push(exportRow);
       if (isDiffEnum) lists.differentEnumeratorDuplicates.push(exportRow);
     }
   }
+
+  const sequential = computeSequentialDuplicateIssues(rows);
+  lists.supersededUnsuccessful = sequential.supersededUnsuccessful;
+  lists.unnecessaryFollowUp = sequential.unnecessaryFollowUp;
+
+  lists.totalDuplicates = mergeDuplicateExportRows(
+    lists.sameVisitDuplicates,
+    lists.supersededUnsuccessful,
+    lists.unnecessaryFollowUp
+  );
 
   const sortByDate = (
     a: RevisitGirlExportRow,
@@ -949,16 +1088,19 @@ export function computeDuplicateDetailMetrics(
     lists[key].sort(sortByDate);
   }
 
-  const totalDuplicates = lists.totalDuplicates.length;
-  const extraDuplicates = totalDuplicates - duplicateGroups;
+  const sameVisitDuplicateRows = lists.sameVisitDuplicates.length;
+  const extraDuplicates = sameVisitDuplicateRows - duplicateGroups;
 
   return {
-    totalDuplicates,
+    totalUnnecessaryRows: lists.totalDuplicates.length,
+    sameVisitDuplicateRows,
     extraDuplicates,
     uniqueGirlVisitSlots: visitGroups.size,
     exactDuplicates: lists.exactDuplicates.length,
     revisitDuplicates: lists.revisitDuplicates.length,
     differentEnumeratorDuplicates: lists.differentEnumeratorDuplicates.length,
+    supersededUnsuccessful: lists.supersededUnsuccessful.length,
+    unnecessaryFollowUp: lists.unnecessaryFollowUp.length,
     duplicateGroups,
     lists,
   };
@@ -1143,9 +1285,13 @@ function computeOperationalKpiLists(
   for (const row of rows) {
     if (isActualRevisitSubmission(row, allRows)) {
       pushSubmission("revisitSubmissions", row, "Follow-up attempt");
-      const visit = parseVisitNum(row);
-      if (visit === 2) pushSubmission("revisit2ndSubmissions", row, "2nd follow-up");
-      if (visit === 3) pushSubmission("revisit3rdSubmissions", row, "3rd follow-up");
+      const attemptNum = attemptNumberForRow(allRows, row);
+      if (attemptNum === 2) {
+        pushSubmission("revisit2ndSubmissions", row, "2nd follow-up");
+      }
+      if (attemptNum === 3) {
+        pushSubmission("revisit3rdSubmissions", row, "3rd follow-up");
+      }
     }
 
     const complete = row.survey_status === "1";
