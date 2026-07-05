@@ -3,6 +3,7 @@ import type { RevisitGirlExportRow } from "@/lib/data/tracking-metrics";
 
 function toSheetRows(rows: RevisitGirlExportRow[]) {
   return rows.map((row) => ({
+    "Key ID": row.keyId,
     "Girl ID": row.girlId,
     "Girl Name": row.girlName,
     District: row.district,

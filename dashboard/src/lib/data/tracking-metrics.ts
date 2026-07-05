@@ -564,6 +564,7 @@ export type RevisitDetailListKey = Exclude<
 >;
 
 export interface RevisitGirlExportRow {
+  keyId: string;
   girlId: string;
   girlName: string;
   district: string;
@@ -624,6 +625,7 @@ function toGirlExportRow(
   const cohort = inferTrackingCohort(row);
   const session = inferTrackingSession(row);
   return {
+    keyId: (row.KEY || "").trim(),
     girlId: girlKey(row),
     girlName: resolveGirlName(row),
     district: districtLabel(row.district, row.district_label),
