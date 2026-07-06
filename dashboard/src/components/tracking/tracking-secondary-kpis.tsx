@@ -81,7 +81,7 @@ const cards: {
     key: "girlNotFound",
     exportLabel: "girl-not-found",
     label: "Girl Not Found",
-    hint: "House located but girl not found",
+    hint: "House located at address (house_found = 1) but girl not found (4, 99, 999, or blank)",
     icon: UserX,
     color: "text-red-500",
   },

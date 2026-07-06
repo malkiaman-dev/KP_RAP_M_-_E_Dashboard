@@ -396,8 +396,12 @@ export interface UntrackedBreakdown {
   incomplete: number;
 }
 
+function isHouseLocatedAtAddress(row: TrackingRow): boolean {
+  return row.house_found === "1";
+}
+
 function isConsentStepReached(row: TrackingRow): boolean {
-  if (row.girl_found !== "1") return false;
+  if (!isGirlFoundPositive(row)) return false;
   if (row.girl_found_confirm_enrolled === "1") return true;
   if (row.girl_found_confirm_enrolled === "2") return false;
   if (row.girl_found_confirm_dropped === "1") return true;
@@ -413,16 +417,18 @@ function classifyUntrackedGirl(
 ): Exclude<keyof UntrackedBreakdown, "total"> {
   if (subs.some((r) => r.house_found === "3")) return "houseUntraceable";
 
-  const hasLocated = subs.some(
+  const hasHouseAtAddress = subs.some(isHouseLocatedAtAddress);
+  const hasAnyLocated = subs.some(
     (r) => r.house_found === "1" || r.house_found === "2"
   );
-  if (!hasLocated) return "houseNotLocated";
+  if (!hasAnyLocated) return "houseNotLocated";
 
-  const girlFound = subs.some(
-    (r) =>
-      (r.house_found === "1" || r.house_found === "2") && r.girl_found === "1"
-  );
-  if (!girlFound) return "girlNotFound";
+  if (hasHouseAtAddress) {
+    const girlFoundAtAddress = subs.some(
+      (r) => isHouseLocatedAtAddress(r) && isGirlFoundPositive(r)
+    );
+    if (!girlFoundAtAddress) return "girlNotFound";
+  }
 
   const consentStepReached = subs.some(
     (r) =>
@@ -463,16 +469,19 @@ function describeTrackingGaps(row: TrackingRow): string[] {
     gaps.push("house not located");
   }
 
-  if (
-    (row.house_found === "1" || row.house_found === "2") &&
-    row.girl_found !== "1"
+  if (isHouseLocatedAtAddress(row) && isGirlExplicitlyNotFound(row)) {
+    gaps.push("girl not found");
+  } else if (
+    isHouseLocatedAtAddress(row) &&
+    !isGirlFoundPositive(row) &&
+    !row.girl_found?.trim()
   ) {
     gaps.push("girl not found");
   }
 
   if (
-    (row.house_found === "1" || row.house_found === "2") &&
-    row.girl_found === "1"
+    (isHouseLocatedAtAddress(row) || row.house_found === "2") &&
+    isGirlFoundPositive(row)
   ) {
     if (row.consent === "0" || row.consent === "2") {
       gaps.push("consent refused");
@@ -493,24 +502,24 @@ function describeTrackingGaps(row: TrackingRow): string[] {
 }
 
 function describeGirlNotFoundReason(subs: TrackingRow[]): string {
-  const located = subs.filter(
-    (r) => r.house_found === "1" || r.house_found === "2"
-  );
-  const row = latestGirlSubmission(located.length > 0 ? located : subs);
+  const atAddress = subs.filter(isHouseLocatedAtAddress);
+  const row = latestGirlSubmission(atAddress.length > 0 ? atAddress : subs);
 
-  if (row.house_found === "2") {
-    return "Household located (family moved) but girl not found — may have moved with family or be elsewhere";
+  if (row.girl_found === "4") {
+    return "Girl not found — she married and moved away (girl_found = 4)";
   }
-
-  if (row.girl_found === "0") {
-    return "Household located but girl temporarily not available (girl_found = Not found) — follow-up revisit may apply";
+  if (row.girl_found === "99") {
+    return "Girl not found — other reason specified on form (girl_found = 99)";
+  }
+  if (row.girl_found === "999") {
+    return "Girl not found — respondent refused to answer (girl_found = 999)";
   }
 
   if (!row.girl_found?.trim()) {
-    return "Household located but girl location not recorded on the form";
+    return "Household located at address but girl location not recorded on the form";
   }
 
-  return "Household located but girl not found on visit";
+  return "Household located at address but girl not found on visit";
 }
 
 function describeNotTrackedReason(subs: TrackingRow[]): string {
@@ -525,7 +534,7 @@ function describeNotTrackedReason(subs: TrackingRow[]): string {
     const withConsentStep = subs.filter(
       (r) =>
         (r.house_found === "1" || r.house_found === "2") &&
-        r.girl_found === "1"
+        isGirlFoundPositive(r)
     );
     const refused = withConsentStep.some(
       (r) => r.consent === "0" || r.consent === "2"
@@ -682,7 +691,9 @@ function priorAttemptRequiresRevisit(row: TrackingRow): boolean {
   // Case 4: respondent refused consent -> Incomplete, no revisit.
   if (row.consent === "0" || row.consent === "2") return false;
   // Case 2: structure located but respondent temporarily unavailable -> revisit.
-  return row.girl_found !== "1";
+  // Values 1/2/3 mean the girl was found; 4/99/999 are permanent not-found outcomes.
+  if (isGirlFoundPositive(row) || isGirlExplicitlyNotFound(row)) return false;
+  return true;
 }
 
 /**
@@ -775,10 +786,14 @@ export interface RevisitGirlExportRow {
   session: string;
   submissionDate: string;
   visitNum: string;
+  houseFoundCode: string;
   houseFound: string;
+  girlFoundCode: string;
   girlFound: string;
   consent: string;
+  consentLabel: string;
   surveyStatus: string;
+  surveyStatusLabel: string;
   surveyStatusOthr: string;
   surveyComments: string;
   revisitCategory: string;
@@ -818,8 +833,37 @@ function houseFoundLabel(v?: string): string {
 }
 
 function girlFoundLabel(v?: string): string {
-  if (v === "1") return "Found";
-  if (v === "0") return "Not found";
+  if (v === "1") return "Yes";
+  if (v === "2") return "Yes, girl name not correct";
+  if (v === "3") return "Yes, father name not correct";
+  if (v === "4") return "No, she married and moved away";
+  if (v === "99") return "Other (specify)";
+  if (v === "999") return "Refused to answer";
+  return v?.trim() || "";
+}
+
+/** Survey codes 1, 2, 3 — girl was located at the household. */
+function isGirlFoundPositive(row: TrackingRow): boolean {
+  const v = row.girl_found?.trim();
+  return v === "1" || v === "2" || v === "3";
+}
+
+/** Survey codes 4, 99, 999 — explicit not-found outcomes only. */
+function isGirlExplicitlyNotFound(row: TrackingRow): boolean {
+  const v = row.girl_found?.trim();
+  return v === "4" || v === "99" || v === "999";
+}
+
+function consentLabel(v?: string): string {
+  if (v === "1") return "Consent given";
+  if (v === "0" || v === "2") return "Consent refused";
+  return v?.trim() || "";
+}
+
+function surveyStatusLabel(v?: string): string {
+  if (v === "1") return "Complete";
+  if (v === "2") return "Incomplete";
+  if (v === "99") return "Other";
   return v?.trim() || "";
 }
 
@@ -842,10 +886,14 @@ function toGirlExportRow(
     session: session || "",
     submissionDate: (row.SubmissionDate || "").trim(),
     visitNum: String(parseVisitNum(row)),
+    houseFoundCode: row.house_found?.trim() || "",
     houseFound: houseFoundLabel(row.house_found),
+    girlFoundCode: row.girl_found?.trim() || "",
     girlFound: girlFoundLabel(row.girl_found),
     consent: row.consent?.trim() || "",
+    consentLabel: consentLabel(row.consent),
     surveyStatus: row.survey_status?.trim() || "",
+    surveyStatusLabel: surveyStatusLabel(row.survey_status),
     surveyStatusOthr: row.survey_status_othr?.trim() || "",
     surveyComments: row.survey_comments?.trim() || "",
     revisitCategory: category,
@@ -1385,9 +1433,10 @@ function computeOperationalKpiLists(
       );
       const reason = classifyUntrackedGirl(allSubs);
       if (reason === "girlNotFound") {
+        const addressSubs = allSubs.filter(isHouseLocatedAtAddress);
         pushGirl(
           "girlNotFound",
-          allSubs,
+          addressSubs.length > 0 ? addressSubs : allSubs,
           "Girl not found",
           describeGirlNotFoundReason(allSubs)
         );
