@@ -118,6 +118,17 @@ export function defaultMonitoringFilters(): TrackingFilters {
   return { ...defaultTrackingFilters };
 }
 
+export function trackingFiltersEqual(
+  a: TrackingFilters,
+  b: TrackingFilters
+): boolean {
+  return (
+    (Object.keys(defaultTrackingFilters) as (keyof TrackingFilters)[]).every(
+      (key) => a[key] === b[key]
+    )
+  );
+}
+
 export type UntrackedReasonKey = Exclude<
   keyof UntrackedBreakdown,
   "total"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { TrackingFiltersPanel } from "@/components/tracking/tracking-filters";
@@ -17,22 +17,24 @@ import {
   computeTrackingMetrics,
   defaultTrackingFilters,
   resolveActiveCohort,
+  trackingFiltersEqual,
   type TrackingFilters,
-  type TrackingMetrics,
   type TrackingTargets,
 } from "@/lib/data/tracking-metrics";
+import { mergeTrackingExportLists } from "@/lib/data/tracking-serialization";
+import {
+  fetchTrackingExports,
+  fetchTrackingMetrics,
+  QUERY_STALE_MS,
+  TRACKING_EXPORTS_QUERY_KEY,
+  TRACKING_METRICS_QUERY_KEY,
+} from "@/lib/queries/app-data";
 import {
   DEFAULT_TRACKING_TARGETS,
   PROTOCOL,
   baselineSuccessTarget,
   newSampleSuccessTarget,
 } from "@/lib/data/protocol";
-
-async function fetchTracking(): Promise<TrackingMetrics> {
-  const res = await fetch("/api/tracking");
-  if (!res.ok) throw new Error("Failed to load tracking data");
-  return res.json();
-}
 
 function targetsForFilters(filters: TrackingFilters): TrackingTargets {
   const cohort = resolveActiveCohort(filters);
@@ -62,26 +64,54 @@ function targetsForFilters(filters: TrackingFilters): TrackingTargets {
 
 export default function TrackingPage() {
   const [filters, setFilters] = useState<TrackingFilters>(defaultTrackingFilters);
+  const deferredFilters = useDeferredValue(filters);
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["tracking-metrics"],
-    queryFn: fetchTracking,
+  const { data, isLoading, isError, isFetching } = useQuery({
+    queryKey: [...TRACKING_METRICS_QUERY_KEY],
+    queryFn: fetchTrackingMetrics,
+    staleTime: QUERY_STALE_MS,
   });
 
-  const targets = useMemo(() => targetsForFilters(filters), [filters]);
+  const { data: exports } = useQuery({
+    queryKey: [...TRACKING_EXPORTS_QUERY_KEY],
+    queryFn: fetchTrackingExports,
+    staleTime: QUERY_STALE_MS,
+  });
 
-  const activeCohort = useMemo(
-    () => resolveActiveCohort(filters),
-    [filters]
+  const targets = useMemo(
+    () => targetsForFilters(deferredFilters),
+    [deferredFilters]
   );
 
-  const filtered = useMemo(() => {
-    if (!data?.allSubmissions) return undefined;
-    const rows = applyTrackingFilters(data.allSubmissions, filters);
-    return computeTrackingMetrics(rows, targets, data.allSubmissions);
-  }, [data, filters, targets]);
+  const activeCohort = useMemo(
+    () => resolveActiveCohort(deferredFilters),
+    [deferredFilters]
+  );
 
-  const display = filtered ?? data;
+  const display = useMemo(() => {
+    if (!data?.allSubmissions) return undefined;
+
+    let metrics =
+      trackingFiltersEqual(deferredFilters, defaultTrackingFilters)
+        ? data
+        : computeTrackingMetrics(
+            applyTrackingFilters(data.allSubmissions, deferredFilters),
+            targets,
+            data.allSubmissions
+          );
+
+    if (
+      exports &&
+      trackingFiltersEqual(deferredFilters, defaultTrackingFilters)
+    ) {
+      metrics = mergeTrackingExportLists(metrics, exports);
+    }
+
+    return metrics;
+  }, [data, deferredFilters, targets, exports]);
+
+  const showLoading = isLoading || (isFetching && !display);
+  const filtering = !trackingFiltersEqual(filters, deferredFilters);
 
   if (isError) {
     return (
@@ -98,7 +128,7 @@ export default function TrackingPage() {
   }
 
   return (
-    <div>
+    <div className={filtering ? "opacity-80 transition-opacity" : undefined}>
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -129,14 +159,14 @@ export default function TrackingPage() {
         filterOptions={data?.filterOptions}
       />
 
-      <TrackingKpis metrics={display} loading={isLoading} />
+      <TrackingKpis metrics={display} loading={showLoading} />
 
-      <TrackingCohortOverview metrics={display} loading={isLoading} />
+      <TrackingCohortOverview metrics={display} loading={showLoading} />
 
       {(activeCohort === "all" || activeCohort === "baseline") && (
         <TrackingCohortSection
           metrics={display}
-          loading={isLoading}
+          loading={showLoading}
           cohort="baseline"
         />
       )}
@@ -144,18 +174,18 @@ export default function TrackingPage() {
       {(activeCohort === "all" || activeCohort === "new-sample") && (
         <TrackingCohortSection
           metrics={display}
-          loading={isLoading}
+          loading={showLoading}
           cohort="new-sample"
         />
       )}
 
-      <TrackingSecondaryKpis metrics={display} loading={isLoading} />
+      <TrackingSecondaryKpis metrics={display} loading={showLoading} />
 
-      <TrackingRevisitSection metrics={display} loading={isLoading} />
+      <TrackingRevisitSection metrics={display} loading={showLoading} />
 
-      <TrackingDuplicateSection metrics={display} loading={isLoading} />
+      <TrackingDuplicateSection metrics={display} loading={showLoading} />
 
-      {display && !isLoading && (
+      {display && !showLoading && (
         <p className="mb-4 text-xs text-muted-foreground">
           {display.untrackedInData} girls in export not yet successfully tracked ·{" "}
           {display.secondaryKpis.locatedGirls} households located ·{" "}
@@ -167,7 +197,7 @@ export default function TrackingPage() {
 
       <TrackingCharts
         metrics={display}
-        loading={isLoading}
+        loading={showLoading}
         filters={filters}
         onFilterChange={setFilters}
       />

@@ -14,16 +14,14 @@ import { cn } from "@/lib/utils";
 import {
   defaultMonitoringFilters,
   type TrackingFilters,
-  type TrackingMetrics,
 } from "@/lib/data/tracking-metrics";
+import {
+  fetchTrackingMetrics,
+  QUERY_STALE_MS,
+  TRACKING_METRICS_QUERY_KEY,
+} from "@/lib/queries/app-data";
 
 type ReportMode = "operations" | "progress";
-
-async function fetchTracking(): Promise<TrackingMetrics> {
-  const res = await fetch("/api/tracking");
-  if (!res.ok) throw new Error("Failed to load tracking data");
-  return res.json();
-}
 
 function ComingSoonReportActions({
   districts,
@@ -94,8 +92,9 @@ export function ReportsContent() {
   const [reportMode, setReportMode] = useState<ReportMode>("operations");
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["tracking-metrics"],
-    queryFn: fetchTracking,
+    queryKey: [...TRACKING_METRICS_QUERY_KEY],
+    queryFn: fetchTrackingMetrics,
+    staleTime: QUERY_STALE_MS,
   });
 
   const districts = data?.filterOptions?.districts ?? [];

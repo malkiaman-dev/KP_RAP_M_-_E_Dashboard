@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { TrackingFiltersPanel } from "@/components/tracking/tracking-filters";
@@ -13,31 +13,31 @@ import {
   computeMonitoringMetrics,
   defaultMonitoringFilters,
   type TrackingFilters,
-  type TrackingMetrics,
 } from "@/lib/data/tracking-metrics";
+import {
+  fetchTrackingMetrics,
+  QUERY_STALE_MS,
+  TRACKING_METRICS_QUERY_KEY,
+} from "@/lib/queries/app-data";
 import { DAILY_TRACKING_TARGET_PER_ENUMERATOR } from "@/lib/data/protocol";
-
-async function fetchTracking(): Promise<TrackingMetrics> {
-  const res = await fetch("/api/tracking");
-  if (!res.ok) throw new Error("Failed to load tracking data");
-  return res.json();
-}
 
 export default function MonitoringPage() {
   const [filters, setFilters] = useState<TrackingFilters>(() =>
     defaultMonitoringFilters()
   );
+  const deferredFilters = useDeferredValue(filters);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["tracking-metrics"],
-    queryFn: fetchTracking,
+    queryKey: [...TRACKING_METRICS_QUERY_KEY],
+    queryFn: fetchTrackingMetrics,
+    staleTime: QUERY_STALE_MS,
   });
 
   const monitoring = useMemo(() => {
     if (!data?.allSubmissions) return undefined;
-    const rows = applyTrackingFilters(data.allSubmissions, filters);
+    const rows = applyTrackingFilters(data.allSubmissions, deferredFilters);
     return computeMonitoringMetrics(rows, DAILY_TRACKING_TARGET_PER_ENUMERATOR);
-  }, [data, filters]);
+  }, [data, deferredFilters]);
 
   if (isError) {
     return (

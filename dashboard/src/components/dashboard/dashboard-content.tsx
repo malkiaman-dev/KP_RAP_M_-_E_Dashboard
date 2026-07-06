@@ -12,21 +12,20 @@ import {
   applyFilters,
   computeMetrics,
   type DashboardFilters,
-  type DashboardMetrics,
 } from "@/lib/data/survey-metrics";
-
-async function fetchMetrics(): Promise<DashboardMetrics> {
-  const res = await fetch("/api/metrics");
-  if (!res.ok) throw new Error("Failed to fetch metrics");
-  return res.json();
-}
+import {
+  fetchDashboardMetrics,
+  QUERY_STALE_MS,
+  DASHBOARD_METRICS_QUERY_KEY,
+} from "@/lib/queries/app-data";
 
 export function DashboardContent() {
   const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["dashboard-metrics"],
-    queryFn: fetchMetrics,
+    queryKey: [...DASHBOARD_METRICS_QUERY_KEY],
+    queryFn: fetchDashboardMetrics,
+    staleTime: QUERY_STALE_MS,
   });
 
   const filteredMetrics = useMemo(() => {

@@ -6,6 +6,7 @@ import {
   type SurveyRow,
   type SurveyType,
 } from "./survey-metrics";
+import { filesSignature, getCached } from "./survey-cache";
 
 export type {
   SurveyRow,
@@ -17,6 +18,18 @@ export type {
 export { computeMetrics, applyFilters, getFilterOptions } from "./survey-metrics";
 
 const DATA_ROOT = path.join(process.cwd(), "..");
+
+const SURVEY_FILES: { file: string; type: SurveyType }[] = [
+  { file: "Tracking_Survey_Baseline.csv", type: "tracking" },
+  { file: "Tracking_Survey_NewSample.csv", type: "tracking" },
+  { file: "Tracking_Survey.csv", type: "tracking" },
+  { file: "Household_Survey.csv", type: "household" },
+  { file: "Girls_Survey.csv", type: "girls" },
+];
+
+function surveyFilePaths(): string[] {
+  return SURVEY_FILES.map((s) => path.join(DATA_ROOT, "Surveys", s.file));
+}
 
 function parseCsv(filePath: string, surveyType: SurveyType): SurveyRow[] {
   if (!fs.existsSync(filePath)) return [];
@@ -31,7 +44,7 @@ function parseCsv(filePath: string, surveyType: SurveyType): SurveyRow[] {
   })) as SurveyRow[];
 }
 
-export function loadAllSurveys(): SurveyRow[] {
+function readAllSurveys(): SurveyRow[] {
   const trackingBaseline = parseCsv(
     path.join(DATA_ROOT, "Surveys", "Tracking_Survey_Baseline.csv"),
     "tracking"
@@ -58,7 +71,14 @@ export function loadAllSurveys(): SurveyRow[] {
   return [...tracking, ...household, ...girls];
 }
 
+export function loadAllSurveys(): SurveyRow[] {
+  const signature = filesSignature(surveyFilePaths());
+  return getCached("dashboard-rows", signature, readAllSurveys);
+}
+
 export function loadDashboardMetrics() {
-  const rows = loadAllSurveys();
-  return computeMetrics(rows);
+  const signature = filesSignature(surveyFilePaths());
+  return getCached("dashboard-metrics", signature, () =>
+    computeMetrics(loadAllSurveys())
+  );
 }

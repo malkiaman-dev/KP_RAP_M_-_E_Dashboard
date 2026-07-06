@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -24,6 +25,15 @@ import { Logo } from "@/components/brand/logo";
 import { useAuth } from "@/components/auth/auth-provider";
 import { getTabsBySection } from "@/lib/auth/nav-tabs";
 import { ROLE_LABELS } from "@/lib/auth/roles";
+import {
+  fetchDashboardMetrics,
+  fetchTrackingExports,
+  fetchTrackingMetrics,
+  QUERY_STALE_MS,
+  DASHBOARD_METRICS_QUERY_KEY,
+  TRACKING_EXPORTS_QUERY_KEY,
+  TRACKING_METRICS_QUERY_KEY,
+} from "@/lib/queries/app-data";
 import type { LucideIcon } from "lucide-react";
 
 /** Tracks whether the viewport is below the `lg` breakpoint (drawer mode). */
@@ -75,10 +85,41 @@ export function Sidebar({
   onMobileClose,
 }: SidebarProps) {
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const { canAccess, user } = useAuth();
   const isMobile = useIsMobile();
   // On mobile the drawer is always full-width; collapse only applies on desktop.
   const effectiveCollapsed = collapsed && !isMobile;
+
+  const prefetchRoute = (href: string) => {
+    if (href === "/" || href === "/analytics") {
+      void queryClient.prefetchQuery({
+        queryKey: [...DASHBOARD_METRICS_QUERY_KEY],
+        queryFn: fetchDashboardMetrics,
+        staleTime: QUERY_STALE_MS,
+      });
+      return;
+    }
+
+    if (
+      href === "/tracking" ||
+      href === "/monitoring" ||
+      href === "/reports"
+    ) {
+      void queryClient.prefetchQuery({
+        queryKey: [...TRACKING_METRICS_QUERY_KEY],
+        queryFn: fetchTrackingMetrics,
+        staleTime: QUERY_STALE_MS,
+      });
+      if (href === "/tracking") {
+        void queryClient.prefetchQuery({
+          queryKey: [...TRACKING_EXPORTS_QUERY_KEY],
+          queryFn: fetchTrackingExports,
+          staleTime: QUERY_STALE_MS,
+        });
+      }
+    }
+  };
 
   return (
     <>
@@ -184,6 +225,8 @@ export function Sidebar({
                     <Link
                       href={item.href}
                       onClick={onMobileClose}
+                      onMouseEnter={() => prefetchRoute(item.href)}
+                      onFocus={() => prefetchRoute(item.href)}
                       className={cn(
                         "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                         isActive
