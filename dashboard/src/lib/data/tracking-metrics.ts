@@ -435,10 +435,10 @@ function classifyUntrackedGirl(
   if (!hasAnyLocated) return "houseNotLocated";
 
   if (hasHouseAtAddress) {
-    const girlFoundAtAddress = subs.some(
-      (r) => isHouseLocatedAtAddress(r) && isGirlFoundPositive(r)
+    const girlExplicitlyNotFoundAtAddress = subs.some(
+      (r) => isHouseLocatedAtAddress(r) && isGirlExplicitlyNotFound(r)
     );
-    if (!girlFoundAtAddress) return "girlNotFound";
+    if (girlExplicitlyNotFoundAtAddress) return "girlNotFound";
   }
 
   const consentStepReached = subs.some(
@@ -482,12 +482,6 @@ function describeTrackingGaps(row: TrackingRow): string[] {
 
   if (isHouseLocatedAtAddress(row) && isGirlExplicitlyNotFound(row)) {
     gaps.push("girl not found");
-  } else if (
-    isHouseLocatedAtAddress(row) &&
-    !isGirlFoundPositive(row) &&
-    !row.girl_found?.trim()
-  ) {
-    gaps.push("girl not found");
   }
 
   if (
@@ -524,10 +518,6 @@ function describeGirlNotFoundReason(subs: TrackingRow[]): string {
   }
   if (row.girl_found === "999") {
     return "Girl not found — respondent refused to answer (girl_found = 999)";
-  }
-
-  if (!row.girl_found?.trim()) {
-    return "Household located at address but girl location not recorded on the form";
   }
 
   return "Household located at address but girl not found on visit";
@@ -613,6 +603,19 @@ export function isTrackedSubmission(r: TrackingRow): boolean {
   );
 }
 
+/**
+ * Operational tracking success: household located at address, girl found
+ * (including name/father mismatch codes 2 and 3), and consent given.
+ */
+export function isGirlTrackedForMetrics(row: TrackingRow): boolean {
+  if (isTrackedSubmission(row)) return true;
+  return (
+    isHouseLocatedAtAddress(row) &&
+    isGirlFoundPositive(row) &&
+    row.consent === "1"
+  );
+}
+
 function parseVisitNum(row: TrackingRow): number {
   const n = Number(row.visit_num);
   return Number.isFinite(n) && n > 0 ? n : 1;
@@ -632,12 +635,14 @@ function chronologicalGirlSubmissions(
     });
 }
 
-/** True if the girl meets full tracking success on any chronological attempt. */
+/** True if the girl meets tracking success on any chronological attempt. */
 function girlIsTrackedAcrossAttempts(
   allRows: TrackingRow[],
   girl: string
 ): boolean {
-  return chronologicalGirlSubmissions(allRows, girl).some(isTrackedSubmission);
+  return chronologicalGirlSubmissions(allRows, girl).some(
+    isGirlTrackedForMetrics
+  );
 }
 
 /**
@@ -1397,7 +1402,7 @@ function computeOperationalKpiLists(
   const lists = emptyOperationalKpiLists();
   const byGirl = groupFilteredRowsByGirl(rows);
   const trackedGirlKeys = new Set(
-    allRows.filter(isTrackedSubmission).map((r) => girlKey(r))
+    allRows.filter(isGirlTrackedForMetrics).map((r) => girlKey(r))
   );
 
   const pushGirl = (
@@ -1444,10 +1449,12 @@ function computeOperationalKpiLists(
       );
       const reason = classifyUntrackedGirl(allSubs);
       if (reason === "girlNotFound") {
-        const addressSubs = allSubs.filter(isHouseLocatedAtAddress);
+        const notFoundSubs = allSubs.filter(
+          (r) => isHouseLocatedAtAddress(r) && isGirlExplicitlyNotFound(r)
+        );
         pushGirl(
           "girlNotFound",
-          addressSubs.length > 0 ? addressSubs : allSubs,
+          notFoundSubs.length > 0 ? notFoundSubs : allSubs.filter(isHouseLocatedAtAddress),
           "Girl not found",
           describeGirlNotFoundReason(allSubs)
         );
@@ -2018,7 +2025,7 @@ export function computeTrackingMetrics(
   // tracked on a revisit are not untraceable, so exclude any girl with a tracked
   // submission. This keeps the KPI consistent with the untracked breakdown.
   const trackedGirlKeys = new Set(
-    allRows.filter(isTrackedSubmission).map(girlKey)
+    allRows.filter(isGirlTrackedForMetrics).map(girlKey)
   );
   const houseUntraceableGirls = new Set(
     rows
