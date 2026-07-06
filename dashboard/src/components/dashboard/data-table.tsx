@@ -21,6 +21,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { cn, formatDisplayDate } from "@/lib/utils";
+import { girlKey, resolveGirlName } from "@/lib/data/tracking-metrics";
 import type { SurveyRow } from "@/lib/data/survey-metrics";
 
 const districtNames: Record<string, string> = {
@@ -109,20 +110,24 @@ export function DataTable({ data, loading }: DataTableProps) {
         },
       },
       {
-        accessorKey: "girlname_label",
+        id: "beneficiary",
+        accessorFn: (row) => resolveGirlName(row),
         header: ({ column }) => (
           <SortHeader column={column} label="Beneficiary" />
         ),
-        cell: ({ row }) => (
-          <div>
-            <p className="text-sm font-medium text-foreground">
-              {row.original.girlname_label || "-"}
-            </p>
-            <p className="text-[10px] text-muted-foreground">
-              {row.original.girl || row.original.girl_id || ""}
-            </p>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const name = resolveGirlName(row.original);
+          return (
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {name || "-"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {girlKey(row.original) || row.original.girl || row.original.girl_id || ""}
+              </p>
+            </div>
+          );
+        },
       },
       {
         accessorKey: "district",
