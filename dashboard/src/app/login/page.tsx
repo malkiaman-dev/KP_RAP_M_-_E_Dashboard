@@ -4,11 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, LogIn } from "lucide-react";
-import { Logo } from "@/components/brand/logo";
-import { useFirm } from "@/components/brand/firm-provider";
+import { LoginBrand } from "@/components/brand/login-brand";
+import { PROJECT_BRAND } from "@/lib/brand";
 
 export default function LoginPage() {
-  const { firm } = useFirm();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -53,12 +52,12 @@ export default function LoginPage() {
         className="w-full max-w-md"
       >
         <div className="mb-8 flex flex-col items-center text-center">
-          <Logo />
+          <LoginBrand />
           <h1 className="mt-6 text-2xl font-semibold tracking-tight text-foreground">
             Sign in to your dashboard
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {firm.tagline} for the KPRAP project. Tracking, monitoring, and
+            {PROJECT_BRAND.tagline} for the KPRAP project. Tracking, monitoring, and
             survey insights in one place.
           </p>
         </div>

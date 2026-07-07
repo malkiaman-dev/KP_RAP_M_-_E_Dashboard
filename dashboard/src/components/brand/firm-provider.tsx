@@ -14,6 +14,7 @@ import {
   canRoleSwitchFirm,
   applyFirmTheme,
   applyDocumentBrand,
+  applyProjectDocumentBrand,
   FIRMS,
   FIRM_STORAGE_KEY,
   getDefaultFirmForRole,
@@ -43,8 +44,12 @@ function readBootstrappedFirm(): FirmId {
   return resolveFirmPreference(localStorage.getItem(FIRM_STORAGE_KEY));
 }
 
-function applyFirm(firmId: FirmId) {
+function applyFirm(firmId: FirmId, pathname: string) {
   applyFirmTheme(firmId);
+  if (pathname === "/login") {
+    applyProjectDocumentBrand();
+    return;
+  }
   applyDocumentBrand(FIRMS[firmId]);
 }
 
@@ -57,8 +62,8 @@ export function FirmProvider({ children }: { children: React.ReactNode }) {
   useLayoutEffect(() => {
     const bootstrapped = readBootstrappedFirm();
     setFirmId(bootstrapped);
-    applyFirm(bootstrapped);
-  }, []);
+    applyFirm(bootstrapped, pathname);
+  }, [pathname]);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -83,23 +88,23 @@ export function FirmProvider({ children }: { children: React.ReactNode }) {
     } else {
       document.documentElement.dataset.firm = nextFirmId;
     }
-    applyFirm(nextFirmId);
-  }, [user, mounted]);
+    applyFirm(nextFirmId, pathname);
+  }, [user, mounted, pathname]);
 
   const firm = FIRMS[firmId];
 
   useLayoutEffect(() => {
-    applyFirm(firmId);
-  }, [firmId]);
+    applyFirm(firmId, pathname);
+  }, [firmId, pathname]);
 
   const setFirm = useCallback(
     (nextFirmId: FirmId) => {
       if (!canRoleSwitchFirm(user?.role)) return;
       setFirmId(nextFirmId);
       persistFirmPreference(nextFirmId);
-      applyFirm(nextFirmId);
+      applyFirm(nextFirmId, pathname);
     },
-    [user?.role]
+    [user?.role, pathname]
   );
 
   const value = useMemo(
