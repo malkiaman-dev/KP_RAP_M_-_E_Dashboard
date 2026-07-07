@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Calendar, Radio, MapPin, Users, School, FileStack } from "lucide-react";
-import { brand } from "@/lib/brand";
+import { useFirm } from "@/components/brand/firm-provider";
 import { formatDisplayDate } from "@/lib/utils";
 import type { DashboardMetrics } from "@/lib/data/survey-metrics";
 
@@ -25,6 +25,7 @@ interface DashboardHeroProps {
 }
 
 export function DashboardHero({ metrics, loading }: DashboardHeroProps) {
+  const { firm } = useFirm();
   const periodStart = metrics?.reportingPeriod.start
     ? formatDate(metrics.reportingPeriod.start)
     : "-";
@@ -89,7 +90,7 @@ export function DashboardHero({ metrics, loading }: DashboardHeroProps) {
             transition={{ delay: 0.15 }}
             className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
           >
-            {brand.name}{" "}
+            {firm.name}{" "}
             <span className="bg-gradient-to-r from-teal to-deep-teal bg-clip-text text-transparent">
               Dashboard
             </span>

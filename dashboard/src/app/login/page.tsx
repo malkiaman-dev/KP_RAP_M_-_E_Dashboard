@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
-import { brand } from "@/lib/brand";
+import { useFirm } from "@/components/brand/firm-provider";
 
 export default function LoginPage() {
+  const { firm } = useFirm();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,7 +58,7 @@ export default function LoginPage() {
             Sign in to your dashboard
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {brand.tagline} for the KPRAP project. Tracking, monitoring, and
+            {firm.tagline} for the KPRAP project. Tracking, monitoring, and
             survey insights in one place.
           </p>
         </div>
