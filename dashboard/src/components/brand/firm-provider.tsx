@@ -9,12 +9,10 @@ import {
   useMemo,
   useState,
 } from "react";
-import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   canRoleSwitchFirm,
   applyFirmTheme,
-  applyDocumentBrand,
-  applyProjectDocumentBrand,
   FIRMS,
   FIRM_STORAGE_KEY,
   getDefaultFirmForRole,
@@ -44,26 +42,15 @@ function readBootstrappedFirm(): FirmId {
   return resolveFirmPreference(localStorage.getItem(FIRM_STORAGE_KEY));
 }
 
-function applyFirm(firmId: FirmId, pathname: string) {
-  applyFirmTheme(firmId);
-  if (pathname === "/login") {
-    applyProjectDocumentBrand();
-    return;
-  }
-  applyDocumentBrand(FIRMS[firmId]);
-}
-
 export function FirmProvider({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const router = useRouter();
   const [user, setUser] = useState<Session | null>(null);
   const [firmId, setFirmId] = useState<FirmId>(readBootstrappedFirm);
   const [mounted, setMounted] = useState(false);
 
   useLayoutEffect(() => {
-    const bootstrapped = readBootstrappedFirm();
-    setFirmId(bootstrapped);
-    applyFirm(bootstrapped, pathname);
-  }, [pathname]);
+    applyFirmTheme(firmId);
+  }, [firmId]);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -71,7 +58,7 @@ export function FirmProvider({ children }: { children: React.ReactNode }) {
       .then((data) => setUser(data?.user ?? null))
       .catch(() => setUser(null))
       .finally(() => setMounted(true));
-  }, [pathname]);
+  }, []);
 
   useEffect(() => {
     if (!mounted) return;
@@ -88,24 +75,21 @@ export function FirmProvider({ children }: { children: React.ReactNode }) {
     } else {
       document.documentElement.dataset.firm = nextFirmId;
     }
-    applyFirm(nextFirmId, pathname);
-  }, [user, mounted, pathname]);
-
-  const firm = FIRMS[firmId];
-
-  useLayoutEffect(() => {
-    applyFirm(firmId, pathname);
-  }, [firmId, pathname]);
+    applyFirmTheme(nextFirmId);
+  }, [user, mounted]);
 
   const setFirm = useCallback(
     (nextFirmId: FirmId) => {
       if (!canRoleSwitchFirm(user?.role)) return;
       setFirmId(nextFirmId);
       persistFirmPreference(nextFirmId);
-      applyFirm(nextFirmId, pathname);
+      applyFirmTheme(nextFirmId);
+      router.refresh();
     },
-    [user?.role, pathname]
+    [user?.role, router]
   );
+
+  const firm = FIRMS[firmId];
 
   const value = useMemo(
     () => ({

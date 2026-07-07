@@ -1,77 +1,8 @@
 "use client";
 
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ReactNode,
-  type RefObject,
-} from "react";
-import { createPortal } from "react-dom";
-
-interface FloatingPosition {
-  top: number;
-  left: number;
-  width: number;
-  maxHeight?: number;
-}
-
-export function useFloatingPanel(
-  open: boolean,
-  anchorRef: RefObject<HTMLElement | null>,
-  panelWidth?: number
-) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<FloatingPosition>({
-    top: 0,
-    left: 0,
-    width: 0,
-  });
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
-
-  useLayoutEffect(() => {
-    if (!open || !anchorRef.current) return;
-
-    const update = () => {
-      const anchor = anchorRef.current;
-      if (!anchor) return;
-
-      const rect = anchor.getBoundingClientRect();
-      const width = panelWidth ?? rect.width;
-      const gap = 6;
-      const margin = 8;
-
-      // Always open downward (below the anchor). Instead of flipping above when
-      // there isn't enough room, cap the panel height so it scrolls internally
-      // and stays anchored to the bottom of the trigger.
-      const top = rect.bottom + gap;
-      const maxHeight = Math.max(120, window.innerHeight - top - margin);
-
-      setPosition({
-        top,
-        left: Math.min(Math.max(margin, rect.left), window.innerWidth - width - margin),
-        width,
-        maxHeight,
-      });
-    };
-
-    update();
-    const frame = requestAnimationFrame(update);
-
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update, true);
-    };
-  }, [open, anchorRef, panelWidth]);
-
-  return { panelRef, position, mounted };
-}
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 export function useDismissiblePanel(
   open: boolean,
@@ -94,39 +25,40 @@ export function useDismissiblePanel(
   }, [open, onClose, anchorRef, panelRef]);
 }
 
-export function FloatingPanel({
+/** Close panels when the route changes so unmount never races with open overlays. */
+export function useCloseOnNavigation(onClose: () => void) {
+  const pathname = usePathname();
+
+  useEffect(() => {
+    onClose();
+  }, [pathname, onClose]);
+}
+
+export function DropdownPanel({
   open,
-  mounted,
-  position,
   panelRef,
   children,
   className,
+  minWidth = 240,
 }: {
   open: boolean;
-  mounted: boolean;
-  position: FloatingPosition;
-  panelRef: RefObject<HTMLDivElement | null>;
+  panelRef?: RefObject<HTMLDivElement | null>;
   children: ReactNode;
   className?: string;
+  minWidth?: number;
 }) {
-  if (!open || !mounted) return null;
+  if (!open) return null;
 
-  return createPortal(
+  return (
     <div
       ref={panelRef}
-      style={{
-        position: "fixed",
-        top: position.top,
-        left: position.left,
-        width: position.width,
-        maxHeight: position.maxHeight,
-        overflowY: position.maxHeight ? "auto" : undefined,
-        zIndex: 9999,
-      }}
-      className={className}
+      style={{ minWidth }}
+      className={cn(
+        "absolute left-0 top-[calc(100%+6px)] z-[200] w-full",
+        className
+      )}
     >
       {children}
-    </div>,
-    document.body
+    </div>
   );
 }

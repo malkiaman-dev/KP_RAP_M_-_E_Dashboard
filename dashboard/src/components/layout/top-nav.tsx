@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import { FirmToggle } from "@/components/brand/firm-toggle";
+import { TopNavPageContext } from "@/components/layout/top-nav-page-context";
 
 interface TopNavProps {
   onMenuClick: () => void;
@@ -56,6 +57,7 @@ export function TopNav({ onMenuClick }: TopNavProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
+        <TopNavPageContext />
       </div>
 
       <div className="flex items-center gap-2">

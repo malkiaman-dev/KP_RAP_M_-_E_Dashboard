@@ -227,37 +227,11 @@ export function persistFirmPreference(firmId: FirmId) {
   document.documentElement.dataset.firm = firmId;
 }
 
-function setDocumentIcons(href: string) {
-  document
-    .querySelectorAll(
-      'link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]'
-    )
-    .forEach((node) => node.remove());
+/** Title/favicon are managed by Next.js metadata — do not touch document.head here. */
+export function applyDocumentBrand(_firm: FirmBrand) {}
 
-  for (const rel of ["icon", "shortcut icon", "apple-touch-icon"]) {
-    const link = document.createElement("link");
-    link.rel = rel;
-    link.type = "image/png";
-    link.href = href;
-    document.head.appendChild(link);
-  }
-}
+/** Login title/favicon come from app/login/layout.tsx metadata. */
+export function applyProjectDocumentBrand() {}
 
-/** Update document title and favicon for the active firm (client-only). */
-export function applyDocumentBrand(firm: FirmBrand) {
-  if (typeof document === "undefined") return;
-
-  document.title = `${firm.name} | M&E Dashboard`;
-  setDocumentIcons(`${firm.favicon}?firm=${firm.id}`);
-}
-
-/** Login page title and favicon (project branding, not firm-specific). */
-export function applyProjectDocumentBrand() {
-  if (typeof document === "undefined") return;
-
-  document.title = `${PROJECT_BRAND.name} | Sign In`;
-  setDocumentIcons(`${PROJECT_BRAND.logo}?page=login`);
-}
-
-/** Inline script: sync cookie/localStorage; respect server role lock. Runs before body paint. */
-export const FIRM_THEME_BOOTSTRAP = `(function(){try{var r=document.documentElement,isLogin=location.pathname==="/login",locked=r.getAttribute("data-firm-locked")==="true",f=r.getAttribute("data-firm"),stored=localStorage.getItem("dashboard-firm");if(!locked&&f==="alliance"&&stored==="pidc")f="pidc";if(f!=="pidc"&&f!=="alliance")f=stored==="alliance"?"alliance":"pidc";r.setAttribute("data-firm",f);if(stored==="pidc"||stored==="alliance")document.cookie="dashboard-firm="+stored+";path=/;max-age=31536000;SameSite=Lax";else document.cookie="dashboard-firm="+f+";path=/;max-age=31536000;SameSite=Lax";localStorage.setItem("dashboard-firm",f);var b=isLogin?{t:"KP-RAP | Sign In",i:"/kprap-logo.png"}:f==="pidc"?{t:"PIDC | M\\u0026E Dashboard",i:"/pidc-favicon.png"}:{t:"Alliance of Excellence | M\\u0026E Dashboard",i:"/alliance-favicon.png"};document.title=b.t;var old=document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]');for(var j=old.length-1;j>=0;j--)old[j].remove();var href=b.i+(isLogin?"?page=login":"?firm="+f);["icon","shortcut icon","apple-touch-icon"].forEach(function(rel){var l=document.createElement("link");l.rel=rel;l.type="image/png";l.href=href;document.head.appendChild(l);});}catch(e){}})();`;
+/** Sync firm preference before paint. Does not modify document.head (avoids React DOM conflicts). */
+export const FIRM_THEME_BOOTSTRAP = `(function(){try{var r=document.documentElement,locked=r.getAttribute("data-firm-locked")==="true",f=r.getAttribute("data-firm"),stored=localStorage.getItem("dashboard-firm");if(!locked&&f==="alliance"&&stored==="pidc")f="pidc";if(f!=="pidc"&&f!=="alliance")f=stored==="alliance"?"alliance":"pidc";r.setAttribute("data-firm",f);if(stored==="pidc"||stored==="alliance")document.cookie="dashboard-firm="+stored+";path=/;max-age=31536000;SameSite=Lax";else document.cookie="dashboard-firm="+f+";path=/;max-age=31536000;SameSite=Lax";localStorage.setItem("dashboard-firm",f);}catch(e){}})();`;

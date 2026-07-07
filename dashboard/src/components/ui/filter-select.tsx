@@ -21,9 +21,9 @@ import {
 import { cn, DISPLAY_DATE_PLACEHOLDER, formatDisplayDate, toIsoDateString } from "@/lib/utils";
 import { Calendar, Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import {
-  FloatingPanel,
+  DropdownPanel,
+  useCloseOnNavigation,
   useDismissiblePanel,
-  useFloatingPanel,
 } from "@/components/ui/use-floating-panel";
 
 const filterFieldClassName = cn(
@@ -59,8 +59,8 @@ export function FilterSelect({
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(-1);
   const anchorRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const listId = useId();
-  const { panelRef, position, mounted } = useFloatingPanel(open, anchorRef, 240);
 
   const selected =
     options.find((option) => option.value === value) ?? options[0];
@@ -71,6 +71,7 @@ export function FilterSelect({
   };
 
   useDismissiblePanel(open, close, anchorRef, panelRef);
+  useCloseOnNavigation(close);
 
   const selectOption = (optionValue: string) => {
     if (disabled) return;
@@ -145,12 +146,7 @@ export function FilterSelect({
         />
       </button>
 
-      <FloatingPanel
-        open={open}
-        mounted={mounted}
-        position={position}
-        panelRef={panelRef}
-      >
+      <DropdownPanel open={open} panelRef={panelRef} minWidth={240}>
         <ul
           id={listId}
           role="listbox"
@@ -186,7 +182,7 @@ export function FilterSelect({
             );
           })}
         </ul>
-      </FloatingPanel>
+      </DropdownPanel>
     </div>
   );
 }
@@ -236,8 +232,8 @@ export function FilterDate({
     () => parseDateValue(value) ?? new Date()
   );
   const anchorRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const calendarId = useId();
-  const { panelRef, position, mounted } = useFloatingPanel(open, anchorRef, 280);
 
   const minDate = useMemo(() => (min ? parseDateValue(min) : null), [min]);
   const maxDate = useMemo(() => (max ? parseDateValue(max) : null), [max]);
@@ -253,6 +249,7 @@ export function FilterDate({
   }, [value]);
 
   useDismissiblePanel(open, close, anchorRef, panelRef);
+  useCloseOnNavigation(close);
 
   const monthStart = startOfMonth(viewDate);
   const monthEnd = endOfMonth(viewDate);
@@ -290,12 +287,7 @@ export function FilterDate({
         />
       </button>
 
-      <FloatingPanel
-        open={open}
-        mounted={mounted}
-        position={position}
-        panelRef={panelRef}
-      >
+      <DropdownPanel open={open} panelRef={panelRef} minWidth={280}>
         <div
           id={calendarId}
           className="rounded-xl border border-border/70 bg-card p-3 shadow-lg shadow-black/10 dark:shadow-black/30"
@@ -391,7 +383,7 @@ export function FilterDate({
             </button>
           </div>
         </div>
-      </FloatingPanel>
+      </DropdownPanel>
     </div>
   );
 }
@@ -454,8 +446,8 @@ export function FilterDateRange({
   const [open, setOpen] = useState(false);
   const [viewDate, setViewDate] = useState(() => new Date());
   const anchorRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const calendarId = useId();
-  const { panelRef, position, mounted } = useFloatingPanel(open, anchorRef, 300);
 
   const minDate = useMemo(() => (min ? parseDateValue(min) : null), [min]);
   const maxDate = useMemo(() => (max ? parseDateValue(max) : null), [max]);
@@ -473,6 +465,7 @@ export function FilterDateRange({
   }, [open, dateFrom, dateTo, minDate, maxDate]);
 
   useDismissiblePanel(open, close, anchorRef, panelRef);
+  useCloseOnNavigation(close);
 
   const monthStart = startOfMonth(viewDate);
   const monthEnd = endOfMonth(viewDate);
@@ -531,12 +524,7 @@ export function FilterDateRange({
         />
       </button>
 
-      <FloatingPanel
-        open={open}
-        mounted={mounted}
-        position={position}
-        panelRef={panelRef}
-      >
+      <DropdownPanel open={open} panelRef={panelRef} minWidth={300}>
         <div
           id={calendarId}
           className="rounded-xl border border-border/70 bg-card p-3 shadow-lg shadow-black/10 dark:shadow-black/30"
@@ -649,7 +637,7 @@ export function FilterDateRange({
             </button>
           </div>
         </div>
-      </FloatingPanel>
+      </DropdownPanel>
     </div>
   );
 }

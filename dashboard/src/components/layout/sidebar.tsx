@@ -236,25 +236,15 @@ export function Sidebar({
                       aria-current={isActive ? "page" : undefined}
                     >
                       {isActive && (
-                        <motion.div
-                          layoutId="sidebar-active"
+                        <div
+                          aria-hidden="true"
                           className="absolute inset-0 rounded-xl bg-primary/10 dark:bg-primary/15"
-                          transition={{
-                            type: "spring",
-                            stiffness: 380,
-                            damping: 30,
-                          }}
                         />
                       )}
                       {isActive && (
-                        <motion.div
-                          layoutId="sidebar-indicator"
+                        <div
+                          aria-hidden="true"
                           className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary glow-teal"
-                          transition={{
-                            type: "spring",
-                            stiffness: 380,
-                            damping: 30,
-                          }}
                         />
                       )}
                       <Icon
