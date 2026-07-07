@@ -11,10 +11,12 @@ import {
 import { usePathname } from "next/navigation";
 import {
   canRoleSwitchFirm,
+  applyFirmTheme,
   FIRMS,
   getDefaultFirmForRole,
   type FirmBrand,
   type FirmId,
+  type FirmPalette,
 } from "@/lib/brand";
 import type { Session } from "@/lib/auth/types";
 
@@ -23,6 +25,7 @@ const STORAGE_KEY = "dashboard-firm";
 interface FirmContextValue {
   firmId: FirmId;
   firm: FirmBrand;
+  palette: FirmPalette;
   canSwitchFirm: boolean;
   setFirm: (firmId: FirmId) => void;
 }
@@ -78,6 +81,10 @@ export function FirmProvider({ children }: { children: React.ReactNode }) {
   const firm = FIRMS[firmId];
 
   useEffect(() => {
+    applyFirmTheme(firmId);
+  }, [firmId]);
+
+  useEffect(() => {
     if (!mounted) return;
     applyDocumentBrand(firm);
   }, [firm, mounted]);
@@ -95,6 +102,7 @@ export function FirmProvider({ children }: { children: React.ReactNode }) {
     () => ({
       firmId,
       firm,
+      palette: firm.palette,
       canSwitchFirm: canRoleSwitchFirm(user?.role),
       setFirm,
     }),

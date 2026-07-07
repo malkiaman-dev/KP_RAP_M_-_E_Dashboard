@@ -30,10 +30,12 @@ import {
   ChartGridSkeleton,
 } from "@/components/ui/chart-card";
 import { tooltipStyle, ChartGradients } from "@/components/ui/chart-theme";
+import { useFirm } from "@/components/brand/firm-provider";
+import type { FirmPalette } from "@/lib/brand";
 
-function scoreColor(score: number): string {
-  if (score >= 90) return "#21A1AA";
-  if (score >= 75) return "#EDCA5C";
+function scoreColor(score: number, palette: FirmPalette): string {
+  if (score >= 90) return palette.teal;
+  if (score >= 75) return palette.gold;
   return "#EF4444";
 }
 
@@ -48,6 +50,8 @@ export function ErrorCharts({
   filters: ErrorFilters;
   onFilterChange: (filters: ErrorFilters) => void;
 }) {
+  const { palette } = useFirm();
+
   if (loading) {
     return (
       <ChartGridSkeleton
@@ -109,7 +113,7 @@ export function ErrorCharts({
                     key={d.name}
                     fill={d.color}
                     fillOpacity={dim ? 0.35 : 1}
-                    stroke={selected ? "#0B7080" : undefined}
+                    stroke={selected ? palette.selected : undefined}
                     strokeWidth={selected ? 2 : 0}
                   />
                 );
@@ -418,9 +422,9 @@ export function ErrorCharts({
                 return (
                   <Cell
                     key={e.name}
-                    fill={scoreColor(e.score)}
+                    fill={scoreColor(e.score, palette)}
                     fillOpacity={dim ? 0.35 : 1}
-                    stroke={selected ? "#0B7080" : undefined}
+                    stroke={selected ? palette.selected : undefined}
                     strokeWidth={selected ? 2 : 0}
                   />
                 );

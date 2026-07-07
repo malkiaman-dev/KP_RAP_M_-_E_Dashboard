@@ -10,6 +10,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { AnimatedCounter } from "@/components/ui/animated-counter";
+import { useFirm } from "@/components/brand/firm-provider";
 import { cn } from "@/lib/utils";
 import type { DashboardMetrics } from "@/lib/data/survey-metrics";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
@@ -22,21 +23,24 @@ type KpiKey =
   | "trackingSuccessRate"
   | "hhCompletionRate";
 
-const colorMap: Record<string, { bg: string; text: string; spark: string }> = {
+const colorStyles: Record<
+  string,
+  { bg: string; text: string; sparkKey: "teal" | "deepTeal" | "gold" }
+> = {
   teal: {
     bg: "bg-teal/10 dark:bg-teal/15",
     text: "text-teal",
-    spark: "#21A1AA",
+    sparkKey: "teal",
   },
   "deep-teal": {
     bg: "bg-deep-teal/10 dark:bg-deep-teal/15",
     text: "text-deep-teal",
-    spark: "#178891",
+    sparkKey: "deepTeal",
   },
   gold: {
     bg: "bg-gold/15 dark:bg-gold/10",
     text: "text-amber-600 dark:text-gold",
-    spark: "#EDCA5C",
+    sparkKey: "gold",
   },
 };
 
@@ -46,6 +50,7 @@ interface KpiCardsProps {
 }
 
 export function KpiCards({ metrics, loading }: KpiCardsProps) {
+  const { palette } = useFirm();
   const sparkline = metrics.submissionSparkline.map((p, i) => ({
     i,
     v: p.value,
@@ -120,7 +125,8 @@ export function KpiCards({ metrics, loading }: KpiCardsProps) {
     <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
       {kpiConfig.map((kpi, index) => {
         const Icon = kpi.icon;
-        const colors = colorMap[kpi.color];
+        const colors = colorStyles[kpi.color];
+        const spark = palette[colors.sparkKey];
         const value = metrics[kpi.key];
 
         return (
@@ -176,12 +182,12 @@ export function KpiCards({ metrics, loading }: KpiCardsProps) {
                       >
                         <stop
                           offset="0%"
-                          stopColor={colors.spark}
+                          stopColor={spark}
                           stopOpacity={0.4}
                         />
                         <stop
                           offset="100%"
-                          stopColor={colors.spark}
+                          stopColor={spark}
                           stopOpacity={0}
                         />
                       </linearGradient>
@@ -189,7 +195,7 @@ export function KpiCards({ metrics, loading }: KpiCardsProps) {
                     <Area
                       type="monotone"
                       dataKey="v"
-                      stroke={colors.spark}
+                      stroke={spark}
                       strokeWidth={1.5}
                       fill={`url(#spark-${kpi.key})`}
                       isAnimationActive

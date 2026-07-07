@@ -31,6 +31,7 @@ import {
   ChartGridSkeleton,
 } from "@/components/ui/chart-card";
 import { tooltipStyle, ChartGradients, chartMargin, legendProps } from "@/components/ui/chart-theme";
+import { useFirm } from "@/components/brand/firm-provider";
 import { formatDisplayDate } from "@/lib/utils";
 
 const dateTick = (value: string) => formatDisplayDate(value) || value;
@@ -47,6 +48,8 @@ export function MonitoringCharts({
   filters: TrackingFilters;
   onFilterChange: (filters: TrackingFilters) => void;
 }) {
+  const { palette } = useFirm();
+
   if (loading) {
     return (
       <ChartGridSkeleton
@@ -129,7 +132,7 @@ export function MonitoringCharts({
               type="monotone"
               dataKey="expectedTracked"
               name="Expected (target)"
-              stroke="#EDCA5C"
+              stroke={palette.gold}
               strokeWidth={2}
               strokeDasharray="5 4"
               dot={false}
@@ -188,7 +191,7 @@ export function MonitoringCharts({
               type="monotone"
               dataKey="activeEnumerators"
               name="Active Enumerators"
-              stroke="#21A1AA"
+              stroke={palette.teal}
               strokeWidth={2}
               dot={{ r: 2, cursor: "pointer" }}
               activeDot={{
@@ -234,7 +237,7 @@ export function MonitoringCharts({
             />
             <ReferenceLine
               y={target}
-              stroke="#EDCA5C"
+              stroke={palette.gold}
               strokeDasharray="5 4"
               strokeWidth={2}
             />
@@ -252,9 +255,9 @@ export function MonitoringCharts({
               {topByAvg.map((e) => (
                 <Cell
                   key={e.id}
-                  fill={e.avgTrackedPerDay >= target ? "#21A1AA" : "#EF4444"}
+                  fill={e.avgTrackedPerDay >= target ? palette.teal : "#EF4444"}
                   fillOpacity={enumActive(e.id) ? 1 : 0.35}
-                  stroke={filters.enumerator === e.id ? "#0B7080" : undefined}
+                  stroke={filters.enumerator === e.id ? palette.selected : undefined}
                   strokeWidth={filters.enumerator === e.id ? 2 : 0}
                 />
               ))}

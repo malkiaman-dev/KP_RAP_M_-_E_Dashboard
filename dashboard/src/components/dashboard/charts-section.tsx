@@ -28,6 +28,7 @@ import {
   toggleDateRange,
 } from "@/lib/chart-cross-filter";
 import { ChartGradients } from "@/components/ui/chart-theme";
+import { useFirm } from "@/components/brand/firm-provider";
 import { formatDisplayDate } from "@/lib/utils";
 
 interface ChartsSectionProps {
@@ -59,6 +60,9 @@ export function ChartsSection({
   filters,
   onFilterChange,
 }: ChartsSectionProps) {
+  const { palette } = useFirm();
+  const distributionColors = [palette.teal, palette.deepTeal, palette.gold];
+
   if (loading) {
     return (
       <div className="mb-8 grid gap-6 lg:grid-cols-2">
@@ -92,8 +96,8 @@ export function ChartsSection({
           <LineChart data={metrics.trackingTrend}>
             <defs>
               <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#21A1AA" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="#21A1AA" stopOpacity={0} />
+                <stop offset="0%" stopColor={palette.teal} stopOpacity={0.3} />
+                <stop offset="100%" stopColor={palette.teal} stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -118,7 +122,7 @@ export function ChartsSection({
               type="monotone"
               dataKey="count"
               name="Tracked"
-              stroke="#21A1AA"
+              stroke={palette.teal}
               strokeWidth={2.5}
               dot={(props) => {
                 const { cx, cy, payload } = props;
@@ -131,8 +135,8 @@ export function ChartsSection({
                     cx={cx}
                     cy={cy}
                     r={selected ? 6 : 4}
-                    fill={selected ? "#EDCA5C" : "#21A1AA"}
-                    stroke={selected ? "#0B7080" : "none"}
+                    fill={selected ? palette.gold : palette.teal}
+                    stroke={selected ? palette.selected : "none"}
                     strokeWidth={selected ? 2 : 0}
                     style={{ cursor: "pointer" }}
                     onClick={() => date && pickDate(date)}
@@ -274,9 +278,9 @@ export function ChartsSection({
                   return (
                     <Cell
                       key={index}
-                      fill={entry.color}
+                      fill={distributionColors[index] ?? entry.color}
                       fillOpacity={dim ? 0.35 : 1}
-                      stroke={selected ? "#0B7080" : "transparent"}
+                      stroke={selected ? palette.selected : "transparent"}
                       strokeWidth={selected ? 2 : 0}
                     />
                   );
@@ -305,7 +309,7 @@ export function ChartsSection({
           </ResponsiveContainer>
         </div>
         <div className="mt-2 flex justify-center gap-6">
-          {metrics.surveyDistribution.map((d) => (
+          {metrics.surveyDistribution.map((d, index) => (
             <button
               key={d.name}
               type="button"
@@ -317,7 +321,7 @@ export function ChartsSection({
             >
               <span
                 className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: d.color }}
+                style={{ backgroundColor: distributionColors[index] ?? d.color }}
               />
               <span className="text-muted-foreground">
                 {d.name}: <strong className="text-foreground">{d.value}</strong>

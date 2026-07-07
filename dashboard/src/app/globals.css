@@ -1,6 +1,18 @@
 @import "tailwindcss";
 
 :root {
+  --brand-teal: #21a1aa;
+  --brand-deep-teal: #178891;
+  --brand-gold: #edca5c;
+  --brand-light-gold: #f4d67f;
+  --brand-teal-light: #2dbcc6;
+  --brand-deep-teal-dark: #0e6b73;
+  --brand-gold-dark: #e0b53f;
+  --brand-selected: #0b7080;
+  --brand-teal-rgb: 33, 161, 170;
+  --brand-deep-teal-rgb: 23, 136, 145;
+  --brand-gold-rgb: 237, 202, 92;
+
   --background: #f5f7fa;
   --foreground: #0f172a;
   --card: #ffffff;
@@ -8,11 +20,11 @@
   --muted: #e2e8f0;
   --muted-foreground: #64748b;
   --border: #e2e8f0;
-  --primary: #21a1aa;
+  --primary: var(--brand-teal);
   --primary-foreground: #ffffff;
-  --accent: #edca5c;
+  --accent: var(--brand-gold);
   --accent-foreground: #0f172a;
-  --ring: #21a1aa;
+  --ring: var(--brand-teal);
   --sidebar: #ffffff;
   --sidebar-foreground: #334155;
   --surface-elevated: rgba(255, 255, 255, 0.72);
@@ -26,11 +38,11 @@
   --muted: #334155;
   --muted-foreground: #94a3b8;
   --border: #334155;
-  --primary: #21a1aa;
+  --primary: var(--brand-teal);
   --primary-foreground: #ffffff;
-  --accent: #edca5c;
+  --accent: var(--brand-gold);
   --accent-foreground: #0f172a;
-  --ring: #21a1aa;
+  --ring: var(--brand-teal);
   --sidebar: #111827;
   --sidebar-foreground: #cbd5e1;
   --surface-elevated: rgba(30, 41, 59, 0.72);
@@ -51,10 +63,10 @@
   --color-ring: var(--ring);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-teal: #21a1aa;
-  --color-deep-teal: #178891;
-  --color-gold: #edca5c;
-  --color-light-gold: #f4d67f;
+  --color-teal: var(--brand-teal);
+  --color-deep-teal: var(--brand-deep-teal);
+  --color-gold: var(--brand-gold);
+  --color-light-gold: var(--brand-light-gold);
   --color-soft-gray: #f5f7fa;
   --color-dark-slate: #0f172a;
   --font-sans: var(--font-dm-sans);
@@ -79,16 +91,16 @@ body {
 .mesh-bg {
   background-color: var(--background);
   background-image:
-    radial-gradient(at 0% 0%, rgba(33, 161, 170, 0.12) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(237, 202, 92, 0.1) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(23, 136, 145, 0.08) 0px, transparent 50%);
+    radial-gradient(at 0% 0%, rgba(var(--brand-teal-rgb), 0.12) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(var(--brand-gold-rgb), 0.1) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(var(--brand-deep-teal-rgb), 0.08) 0px, transparent 50%);
 }
 
 .dark .mesh-bg {
   background-image:
-    radial-gradient(at 0% 0%, rgba(33, 161, 170, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(237, 202, 92, 0.08) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(23, 136, 145, 0.1) 0px, transparent 50%);
+    radial-gradient(at 0% 0%, rgba(var(--brand-teal-rgb), 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(var(--brand-gold-rgb), 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(var(--brand-deep-teal-rgb), 0.1) 0px, transparent 50%);
 }
 
 .glass-card {
@@ -103,11 +115,11 @@ body {
 }
 
 .glow-teal {
-  box-shadow: 0 0 40px -10px rgba(33, 161, 170, 0.35);
+  box-shadow: 0 0 40px -10px rgba(var(--brand-teal-rgb), 0.35);
 }
 
 .glow-gold {
-  box-shadow: 0 0 40px -10px rgba(237, 202, 92, 0.3);
+  box-shadow: 0 0 40px -10px rgba(var(--brand-gold-rgb), 0.3);
 }
 
 .kpi-border {
@@ -120,7 +132,11 @@ body {
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, rgba(33, 161, 170, 0.5), rgba(237, 202, 92, 0.3));
+  background: linear-gradient(
+    135deg,
+    rgba(var(--brand-teal-rgb), 0.5),
+    rgba(var(--brand-gold-rgb), 0.3)
+  );
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -185,13 +201,13 @@ body {
 .surface-card:hover {
   box-shadow:
     0 10px 30px -12px rgba(15, 23, 42, 0.18),
-    0 4px 10px -6px rgba(33, 161, 170, 0.12);
+    0 4px 10px -6px rgba(var(--brand-teal-rgb), 0.12);
 }
 
 .dark .surface-card:hover {
   box-shadow:
     0 10px 34px -12px rgba(0, 0, 0, 0.6),
-    0 4px 10px -6px rgba(33, 161, 170, 0.18);
+    0 4px 10px -6px rgba(var(--brand-teal-rgb), 0.18);
 }
 
 /* Gradient header accent for chart cards */
@@ -217,7 +233,12 @@ body {
 
 /* Animated gradient text */
 .text-gradient {
-  background: linear-gradient(120deg, var(--color-teal), var(--color-deep-teal), var(--color-gold));
+  background: linear-gradient(
+    120deg,
+    var(--color-teal),
+    var(--color-deep-teal),
+    var(--color-gold)
+  );
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;

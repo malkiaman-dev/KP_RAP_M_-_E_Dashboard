@@ -1,5 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
+import { useFirm } from "@/components/brand/firm-provider";
+import { buildChartGradients } from "@/lib/brand";
+
 /** Shared Recharts tooltip styling - soft elevation + rounded corners. */
 export const tooltipStyle = {
   backgroundColor: "var(--card)",
@@ -24,26 +28,18 @@ export const legendProps = {
   verticalAlign: "bottom" as const,
 };
 
-type Stop = { from: string; to: string };
-
-const GRADIENTS: Record<string, Stop> = {
-  teal: { from: "#2DBCC6", to: "#178891" },
-  deepteal: { from: "#21A1AA", to: "#0E6B73" },
-  gold: { from: "#F4D67F", to: "#E0B53F" },
-  red: { from: "#F87171", to: "#DC2626" },
-  sky: { from: "#56C6F5", to: "#2B8FD6" },
-  indigo: { from: "#818CF8", to: "#4F46E5" },
-};
-
 /**
  * Reusable gradient + soft-shadow defs for charts. Drop `<ChartGradients />`
  * inside any Recharts chart, then reference fills as `url(#grad-teal)` (vertical
  * bars / areas) or `url(#grad-teal-h)` (horizontal bars, layout="vertical").
  */
 export function ChartGradients() {
+  const { palette } = useFirm();
+  const gradients = useMemo(() => buildChartGradients(palette), [palette]);
+
   return (
     <defs>
-      {Object.entries(GRADIENTS).map(([key, { from, to }]) => (
+      {Object.entries(gradients).map(([key, { from, to }]) => (
         <linearGradient
           key={`v-${key}`}
           id={`grad-${key}`}
@@ -56,7 +52,7 @@ export function ChartGradients() {
           <stop offset="100%" stopColor={to} stopOpacity={0.85} />
         </linearGradient>
       ))}
-      {Object.entries(GRADIENTS).map(([key, { from, to }]) => (
+      {Object.entries(gradients).map(([key, { from, to }]) => (
         <linearGradient
           key={`h-${key}`}
           id={`grad-${key}-h`}
@@ -69,7 +65,7 @@ export function ChartGradients() {
           <stop offset="100%" stopColor={from} stopOpacity={0.95} />
         </linearGradient>
       ))}
-      {Object.entries(GRADIENTS).map(([key, { from, to }]) => (
+      {Object.entries(gradients).map(([key, { from, to }]) => (
         <linearGradient
           key={`a-${key}`}
           id={`grad-${key}-area`}

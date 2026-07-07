@@ -33,6 +33,7 @@ import {
   ChartGridSkeleton,
 } from "@/components/ui/chart-card";
 import { tooltipStyle, ChartGradients, chartMargin, legendProps } from "@/components/ui/chart-theme";
+import { useFirm } from "@/components/brand/firm-provider";
 
 import { formatDisplayDate } from "@/lib/utils";
 
@@ -157,6 +158,8 @@ export function TrackingCharts({
   filters: TrackingFilters;
   onFilterChange: (filters: TrackingFilters) => void;
 }) {
+  const { palette } = useFirm();
+
   if (loading) {
     return (
       <ChartGridSkeleton
@@ -194,11 +197,11 @@ export function TrackingCharts({
     filters.enrollStatus === "all" || filters.enrollStatus === status;
 
   const primaryAlternateData = [
-    { name: "Enrolled", value: metrics.primaryAlternate.enrolled, color: "#21A1AA" },
+    { name: "Enrolled", value: metrics.primaryAlternate.enrolled, color: palette.teal },
     {
       name: "Dropped Out",
       value: metrics.primaryAlternate.droppedOut,
-      color: "#EDCA5C",
+      color: palette.gold,
     },
   ].filter((d) => d.value > 0);
 
@@ -414,7 +417,7 @@ export function TrackingCharts({
               type="monotone"
               dataKey="count"
               name="Girls Tracked"
-              stroke="#21A1AA"
+              stroke={palette.teal}
               strokeWidth={2}
               dot={(props) => {
                 const { cx, cy, payload } = props;
@@ -427,8 +430,8 @@ export function TrackingCharts({
                     cx={cx}
                     cy={cy}
                     r={selected ? 5 : 3}
-                    fill={selected ? "#EDCA5C" : "#21A1AA"}
-                    stroke={selected ? "#0B7080" : "none"}
+                    fill={selected ? palette.gold : palette.teal}
+                    stroke={selected ? palette.selected : "none"}
                     strokeWidth={selected ? 2 : 0}
                     style={{ cursor: "pointer" }}
                     onClick={() => date && pickDate(date)}
