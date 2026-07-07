@@ -13,6 +13,7 @@ import { usePathname } from "next/navigation";
 import {
   canRoleSwitchFirm,
   applyFirmTheme,
+  applyDocumentBrand,
   FIRMS,
   FIRM_STORAGE_KEY,
   getDefaultFirmForRole,
@@ -39,22 +40,6 @@ function readBootstrappedFirm(): FirmId {
   if (fromDom === "pidc" || fromDom === "alliance") return fromDom;
   const stored = localStorage.getItem(FIRM_STORAGE_KEY);
   return stored === "pidc" ? "pidc" : "alliance";
-}
-
-function applyDocumentBrand(firm: FirmBrand) {
-  if (typeof document === "undefined") return;
-
-  document.title = `${firm.name} | M&E Dashboard`;
-
-  for (const rel of ["icon", "shortcut icon", "apple-touch-icon"]) {
-    let link = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
-    if (!link) {
-      link = document.createElement("link");
-      link.rel = rel;
-      document.head.appendChild(link);
-    }
-    link.href = firm.favicon;
-  }
 }
 
 function applyFirm(firmId: FirmId) {

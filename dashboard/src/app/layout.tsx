@@ -17,11 +17,21 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "M&E Dashboard",
-  description:
-    "Enterprise monitoring and evaluation platform for survey tracking, field operations, and impact analytics.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { firmId } = await getServerFirmContext();
+  const firm = FIRMS[firmId];
+
+  return {
+    title: `${firm.name} | M&E Dashboard`,
+    description:
+      "Enterprise monitoring and evaluation platform for survey tracking, field operations, and impact analytics.",
+    icons: {
+      icon: [{ url: `${firm.favicon}?firm=${firmId}`, type: "image/png" }],
+      apple: [{ url: `${firm.favicon}?firm=${firmId}`, type: "image/png" }],
+      shortcut: [{ url: `${firm.favicon}?firm=${firmId}`, type: "image/png" }],
+    },
+  };
+}
 
 export default async function RootLayout({
   children,
@@ -29,7 +39,6 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const { firmId, locked } = await getServerFirmContext();
-  const firm = FIRMS[firmId];
 
   return (
     <html
@@ -41,7 +50,6 @@ export default async function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: FIRM_THEME_BOOTSTRAP }} />
-        <link rel="icon" href={firm.favicon} />
       </head>
       <body
         suppressHydrationWarning

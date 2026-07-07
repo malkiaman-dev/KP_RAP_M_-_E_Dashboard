@@ -200,5 +200,27 @@ export function persistFirmPreference(firmId: FirmId) {
   document.documentElement.dataset.firm = firmId;
 }
 
+/** Update document title and favicon for the active firm (client-only). */
+export function applyDocumentBrand(firm: FirmBrand) {
+  if (typeof document === "undefined") return;
+
+  document.title = `${firm.name} | M&E Dashboard`;
+
+  document
+    .querySelectorAll(
+      'link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]'
+    )
+    .forEach((node) => node.remove());
+
+  const href = `${firm.favicon}?firm=${firm.id}`;
+  for (const rel of ["icon", "shortcut icon", "apple-touch-icon"]) {
+    const link = document.createElement("link");
+    link.rel = rel;
+    link.type = "image/png";
+    link.href = href;
+    document.head.appendChild(link);
+  }
+}
+
 /** Inline script: sync cookie/localStorage; respect server role lock. Runs before body paint. */
-export const FIRM_THEME_BOOTSTRAP = `(function(){try{var r=document.documentElement,locked=r.getAttribute("data-firm-locked")==="true",f=r.getAttribute("data-firm"),stored=localStorage.getItem("dashboard-firm");if(!locked&&f==="alliance"&&stored==="pidc")f="pidc";if(f!=="pidc"&&f!=="alliance")f=stored==="pidc"?"pidc":"alliance";r.setAttribute("data-firm",f);if(stored==="pidc"||stored==="alliance")document.cookie="dashboard-firm="+stored+";path=/;max-age=31536000;SameSite=Lax";else document.cookie="dashboard-firm="+f+";path=/;max-age=31536000;SameSite=Lax";localStorage.setItem("dashboard-firm",f);var b=f==="pidc"?{t:"PIDC | M\\u0026E Dashboard",i:"/pidc-favicon.png"}:{t:"Alliance of Excellence | M\\u0026E Dashboard",i:"/alliance-favicon.png"};document.title=b.t;var links=document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]');if(links.length){for(var i=0;i<links.length;i++)links[i].href=b.i;}else{var l=document.createElement("link");l.rel="icon";l.href=b.i;document.head.appendChild(l);}}catch(e){}})();`;
+export const FIRM_THEME_BOOTSTRAP = `(function(){try{var r=document.documentElement,locked=r.getAttribute("data-firm-locked")==="true",f=r.getAttribute("data-firm"),stored=localStorage.getItem("dashboard-firm");if(!locked&&f==="alliance"&&stored==="pidc")f="pidc";if(f!=="pidc"&&f!=="alliance")f=stored==="pidc"?"pidc":"alliance";r.setAttribute("data-firm",f);if(stored==="pidc"||stored==="alliance")document.cookie="dashboard-firm="+stored+";path=/;max-age=31536000;SameSite=Lax";else document.cookie="dashboard-firm="+f+";path=/;max-age=31536000;SameSite=Lax";localStorage.setItem("dashboard-firm",f);var b=f==="pidc"?{t:"PIDC | M\\u0026E Dashboard",i:"/pidc-favicon.png"}:{t:"Alliance of Excellence | M\\u0026E Dashboard",i:"/alliance-favicon.png"};document.title=b.t;var old=document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]');for(var j=old.length-1;j>=0;j--)old[j].remove();var href=b.i+"?firm="+f;["icon","shortcut icon","apple-touch-icon"].forEach(function(rel){var l=document.createElement("link");l.rel=rel;l.type="image/png";l.href=href;document.head.appendChild(l);});}catch(e){}})();`;
