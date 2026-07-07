@@ -14,6 +14,7 @@ const LABELS: Partial<Record<keyof TrackingFilters, string>> = {
   enumerator: "Enumerator",
   village: "Village",
   school: "School",
+  girl: "Beneficiary",
   untrackedReason: "Untracked reason",
   enrollStatus: "Enrollment",
   dateFrom: "From",
@@ -82,13 +83,14 @@ export function TrackingActiveFilters({
         filterOptions?.sessions?.find((s) => s.value === value)?.label || value
       );
     }
+    if (key === "girl") return filters.girlLabel || value;
     return displayValue(key, value);
   };
 
   const chips: { key: keyof TrackingFilters; label: string }[] = [];
 
   (Object.keys(filters) as (keyof TrackingFilters)[]).forEach((key) => {
-    if (key === "todayOnly") return;
+    if (key === "todayOnly" || key === "girlLabel") return;
     const value = filters[key];
     if (key === "dateFrom" || key === "dateTo") return;
     if (!value || value === "all") return;
@@ -138,6 +140,8 @@ export function TrackingActiveFilters({
               });
             } else if (chip.key === "dateFrom") {
               onChange({ ...filters, dateFrom: "", dateTo: "" });
+            } else if (chip.key === "girl") {
+              onChange({ ...filters, girl: "all", girlLabel: "" });
             } else {
               onChange({ ...filters, [chip.key]: "all" });
             }

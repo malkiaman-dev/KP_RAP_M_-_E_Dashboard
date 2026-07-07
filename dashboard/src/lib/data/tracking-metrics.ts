@@ -97,6 +97,10 @@ export interface TrackingFilters {
   dateTo: string;
   /** When true, only submissions from today are included. */
   todayOnly: boolean;
+  /** Filter to a single beneficiary (girl key). */
+  girl: string;
+  /** Display label for the active girl filter (from search). */
+  girlLabel: string;
 }
 
 export const defaultTrackingFilters: TrackingFilters = {
@@ -111,6 +115,8 @@ export const defaultTrackingFilters: TrackingFilters = {
   dateFrom: "",
   dateTo: "",
   todayOnly: false,
+  girl: "all",
+  girlLabel: "",
 };
 
 /** Shared filter defaults - Today toggle off. */
@@ -361,7 +367,7 @@ export function resolveGirlName(row: TrackingRow): string {
  * `village_label`. So the only field present in both is the name - use it as the
  * single village key for filters, summaries and the village chart.
  */
-function resolveVillageLabel(row: TrackingRow): string | undefined {
+export function resolveVillageLabel(row: TrackingRow): string | undefined {
   const label =
     row.village_label ||
     row.village_label_1 ||
@@ -1661,6 +1667,7 @@ export function applyTrackingFilters(
       return false;
     if (filters.village !== "all" && resolveVillageLabel(r) !== filters.village)
       return false;
+    if (filters.girl !== "all" && girlKey(r) !== filters.girl) return false;
     if (filters.school !== "all" && resolveSchoolLabel(r) !== filters.school)
       return false;
     if (
