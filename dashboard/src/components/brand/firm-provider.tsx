@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from "react";
@@ -69,18 +70,17 @@ export function FirmProvider({ children }: { children: React.ReactNode }) {
 
     const role = user?.role ?? null;
     const canSwitch = canRoleSwitchFirm(role);
+    const nextFirmId = canSwitch
+      ? readStoredFirm()
+      : getDefaultFirmForRole(role);
 
-    if (canSwitch) {
-      setFirmId(readStoredFirm());
-      return;
-    }
-
-    setFirmId(getDefaultFirmForRole(role));
+    setFirmId(nextFirmId);
+    applyFirmTheme(nextFirmId);
   }, [user, mounted]);
 
   const firm = FIRMS[firmId];
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     applyFirmTheme(firmId);
   }, [firmId]);
 
@@ -94,6 +94,7 @@ export function FirmProvider({ children }: { children: React.ReactNode }) {
       if (!canRoleSwitchFirm(user?.role)) return;
       setFirmId(nextFirmId);
       localStorage.setItem(STORAGE_KEY, nextFirmId);
+      applyFirmTheme(nextFirmId);
     },
     [user?.role]
   );

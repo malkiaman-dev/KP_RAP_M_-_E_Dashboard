@@ -29,6 +29,7 @@ import {
 } from "@/lib/chart-cross-filter";
 import { ChartGradients } from "@/components/ui/chart-theme";
 import { useFirm } from "@/components/brand/firm-provider";
+import { hexToRgba, paletteGradient } from "@/lib/brand";
 import { formatDisplayDate } from "@/lib/utils";
 
 interface ChartsSectionProps {
@@ -353,11 +354,13 @@ export function ChartsSection({
                 onClick={() => pick({ district: d.district })}
                 className="cursor-pointer rounded-xl border p-4 text-left transition-shadow hover:shadow-md"
                 style={{
-                  background: `linear-gradient(135deg, rgba(33,161,170,${intensity / 200}) 0%, rgba(237,202,92,${intensity / 300}) 100%)`,
+                  background: paletteGradient(palette, intensity),
                   borderColor: selected
-                    ? "rgba(11, 112, 128, 0.6)"
+                    ? hexToRgba(palette.selected, 0.6)
                     : "var(--border)",
-                  boxShadow: selected ? "0 0 0 2px rgba(11, 112, 128, 0.35)" : undefined,
+                  boxShadow: selected
+                    ? `0 0 0 2px ${hexToRgba(palette.selected, 0.35)}`
+                    : undefined,
                 }}
               >
                 <p className="text-sm font-semibold text-foreground">{d.label}</p>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { AppShell } from "@/components/layout/app-shell";
+import { FIRM_THEME_BOOTSTRAP } from "@/lib/brand";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -28,6 +29,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className={`${dmSans.variable} ${geistMono.variable} h-full`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: FIRM_THEME_BOOTSTRAP }} />
+      </head>
       <body
         suppressHydrationWarning
         className="min-h-full bg-background font-sans antialiased"

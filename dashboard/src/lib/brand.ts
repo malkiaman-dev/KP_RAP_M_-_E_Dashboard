@@ -173,3 +173,21 @@ export function buildChartGradients(palette: FirmPalette) {
     indigo: { from: "#818CF8", to: "#4F46E5" },
   };
 }
+
+export function hexToRgba(hex: string, alpha: number): string {
+  const normalized = hex.replace("#", "");
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+export function paletteGradient(
+  palette: FirmPalette,
+  intensity: number
+): string {
+  return `linear-gradient(135deg, rgba(${palette.tealRgb}, ${intensity / 200}) 0%, rgba(${palette.goldRgb}, ${intensity / 300}) 100%)`;
+}
+
+/** Inline script applied before paint to reduce palette flash on reload. */
+export const FIRM_THEME_BOOTSTRAP = `(function(){try{var r=document.documentElement,f=localStorage.getItem("dashboard-firm");if(f==="pidc"||f==="alliance")r.dataset.firm=f;}catch(e){}})();`;

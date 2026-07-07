@@ -108,10 +108,12 @@ export function ErrorCharts({
                 const selected = filters.severity === sev;
                 const dim =
                   filters.severity !== "all" && !selected;
+                const fillColor =
+                  d.name === "Critical" ? "#EF4444" : palette.gold;
                 return (
                   <Cell
                     key={d.name}
-                    fill={d.color}
+                    fill={fillColor}
                     fillOpacity={dim ? 0.35 : 1}
                     stroke={selected ? palette.selected : undefined}
                     strokeWidth={selected ? 2 : 0}
