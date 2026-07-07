@@ -18,6 +18,8 @@ import {
   FIRM_STORAGE_KEY,
   getDefaultFirmForRole,
   persistFirmPreference,
+  parseFirmPreference,
+  resolveFirmPreference,
   type FirmBrand,
   type FirmId,
   type FirmPalette,
@@ -35,11 +37,10 @@ interface FirmContextValue {
 const FirmContext = createContext<FirmContextValue | null>(null);
 
 function readBootstrappedFirm(): FirmId {
-  if (typeof document === "undefined") return "alliance";
-  const fromDom = document.documentElement.dataset.firm;
-  if (fromDom === "pidc" || fromDom === "alliance") return fromDom;
-  const stored = localStorage.getItem(FIRM_STORAGE_KEY);
-  return stored === "pidc" ? "pidc" : "alliance";
+  if (typeof document === "undefined") return "pidc";
+  const fromDom = parseFirmPreference(document.documentElement.dataset.firm);
+  if (fromDom) return fromDom;
+  return resolveFirmPreference(localStorage.getItem(FIRM_STORAGE_KEY));
 }
 
 function applyFirm(firmId: FirmId) {

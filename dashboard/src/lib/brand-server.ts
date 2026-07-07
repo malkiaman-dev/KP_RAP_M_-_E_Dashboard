@@ -1,16 +1,13 @@
 import { cookies } from "next/headers";
 import { verifySession, SESSION_COOKIE } from "@/lib/auth/session";
 import {
+  DEFAULT_FIRM_ID,
   FIRM_COOKIE,
   canRoleSwitchFirm,
   getDefaultFirmForRole,
+  parseFirmPreference,
   type FirmId,
 } from "@/lib/brand";
-
-function parseFirmCookie(value: string | undefined): FirmId | null {
-  if (value === "pidc" || value === "alliance") return value;
-  return null;
-}
 
 export interface ServerFirmContext {
   firmId: FirmId;
@@ -22,7 +19,7 @@ export interface ServerFirmContext {
 export async function getServerFirmContext(): Promise<ServerFirmContext> {
   const cookieStore = await cookies();
   const session = await verifySession(cookieStore.get(SESSION_COOKIE)?.value);
-  const preference = parseFirmCookie(cookieStore.get(FIRM_COOKIE)?.value);
+  const preference = parseFirmPreference(cookieStore.get(FIRM_COOKIE)?.value);
 
   if (session) {
     if (!canRoleSwitchFirm(session.role)) {
@@ -32,13 +29,13 @@ export async function getServerFirmContext(): Promise<ServerFirmContext> {
       };
     }
     return {
-      firmId: preference ?? "alliance",
+      firmId: preference ?? DEFAULT_FIRM_ID,
       locked: false,
     };
   }
 
   return {
-    firmId: preference ?? "alliance",
+    firmId: preference ?? DEFAULT_FIRM_ID,
     locked: false,
   };
 }
