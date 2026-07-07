@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { DM_Sans, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { AppShell } from "@/components/layout/app-shell";
-import { FIRM_THEME_BOOTSTRAP } from "@/lib/brand";
+import { FIRM_THEME_BOOTSTRAP, FIRMS } from "@/lib/brand";
+import { getServerFirmContext } from "@/lib/brand-server";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -22,15 +23,25 @@ export const metadata: Metadata = {
     "Enterprise monitoring and evaluation platform for survey tracking, field operations, and impact analytics.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { firmId, locked } = await getServerFirmContext();
+  const firm = FIRMS[firmId];
+
   return (
-    <html lang="en" suppressHydrationWarning className={`${dmSans.variable} ${geistMono.variable} h-full`}>
+    <html
+      lang="en"
+      data-firm={firmId}
+      data-firm-locked={locked ? "true" : undefined}
+      suppressHydrationWarning
+      className={`${dmSans.variable} ${geistMono.variable} h-full`}
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: FIRM_THEME_BOOTSTRAP }} />
+        <link rel="icon" href={firm.favicon} />
       </head>
       <body
         suppressHydrationWarning

@@ -1,28 +1,32 @@
-"use client";
+import { FIRMS, type FirmId } from "@/lib/brand";
 
-import Image from "next/image";
-import { useFirm } from "@/components/brand/firm-provider";
+const FIRM_ORDER: FirmId[] = ["alliance", "pidc"];
 
 export function Logo({ collapsed = false }: { collapsed?: boolean }) {
-  const { firm } = useFirm();
-
   return (
     <div className="flex items-center gap-3">
-      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center">
-        <Image
-          src={firm.logoMark}
-          alt=""
-          width={40}
-          height={40}
-          className="h-10 w-10 object-contain"
-          priority
-        />
+      <div className="relative h-10 w-10 shrink-0">
+        {FIRM_ORDER.map((id) => (
+          <img
+            key={id}
+            src={FIRMS[id].logoMark}
+            alt=""
+            width={40}
+            height={40}
+            className={`firm-brand-${id} absolute inset-0 h-full w-full object-contain`}
+          />
+        ))}
       </div>
       {!collapsed && (
-        <div className="flex flex-col overflow-hidden">
-          <span className="truncate text-sm font-semibold tracking-tight text-foreground">
-            {firm.name}
-          </span>
+        <div className="relative flex flex-col overflow-hidden">
+          {FIRM_ORDER.map((id) => (
+            <span
+              key={id}
+              className={`firm-brand-${id} truncate text-sm font-semibold tracking-tight text-foreground`}
+            >
+              {FIRMS[id].name}
+            </span>
+          ))}
           <span className="truncate text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
             M&amp;E Platform
           </span>
@@ -39,16 +43,21 @@ export function LogoMark({
   size?: number;
   className?: string;
 }) {
-  const { firm } = useFirm();
-
   return (
-    <Image
-      src={firm.logoMark}
-      alt=""
-      width={size}
-      height={size}
-      className={className}
+    <span
+      className={`relative inline-block ${className ?? ""}`}
       style={{ width: size, height: size }}
-    />
+    >
+      {FIRM_ORDER.map((id) => (
+        <img
+          key={id}
+          src={FIRMS[id].logoMark}
+          alt=""
+          width={size}
+          height={size}
+          className={`firm-brand-${id} absolute inset-0 h-full w-full object-contain`}
+        />
+      ))}
+    </span>
   );
 }

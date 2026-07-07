@@ -1,5 +1,8 @@
 export type FirmId = "alliance" | "pidc";
 
+export const FIRM_COOKIE = "dashboard-firm";
+export const FIRM_STORAGE_KEY = "dashboard-firm";
+
 export interface FirmPalette {
   teal: string;
   deepTeal: string;
@@ -189,5 +192,13 @@ export function paletteGradient(
   return `linear-gradient(135deg, rgba(${palette.tealRgb}, ${intensity / 200}) 0%, rgba(${palette.goldRgb}, ${intensity / 300}) 100%)`;
 }
 
-/** Inline script applied before paint to reduce palette flash on reload. */
-export const FIRM_THEME_BOOTSTRAP = `(function(){try{var r=document.documentElement,f=localStorage.getItem("dashboard-firm");if(f==="pidc"||f==="alliance")r.dataset.firm=f;}catch(e){}})();`;
+/** Persist firm choice for SSR (cookie) and client reload (localStorage + data-firm). */
+export function persistFirmPreference(firmId: FirmId) {
+  if (typeof document === "undefined") return;
+  localStorage.setItem(FIRM_STORAGE_KEY, firmId);
+  document.cookie = `${FIRM_COOKIE}=${firmId};path=/;max-age=31536000;SameSite=Lax`;
+  document.documentElement.dataset.firm = firmId;
+}
+
+/** Inline script: sync cookie/localStorage; respect server role lock. Runs before body paint. */
+export const FIRM_THEME_BOOTSTRAP = `(function(){try{var r=document.documentElement,locked=r.getAttribute("data-firm-locked")==="true",f=r.getAttribute("data-firm"),stored=localStorage.getItem("dashboard-firm");if(!locked&&f==="alliance"&&stored==="pidc")f="pidc";if(f!=="pidc"&&f!=="alliance")f=stored==="pidc"?"pidc":"alliance";r.setAttribute("data-firm",f);if(stored==="pidc"||stored==="alliance")document.cookie="dashboard-firm="+stored+";path=/;max-age=31536000;SameSite=Lax";else document.cookie="dashboard-firm="+f+";path=/;max-age=31536000;SameSite=Lax";localStorage.setItem("dashboard-firm",f);var b=f==="pidc"?{t:"PIDC | M\\u0026E Dashboard",i:"/pidc-favicon.png"}:{t:"Alliance of Excellence | M\\u0026E Dashboard",i:"/alliance-favicon.png"};document.title=b.t;var links=document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]');if(links.length){for(var i=0;i<links.length;i++)links[i].href=b.i;}else{var l=document.createElement("link");l.rel="icon";l.href=b.i;document.head.appendChild(l);}}catch(e){}})();`;

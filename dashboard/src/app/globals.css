@@ -95,6 +95,19 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Firm logo/name: CSS-only toggle via html[data-firm] — works before React hydrates */
+.firm-brand-pidc {
+  display: none !important;
+}
+
+[data-firm="pidc"] .firm-brand-alliance {
+  display: none !important;
+}
+
+[data-firm="pidc"] .firm-brand-pidc {
+  display: block !important;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
