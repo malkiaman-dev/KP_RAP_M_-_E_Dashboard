@@ -44,6 +44,7 @@ export async function fetchHhGirlsMetrics(): Promise<HhGirlsMetrics> {
 export interface HhGirlsExportPayload {
   revisitLists: HhGirlsMetrics["revisitDetail"]["lists"];
   duplicateLists: HhGirlsMetrics["duplicateDetail"]["lists"];
+  coreKpiLists: HhGirlsMetrics["coreKpiLists"];
 }
 
 export async function fetchHhGirlsExports(): Promise<HhGirlsExportPayload> {

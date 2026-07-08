@@ -1,4 +1,5 @@
 import { PROTOCOL } from "./protocol";
+import { computeHhGirlsCoreKpiLists } from "./hh-girls-core-kpi-lists";
 import { computeHhGirlsDuplicateDetail } from "./hh-girls-duplicates";
 import { computeHhGirlsRevisitDetail } from "./hh-girls-revisit";
 
@@ -781,6 +782,7 @@ export function computeHhGirlsMetrics(
   const filterOptions = getHhGirlsFilterOptions(household, girls);
   const revisitDetail = computeHhGirlsRevisitDetail(household, girls);
   const duplicateDetail = computeHhGirlsDuplicateDetail(household, girls);
+  const coreKpiLists = computeHhGirlsCoreKpiLists(household, girls);
 
   return {
     targetN: PROTOCOL.HH_SURVEY_TARGET,
@@ -858,6 +860,7 @@ export function computeHhGirlsMetrics(
     filterOptions,
     revisitDetail,
     duplicateDetail,
+    coreKpiLists,
     allHousehold: household,
     allGirls: girls,
   };

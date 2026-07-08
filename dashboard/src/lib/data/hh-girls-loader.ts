@@ -87,5 +87,6 @@ export function loadHhGirlsExportPayload() {
   return {
     revisitLists: metrics.revisitDetail.lists,
     duplicateLists: metrics.duplicateDetail.lists,
+    coreKpiLists: metrics.coreKpiLists,
   };
 }
