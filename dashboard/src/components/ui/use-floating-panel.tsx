@@ -10,6 +10,9 @@ export function useDismissiblePanel(
   anchorRef: RefObject<HTMLElement | null>,
   panelRef?: RefObject<HTMLElement | null>
 ) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!open) return;
 
@@ -17,21 +20,23 @@ export function useDismissiblePanel(
       const target = event.target as Node;
       if (anchorRef.current?.contains(target)) return;
       if (panelRef?.current?.contains(target)) return;
-      onClose();
+      onCloseRef.current();
     };
 
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [open, onClose, anchorRef, panelRef]);
+  }, [open, anchorRef, panelRef]);
 }
 
 /** Close panels when the route changes so unmount never races with open overlays. */
 export function useCloseOnNavigation(onClose: () => void) {
   const pathname = usePathname();
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
-    onClose();
-  }, [pathname, onClose]);
+    onCloseRef.current();
+  }, [pathname]);
 }
 
 export function DropdownPanel({
