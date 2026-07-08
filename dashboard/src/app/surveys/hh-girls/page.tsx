@@ -8,16 +8,21 @@ import { HhGirlsActiveFilters } from "@/components/hh-girls/hh-girls-active-filt
 import { HhGirlsCoreKpis } from "@/components/hh-girls/hh-girls-kpis";
 import { HhGirlsRolloutOverview } from "@/components/hh-girls/hh-girls-rollout-overview";
 import { HhGirlsCharts } from "@/components/hh-girls/hh-girls-charts";
+import { HhGirlsDuplicateSection } from "@/components/hh-girls/hh-girls-duplicate-section";
+import { HhGirlsRevisitSection } from "@/components/hh-girls/hh-girls-revisit-section";
 import {
-  applyHhGirlsFilters,
+  applyHhGirlsDataFilters,
   computeHhGirlsMetrics,
   defaultHhGirlsFilters,
   hhGirlsFiltersEqual,
   type HhGirlsFilters,
 } from "@/lib/data/hh-girls-metrics";
+import { mergeHhGirlsExportLists } from "@/lib/data/hh-girls-serialization";
 import { PROTOCOL } from "@/lib/data/protocol";
 import {
+  fetchHhGirlsExports,
   fetchHhGirlsMetrics,
+  HH_GIRLS_EXPORTS_QUERY_KEY,
   HH_GIRLS_METRICS_QUERY_KEY,
   QUERY_STALE_MS,
 } from "@/lib/queries/app-data";
@@ -32,17 +37,36 @@ export default function HhGirlsSurveyPage() {
     staleTime: QUERY_STALE_MS,
   });
 
+  const { data: exports } = useQuery({
+    queryKey: [...HH_GIRLS_EXPORTS_QUERY_KEY],
+    queryFn: fetchHhGirlsExports,
+    staleTime: QUERY_STALE_MS,
+  });
+
   const display = useMemo(() => {
     if (!data?.allHousehold) return undefined;
 
-    if (hhGirlsFiltersEqual(deferredFilters, defaultHhGirlsFilters)) {
-      return data;
+    let metrics =
+      hhGirlsFiltersEqual(deferredFilters, defaultHhGirlsFilters)
+        ? data
+        : (() => {
+            const { household, girls } = applyHhGirlsDataFilters(
+              data.allHousehold,
+              data.allGirls,
+              deferredFilters
+            );
+            return computeHhGirlsMetrics(household, girls);
+          })();
+
+    if (
+      exports &&
+      hhGirlsFiltersEqual(deferredFilters, defaultHhGirlsFilters)
+    ) {
+      metrics = mergeHhGirlsExportLists(metrics, exports);
     }
 
-    const household = applyHhGirlsFilters(data.allHousehold, deferredFilters);
-    const girls = applyHhGirlsFilters(data.allGirls, deferredFilters);
-    return computeHhGirlsMetrics(household, girls);
-  }, [data, deferredFilters]);
+    return metrics;
+  }, [data, deferredFilters, exports]);
 
   const showLoading = isLoading || (isFetching && !display);
   const filtering = !hhGirlsFiltersEqual(filters, deferredFilters);
@@ -94,6 +118,10 @@ export default function HhGirlsSurveyPage() {
       <HhGirlsRolloutOverview metrics={display} loading={showLoading} />
 
       <HhGirlsCoreKpis metrics={display} loading={showLoading} />
+
+      <HhGirlsRevisitSection metrics={display} loading={showLoading} />
+
+      <HhGirlsDuplicateSection metrics={display} loading={showLoading} />
 
       <HhGirlsCharts metrics={display} loading={showLoading} />
 

@@ -7,6 +7,7 @@ export const TRACKING_METRICS_QUERY_KEY = ["tracking-metrics"] as const;
 export const TRACKING_EXPORTS_QUERY_KEY = ["tracking-exports"] as const;
 export const DASHBOARD_METRICS_QUERY_KEY = ["dashboard-metrics"] as const;
 export const HH_GIRLS_METRICS_QUERY_KEY = ["hh-girls-metrics"] as const;
+export const HH_GIRLS_EXPORTS_QUERY_KEY = ["hh-girls-exports"] as const;
 
 export interface TrackingExportPayload {
   operationalKpiLists: TrackingMetrics["operationalKpiLists"];
@@ -37,6 +38,17 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
 export async function fetchHhGirlsMetrics(): Promise<HhGirlsMetrics> {
   const res = await fetch("/api/hh-girls");
   if (!res.ok) throw new Error("Failed to load HH/Girls data");
+  return res.json();
+}
+
+export interface HhGirlsExportPayload {
+  revisitLists: HhGirlsMetrics["revisitDetail"]["lists"];
+  duplicateLists: HhGirlsMetrics["duplicateDetail"]["lists"];
+}
+
+export async function fetchHhGirlsExports(): Promise<HhGirlsExportPayload> {
+  const res = await fetch("/api/hh-girls/exports");
+  if (!res.ok) throw new Error("Failed to load HH/Girls export data");
   return res.json();
 }
 

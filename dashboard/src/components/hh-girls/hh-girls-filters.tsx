@@ -2,11 +2,12 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useCollapsedOnMobile } from "@/lib/hooks/use-collapsed-on-mobile";
-import { Filter, Calendar, MapPin, Users, ChevronDown, X } from "lucide-react";
+import { Filter, Calendar, MapPin, Users, ChevronDown, X, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FilterDateRange, FilterSelect } from "@/components/ui/filter-select";
 import {
   defaultHhGirlsFilters,
+  HH_GIRLS_SURVEY_FILTER_OPTIONS,
   type HhGirlsFilters,
   type HhGirlsMetrics,
 } from "@/lib/data/hh-girls-metrics";
@@ -23,6 +24,12 @@ export function HhGirlsFiltersPanel({
   const [expanded, setExpanded] = useCollapsedOnMobile();
 
   const fields = [
+    {
+      key: "surveyType" as const,
+      label: "Survey",
+      icon: ClipboardList,
+      options: HH_GIRLS_SURVEY_FILTER_OPTIONS,
+    },
     {
       key: "district" as const,
       label: "District",
@@ -44,6 +51,7 @@ export function HhGirlsFiltersPanel({
   ];
 
   const hasActive =
+    filters.surveyType !== "all" ||
     filters.district !== "all" ||
     filters.enumerator !== "all" ||
     filters.village !== "all" ||

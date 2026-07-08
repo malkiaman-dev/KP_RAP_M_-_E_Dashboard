@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import {
   defaultHhGirlsFilters,
   districtLabel,
+  hhGirlsSurveyFilterLabel,
   type HhGirlsFilters,
   type HhGirlsMetrics,
 } from "@/lib/data/hh-girls-metrics";
@@ -19,6 +20,12 @@ export function HhGirlsActiveFilters({
 }) {
   const chips: { key: keyof HhGirlsFilters; label: string }[] = [];
 
+  if (filters.surveyType !== "all") {
+    chips.push({
+      key: "surveyType",
+      label: hhGirlsSurveyFilterLabel(filters.surveyType),
+    });
+  }
   if (filters.district !== "all") {
     chips.push({
       key: "district",
@@ -56,6 +63,8 @@ export function HhGirlsActiveFilters({
           onClick={() => {
             if (chip.key === "dateFrom") {
               onChange({ ...filters, dateFrom: "", dateTo: "" });
+            } else if (chip.key === "surveyType") {
+              onChange({ ...filters, surveyType: "all" });
             } else {
               onChange({ ...filters, [chip.key]: "all" });
             }

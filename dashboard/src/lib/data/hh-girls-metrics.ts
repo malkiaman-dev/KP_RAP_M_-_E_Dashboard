@@ -1,4 +1,6 @@
 import { PROTOCOL } from "./protocol";
+import { computeHhGirlsDuplicateDetail } from "./hh-girls-duplicates";
+import { computeHhGirlsRevisitDetail } from "./hh-girls-revisit";
 
 export type HhGirlsSurveyType = "household" | "girls";
 
@@ -35,7 +37,10 @@ export interface HhGirlsFilterOptions {
   dateRange: { start: string; end: string };
 }
 
+export type HhGirlsSurveyFilter = "all" | "household" | "girls";
+
 export interface HhGirlsFilters {
+  surveyType: HhGirlsSurveyFilter;
   district: string;
   enumerator: string;
   village: string;
@@ -44,12 +49,28 @@ export interface HhGirlsFilters {
 }
 
 export const defaultHhGirlsFilters: HhGirlsFilters = {
+  surveyType: "all",
   district: "all",
   enumerator: "all",
   village: "all",
   dateFrom: "",
   dateTo: "",
 };
+
+export const HH_GIRLS_SURVEY_FILTER_OPTIONS: {
+  value: HhGirlsSurveyFilter;
+  label: string;
+}[] = [
+  { value: "all", label: "All surveys" },
+  { value: "household", label: "Household (HH)" },
+  { value: "girls", label: "Girls survey" },
+];
+
+export function hhGirlsSurveyFilterLabel(value: HhGirlsSurveyFilter): string {
+  return (
+    HH_GIRLS_SURVEY_FILTER_OPTIONS.find((o) => o.value === value)?.label ?? value
+  );
+}
 
 export function hhGirlsFiltersEqual(a: HhGirlsFilters, b: HhGirlsFilters): boolean {
   return (Object.keys(defaultHhGirlsFilters) as (keyof HhGirlsFilters)[]).every(
@@ -181,6 +202,23 @@ export function applyHhGirlsFilters(
     }
     return true;
   });
+}
+
+export function applyHhGirlsDataFilters(
+  household: HhGirlsRow[],
+  girls: HhGirlsRow[],
+  filters: HhGirlsFilters
+): { household: HhGirlsRow[]; girls: HhGirlsRow[] } {
+  let hh = applyHhGirlsFilters(household, filters);
+  let gs = applyHhGirlsFilters(girls, filters);
+
+  if (filters.surveyType === "household") {
+    gs = [];
+  } else if (filters.surveyType === "girls") {
+    hh = [];
+  }
+
+  return { household: hh, girls: gs };
 }
 
 interface GirlUnifiedStatus {
@@ -741,6 +779,8 @@ export function computeHhGirlsMetrics(
     .slice(0, 12);
 
   const filterOptions = getHhGirlsFilterOptions(household, girls);
+  const revisitDetail = computeHhGirlsRevisitDetail(household, girls);
+  const duplicateDetail = computeHhGirlsDuplicateDetail(household, girls);
 
   return {
     targetN: PROTOCOL.HH_SURVEY_TARGET,
@@ -816,6 +856,8 @@ export function computeHhGirlsMetrics(
       ).filter((e) => e.parentRefused > 0 || e.childRefused > 0),
     },
     filterOptions,
+    revisitDetail,
+    duplicateDetail,
     allHousehold: household,
     allGirls: girls,
   };

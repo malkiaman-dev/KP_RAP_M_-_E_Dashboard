@@ -27,11 +27,13 @@ import { getTabsBySection, isNavTabActive } from "@/lib/auth/nav-tabs";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import {
   fetchDashboardMetrics,
+  fetchHhGirlsExports,
   fetchHhGirlsMetrics,
   fetchTrackingExports,
   fetchTrackingMetrics,
   QUERY_STALE_MS,
   DASHBOARD_METRICS_QUERY_KEY,
+  HH_GIRLS_EXPORTS_QUERY_KEY,
   HH_GIRLS_METRICS_QUERY_KEY,
   TRACKING_EXPORTS_QUERY_KEY,
   TRACKING_METRICS_QUERY_KEY,
@@ -108,6 +110,11 @@ export function Sidebar({
         void queryClient.prefetchQuery({
           queryKey: [...HH_GIRLS_METRICS_QUERY_KEY],
           queryFn: fetchHhGirlsMetrics,
+          staleTime: QUERY_STALE_MS,
+        });
+        void queryClient.prefetchQuery({
+          queryKey: [...HH_GIRLS_EXPORTS_QUERY_KEY],
+          queryFn: fetchHhGirlsExports,
           staleTime: QUERY_STALE_MS,
         });
       }

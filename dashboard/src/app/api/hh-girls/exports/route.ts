@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { loadHhGirlsMetricsForClient } from "@/lib/data/hh-girls-loader";
+import { loadHhGirlsExportPayload } from "@/lib/data/hh-girls-loader";
 import { requireApiAccess } from "@/lib/auth/guard";
 
 export const dynamic = "force-dynamic";
@@ -9,12 +9,12 @@ export async function GET() {
   if ("error" in auth) return auth.error;
 
   try {
-    const metrics = loadHhGirlsMetricsForClient();
-    return NextResponse.json(metrics);
+    const payload = loadHhGirlsExportPayload();
+    return NextResponse.json(payload);
   } catch (error) {
-    console.error("Failed to load HH/Girls metrics:", error);
+    console.error("Failed to load HH/Girls export data:", error);
     return NextResponse.json(
-      { error: "Failed to load HH/Girls survey data" },
+      { error: "Failed to load HH/Girls export data" },
       { status: 500 }
     );
   }

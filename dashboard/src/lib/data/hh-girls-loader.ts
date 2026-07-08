@@ -7,6 +7,15 @@ import {
   type HhGirlsRow,
 } from "./hh-girls-metrics";
 import { filesSignature, getCached } from "./survey-cache";
+import {
+  mergeHhGirlsExportLists,
+  stripHhGirlsExportLists,
+} from "./hh-girls-serialization";
+
+export {
+  mergeHhGirlsExportLists,
+  stripHhGirlsExportLists,
+} from "./hh-girls-serialization";
 
 export type {
   HhGirlsRow,
@@ -16,10 +25,13 @@ export type {
 } from "./hh-girls-metrics";
 export {
   applyHhGirlsFilters,
+  applyHhGirlsDataFilters,
   computeHhGirlsMetrics,
   defaultHhGirlsFilters,
   getHhGirlsFilterOptions,
   hhGirlsFiltersEqual,
+  hhGirlsSurveyFilterLabel,
+  HH_GIRLS_SURVEY_FILTER_OPTIONS,
 } from "./hh-girls-metrics";
 
 const DATA_ROOT = path.join(process.cwd(), "..");
@@ -64,4 +76,16 @@ export function loadHhGirlsMetrics() {
     const { household, girls } = readHhGirlsSurveys();
     return computeHhGirlsMetrics(household, girls);
   });
+}
+
+export function loadHhGirlsMetricsForClient() {
+  return stripHhGirlsExportLists(loadHhGirlsMetrics());
+}
+
+export function loadHhGirlsExportPayload() {
+  const metrics = loadHhGirlsMetrics();
+  return {
+    revisitLists: metrics.revisitDetail.lists,
+    duplicateLists: metrics.duplicateDetail.lists,
+  };
 }
