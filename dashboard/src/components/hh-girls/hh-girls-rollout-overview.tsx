@@ -89,8 +89,10 @@ export function HhGirlsRolloutOverview({
 
       <ProgressBar value={c.completedHouseholds} max={metrics.targetN} />
       <p className="mt-2 text-[10px] text-muted-foreground">
-        A completed household requires girl survey + mother interview + father
-        interview, all marked complete with consent.
+        Completed when the girl survey is done with consent, at least one parent
+        is interviewed, and the other parent is either interviewed or
+        permanently unavailable. Temporary unavailability requires revisits
+        first.
       </p>
     </motion.div>
   );

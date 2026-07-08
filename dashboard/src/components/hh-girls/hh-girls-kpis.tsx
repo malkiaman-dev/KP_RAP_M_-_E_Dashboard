@@ -111,7 +111,7 @@ const kpiConfig: {
     label: "Completed Households",
     icon: Home,
     color: "text-teal",
-    hint: "Girl + mother + father surveys complete with consent",
+    hint: "Girl survey + parent slots complete or permanently unavailable; temporary unavailability blocks until revisits",
     hoverDetail: (metrics) =>
       `${metrics.core.progressToTarget.toFixed(1)}% of ${metrics.targetN.toLocaleString()} target`,
   },

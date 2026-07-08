@@ -131,8 +131,10 @@ export default function HhGirlsSurveyPage() {
             Completed household definition
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Girl survey complete with both consents, plus complete mother and
-            father household interviews for the same tracked girl.
+            Girl survey complete with both consents, plus each parent slot
+            complete or permanently unavailable (another city/country/deceased).
+            Temporary unavailability (e.g. away for work) blocks completion
+            until revisits are done or the case is closed.
           </p>
         </div>
         <div className="rounded-2xl border border-teal/20 bg-teal/5 p-5">

@@ -1,5 +1,6 @@
+import { isCompletedHouseholdForGirl } from "./hh-girls-completion";
 import type { HhGirlsRow } from "./hh-girls-metrics";
-import { toHhGirlsExportRow, type HhGirlsExportRow } from "./hh-girls-revisit";
+import { toCompletedHouseholdExportRow, toHhGirlsExportRow, type HhGirlsExportRow } from "./hh-girls-revisit";
 
 export type HhGirlsCoreKpiKey =
   | "totalSubmissions"
@@ -55,10 +56,6 @@ function isConsentRefused(row: HhGirlsRow): boolean {
   return false;
 }
 
-function isComplete(row: HhGirlsRow): boolean {
-  return row.survey_status === "1";
-}
-
 function rowTimestamp(row: HhGirlsRow): number {
   return new Date(row.SubmissionDate || 0).getTime();
 }
@@ -76,22 +73,6 @@ function representativeRow(
   const hh = hhByGirl.get(girl) || [];
   const gs = gsByGirl.get(girl);
   return latestRow(gs ? [...hh, gs] : hh);
-}
-
-function isCompletedHousehold(
-  girl: string,
-  hhByGirl: Map<string, HhGirlsRow[]>,
-  gsByGirl: Map<string, HhGirlsRow>
-): boolean {
-  const hhSubs = hhByGirl.get(girl) || [];
-  const gsRow = gsByGirl.get(girl);
-  return (
-    Boolean(gsRow?.survey_status === "1" && gsRow.girl_available === "1") &&
-    hhSubs.some((s) => isMotherRespondent(s.respondent) && isComplete(s)) &&
-    hhSubs.some((s) => isFatherRespondent(s.respondent) && isComplete(s)) &&
-    gsRow?.parental_consent_agree === "1" &&
-    gsRow?.child_consent_agree === "1"
-  );
 }
 
 export function computeHhGirlsCoreKpiLists(
@@ -176,9 +157,9 @@ export function computeHhGirlsCoreKpiLists(
         toHhGirlsExportRow(rep, "Mother not available")
       );
     }
-    if (isCompletedHousehold(girl, hhByGirl, gsByGirl)) {
+    if (isCompletedHouseholdForGirl(hhSubs, gsRow)) {
       lists.completedHouseholds.push(
-        toHhGirlsExportRow(rep, "Completed household")
+        toCompletedHouseholdExportRow(hhSubs, gsRow)
       );
     }
   }

@@ -1,4 +1,11 @@
 import type { HhGirlsRow } from "./hh-girls-metrics";
+import {
+  analyzeParentSlot,
+  isPermanentParentUnavailable,
+  isTemporaryGirlUnavailable,
+  isTemporaryParentUnavailable,
+} from "./hh-girls-completion";
+import { isFatherRespondent, isMotherRespondent } from "./hh-girls-metrics";
 
 export type HhGirlsSurveySlot = "father" | "mother" | "girls";
 
@@ -22,6 +29,16 @@ export interface HhGirlsExportRow {
   category: string;
   duplicateType?: string;
   exportReason?: string;
+  fatherSlotStatus?: string;
+  motherSlotStatus?: string;
+  girlsSurveyDone?: string;
+  girlsSurveyStatus?: string;
+  girlsSurveyStatusLabel?: string;
+  girlAvailable?: string;
+  parentalConsent?: string;
+  childConsent?: string;
+  girlsSurveyKeyId?: string;
+  girlsSurveyDate?: string;
 }
 
 export type HhGirlsRevisitListKey =
@@ -63,14 +80,6 @@ function districtLabel(d: string): string {
     "4": "Torghar",
   };
   return map[d] || `District ${d}`;
-}
-
-function isMotherRespondent(respondent?: string): boolean {
-  return respondent === "2" || respondent === "4";
-}
-
-function isFatherRespondent(respondent?: string): boolean {
-  return respondent === "1" || respondent === "3";
 }
 
 function emptyRevisitLists(): Record<HhGirlsRevisitListKey, HhGirlsExportRow[]> {
@@ -152,6 +161,120 @@ function availabilityLabel(row: HhGirlsRow): string {
   return a;
 }
 
+const PARENT_UNAVAILABLE_LABELS: Record<string, string> = {
+  "1": "Gone for work within village",
+  "2": "Gone for work outside village",
+  "3": "Lives in another city",
+  "4": "Lives in another country",
+  "5": "Have passed away",
+  "6": "Other",
+};
+
+function parentUnavailableLabel(code?: string): string {
+  const c = (code || "").trim();
+  if (!c) return "";
+  return PARENT_UNAVAILABLE_LABELS[c] || `Code ${c}`;
+}
+
+function parentSlotStatusLabel(
+  hhSubs: HhGirlsRow[],
+  role: "father" | "mother"
+): string {
+  const status = analyzeParentSlot(hhSubs, role);
+  const field =
+    role === "father" ? "father_unavailable1" : "mother_unavailable1";
+
+  if (status.hasCompleteInterview) return "Interviewed (complete)";
+
+  if (status.isPermanentlyUnavailable) {
+    const code = hhSubs
+      .map((s) => (s[field] || "").trim())
+      .find((c) => isPermanentParentUnavailable(c));
+    const reason = parentUnavailableLabel(code);
+    return reason
+      ? `Permanently unavailable — ${reason}`
+      : "Permanently unavailable";
+  }
+
+  if (status.hasPendingTemporaryUnavailable) {
+    const code = hhSubs
+      .map((s) => (s[field] || "").trim())
+      .find((c) => isTemporaryParentUnavailable(c));
+    const reason = parentUnavailableLabel(code);
+    return reason
+      ? `Revisit pending — ${reason}`
+      : "Revisit pending";
+  }
+
+  return "Not interviewed";
+}
+
+function consentOutcomeLabel(value?: string): string {
+  if (value === "1") return "Agreed";
+  if (value === "0") return "Refused";
+  return value?.trim() || "Not recorded";
+}
+
+export function toCompletedHouseholdExportRow(
+  hhSubs: HhGirlsRow[],
+  gsRow: HhGirlsRow | undefined
+): HhGirlsExportRow {
+  const anchor = gsRow || hhSubs[0];
+  const girlsDone = gsRow?.survey_status === "1";
+
+  return {
+    keyId: (anchor?.KEY || "").trim(),
+    girlId: (anchor?.girl || hhSubs[0]?.girl || "").trim(),
+    girlName: (anchor?.girlname_label || hhSubs[0]?.girlname_label || "").trim(),
+    district: districtLabel(anchor?.district || hhSubs[0]?.district || ""),
+    village: (
+      anchor?.village_label ||
+      anchor?.village ||
+      hhSubs[0]?.village_label ||
+      hhSubs[0]?.village ||
+      ""
+    ).trim(),
+    surveyType: "Completed household",
+    respondent: "",
+    attempt: gsRow ? String(parseAttempt(gsRow)) : "",
+    availability: gsRow ? availabilityLabel(gsRow) : "",
+    consent: gsRow
+      ? `${gsRow.parental_consent_agree || ""}/${gsRow.child_consent_agree || ""}`
+      : "",
+    consentLabel: gsRow ? consentLabel(gsRow) : "",
+    surveyStatus: gsRow?.survey_status?.trim() || "",
+    surveyStatusLabel: gsRow
+      ? surveyStatusLabel(gsRow.survey_status)
+      : "No girls survey",
+    enumeratorId: (gsRow?.enumerator_id || anchor?.enumerator_id || "").trim(),
+    enumeratorName: cleanEnumeratorName(
+      gsRow?.enumerator_name || anchor?.enumerator_name
+    ),
+    submissionDate: (gsRow?.SubmissionDate || anchor?.SubmissionDate || "").trim(),
+    category: "Completed household",
+    fatherSlotStatus: parentSlotStatusLabel(hhSubs, "father"),
+    motherSlotStatus: parentSlotStatusLabel(hhSubs, "mother"),
+    girlsSurveyDone: girlsDone ? "Yes" : "No",
+    girlsSurveyStatus: gsRow?.survey_status?.trim() || "",
+    girlsSurveyStatusLabel: gsRow
+      ? surveyStatusLabel(gsRow.survey_status)
+      : "No girls survey",
+    girlAvailable: !gsRow
+      ? "No survey"
+      : gsRow.girl_available === "1"
+        ? "Yes"
+        : "No",
+    parentalConsent: gsRow
+      ? consentOutcomeLabel(gsRow.parental_consent_agree)
+      : "No survey",
+    childConsent: gsRow
+      ? consentOutcomeLabel(gsRow.child_consent_agree)
+      : "No survey",
+    girlsSurveyKeyId: (gsRow?.KEY || "").trim(),
+    girlsSurveyDate: (gsRow?.SubmissionDate || "").trim(),
+  };
+}
+
 export function toHhGirlsExportRow(
   row: HhGirlsRow,
   category: string
@@ -183,37 +306,45 @@ export function toHhGirlsExportRow(
   };
 }
 
-function priorAttemptRequiresRevisit(row: HhGirlsRow): boolean {
-  if (row.survey_type === "girls") {
-    if (row.girl_available !== "0") return false;
-    const reason = (row.girl_available_reason || "").trim();
-    return reason === "1" || reason === "4" || reason === "";
+function priorAttemptRequiresRevisit(
+  row: HhGirlsRow,
+  slot: HhGirlsSurveySlot
+): boolean {
+  if (slot === "girls") {
+    return isTemporaryGirlUnavailable(
+      row.girl_available,
+      row.girl_available_reason
+    );
   }
-  if (isMotherRespondent(row.respondent)) {
-    return Boolean((row.mother_unavailable1 || "").trim());
+  if (slot === "father") {
+    return isTemporaryParentUnavailable(row.father_unavailable1);
   }
-  if (isFatherRespondent(row.respondent)) {
-    return Boolean((row.father_unavailable1 || "").trim());
+  if (slot === "mother") {
+    return isTemporaryParentUnavailable(row.mother_unavailable1);
   }
   return false;
 }
 
-function isSlotComplete(row: HhGirlsRow): boolean {
+function isSlotComplete(row: HhGirlsRow, slot: HhGirlsSurveySlot): boolean {
   if (row.survey_status !== "1") return false;
-  if (row.survey_type === "girls") {
+  if (slot === "girls") {
     return (
       row.girl_available === "1" &&
       row.parental_consent_agree === "1" &&
       row.child_consent_agree === "1"
     );
   }
-  if (isMotherRespondent(row.respondent)) {
-    return row.agree_consent_mother === "1";
+  if (slot === "mother") {
+    return (
+      isMotherRespondent(row.respondent) && row.agree_consent_mother === "1"
+    );
   }
-  if (isFatherRespondent(row.respondent)) {
-    return row.agree_consent_father === "1";
+  if (slot === "father") {
+    return (
+      isFatherRespondent(row.respondent) && row.agree_consent_father === "1"
+    );
   }
-  return true;
+  return false;
 }
 
 function slotKey(girl: string, slot: HhGirlsSurveySlot): string {
@@ -225,15 +356,41 @@ function groupSlotSubmissions(
   girls: HhGirlsRow[]
 ): Map<string, HhGirlsRow[]> {
   const groups = new Map<string, HhGirlsRow[]>();
-  const all = [...household, ...girls];
+  const girlIds = new Set<string>();
 
-  for (const row of all) {
-    const girl = row.girl;
-    const slot = surveySlot(row);
-    if (!girl || !slot) continue;
-    const key = slotKey(girl, slot);
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(row);
+  for (const row of [...household, ...girls]) {
+    if (row.girl) girlIds.add(row.girl);
+  }
+
+  for (const girl of girlIds) {
+    const hhRows = household.filter((r) => r.girl === girl);
+    const gsRows = girls.filter((r) => r.girl === girl);
+
+    const fatherRows = hhRows.filter((r) => isFatherRespondent(r.respondent));
+    const fatherProxyRows = hhRows.filter(
+      (r) =>
+        !isFatherRespondent(r.respondent) &&
+        isTemporaryParentUnavailable(r.father_unavailable1)
+    );
+    const fatherSlot = fatherRows.length > 0 ? fatherRows : fatherProxyRows;
+    if (fatherSlot.length > 0) {
+      groups.set(slotKey(girl, "father"), fatherSlot);
+    }
+
+    const motherRows = hhRows.filter((r) => isMotherRespondent(r.respondent));
+    const motherProxyRows = hhRows.filter(
+      (r) =>
+        !isMotherRespondent(r.respondent) &&
+        isTemporaryParentUnavailable(r.mother_unavailable1)
+    );
+    const motherSlot = motherRows.length > 0 ? motherRows : motherProxyRows;
+    if (motherSlot.length > 0) {
+      groups.set(slotKey(girl, "mother"), motherSlot);
+    }
+
+    if (gsRows.length > 0) {
+      groups.set(slotKey(girl, "girls"), gsRows);
+    }
   }
 
   for (const subs of groups.values()) {
@@ -256,20 +413,26 @@ function latestSubmissionForAttempt(
   return matches[matches.length - 1];
 }
 
-function slotIsComplete(subs: HhGirlsRow[]): boolean {
-  return subs.some(isSlotComplete);
+function slotIsComplete(
+  subs: HhGirlsRow[],
+  slot: HhGirlsSurveySlot
+): boolean {
+  return subs.some((row) => isSlotComplete(row, slot));
 }
 
-function slotPendingRevisit(subs: HhGirlsRow[]): "2nd" | "3rd" | null {
-  if (slotIsComplete(subs)) return null;
+function slotPendingRevisit(
+  subs: HhGirlsRow[],
+  slot: HhGirlsSurveySlot
+): "2nd" | "3rd" | null {
+  if (slotIsComplete(subs, slot)) return null;
   const attempts = [...new Set(subs.map(parseAttempt))].sort((a, b) => a - b);
   const maxAttempt = attempts[attempts.length - 1] || 1;
   const latest = latestSubmissionForAttempt(subs, maxAttempt);
   if (!latest) return null;
 
   if (maxAttempt >= 3) return null;
-  if (maxAttempt === 1 && priorAttemptRequiresRevisit(latest)) return "2nd";
-  if (maxAttempt === 2 && priorAttemptRequiresRevisit(latest)) return "3rd";
+  if (maxAttempt === 1 && priorAttemptRequiresRevisit(latest, slot)) return "2nd";
+  if (maxAttempt === 2 && priorAttemptRequiresRevisit(latest, slot)) return "3rd";
   return null;
 }
 
@@ -294,10 +457,10 @@ export function computeHhGirlsRevisitDetail(
     (r) => parseAttempt(r) > 1
   ).length;
 
-  for (const [, subs] of slotGroups.entries()) {
+  for (const [key, subs] of slotGroups.entries()) {
     const girl = subs[0]?.girl || "";
-    const pending = slotPendingRevisit(subs);
-    const slot = surveySlot(subs[0]!)!;
+    const slot = key.split("|")[1] as HhGirlsSurveySlot;
+    const pending = slotPendingRevisit(subs, slot);
     const slotName = slotLabel(slot);
 
     if (pending === "2nd") {
@@ -326,7 +489,7 @@ export function computeHhGirlsRevisitDetail(
       const exportRow = toHhGirlsExportRow(second, `${slotName} · 2nd revisit`);
       lists.girls2ndRevisited.push(exportRow);
       if (girl) revisitedGirls.set(girl, exportRow);
-      if (isSlotComplete(second)) {
+      if (isSlotComplete(second, slot)) {
         slotsCompletedOn2ndRevisit += 1;
         lists.slotsCompletedOn2ndRevisit.push(exportRow);
       } else {
@@ -341,7 +504,7 @@ export function computeHhGirlsRevisitDetail(
       const exportRow = toHhGirlsExportRow(third, `${slotName} · 3rd revisit`);
       lists.girls3rdRevisited.push(exportRow);
       if (girl) revisitedGirls.set(girl, exportRow);
-      if (isSlotComplete(third)) {
+      if (isSlotComplete(third, slot)) {
         slotsCompletedOn3rdRevisit += 1;
         lists.slotsCompletedOn3rdRevisit.push(exportRow);
       } else {

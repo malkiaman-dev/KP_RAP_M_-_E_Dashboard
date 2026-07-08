@@ -1,0 +1,4 @@
+('availability_reason', 1, 'Gone to school', 'اسکول گئی ہوئی ہے', 'ښوونځي ته تللې ده')
+('availability_reason', 2, 'Lives in an another city', 'کسی دوسرے شہر میں رہتی ہے', 'په بل ښار کې اوسیږي')
+('availability_reason', 3, 'Lives in an another country', 'کسی دوسرے ملک میں رہتی ہے', 'په بل هېواد کې اوسیږي')
+('availability_reason', 4, 'Other', 'دیگر', 'نور')

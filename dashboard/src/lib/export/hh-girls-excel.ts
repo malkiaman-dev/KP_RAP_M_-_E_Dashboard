@@ -4,6 +4,9 @@ import type { HhGirlsExportRow } from "@/lib/data/hh-girls-revisit";
 function toSheetRows(rows: HhGirlsExportRow[]) {
   const includeDuplicateType = rows.some((r) => r.duplicateType);
   const includeReason = rows.some((r) => r.exportReason);
+  const includeHouseholdSummary = rows.some(
+    (r) => r.fatherSlotStatus || r.girlsSurveyDone
+  );
 
   return rows.map((row) => {
     const base: Record<string, string> = {
@@ -25,6 +28,18 @@ function toSheetRows(rows: HhGirlsExportRow[]) {
       "Submission Date": row.submissionDate,
       Category: row.category,
     };
+
+    if (includeHouseholdSummary) {
+      base["Father Slot"] = row.fatherSlotStatus || "";
+      base["Mother Slot"] = row.motherSlotStatus || "";
+      base["Girls Survey Done"] = row.girlsSurveyDone || "";
+      base["Girls Survey Status"] = row.girlsSurveyStatusLabel || "";
+      base["Girl Available"] = row.girlAvailable || "";
+      base["Parental Consent"] = row.parentalConsent || "";
+      base["Child Consent"] = row.childConsent || "";
+      base["Girls Survey Key ID"] = row.girlsSurveyKeyId || "";
+      base["Girls Survey Date"] = row.girlsSurveyDate || "";
+    }
 
     if (includeDuplicateType) {
       base["Duplicate Type"] = row.duplicateType || "";
