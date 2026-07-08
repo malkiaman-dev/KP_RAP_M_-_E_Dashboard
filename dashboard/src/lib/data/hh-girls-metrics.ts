@@ -183,6 +183,123 @@ export function applyHhGirlsFilters(
   });
 }
 
+interface GirlUnifiedStatus {
+  girl: string;
+  district: string;
+  hasFatherSurvey: boolean;
+  hasMotherSurvey: boolean;
+  hasGirlSurvey: boolean;
+  fatherNotAvailable: boolean;
+  motherNotAvailable: boolean;
+  girlNotAvailable: boolean;
+  isCompletedHousehold: boolean;
+}
+
+function isConsentRefused(row: HhGirlsRow): boolean {
+  if (row.survey_type === "girls") {
+    return (
+      row.parental_consent_agree === "0" || row.child_consent_agree === "0"
+    );
+  }
+  if (isMotherRespondent(row.respondent)) {
+    return row.agree_consent_mother === "0";
+  }
+  if (isFatherRespondent(row.respondent)) {
+    return row.agree_consent_father === "0";
+  }
+  return false;
+}
+
+function analyzeUnifiedGirls(
+  household: HhGirlsRow[],
+  girls: HhGirlsRow[]
+): GirlUnifiedStatus[] {
+  const girlIds = new Set<string>();
+  for (const r of household) {
+    if (r.girl) girlIds.add(r.girl);
+  }
+  for (const r of girls) {
+    if (r.girl) girlIds.add(r.girl);
+  }
+
+  const hhByGirl = new Map<string, HhGirlsRow[]>();
+  for (const r of household) {
+    if (!r.girl) continue;
+    if (!hhByGirl.has(r.girl)) hhByGirl.set(r.girl, []);
+    hhByGirl.get(r.girl)!.push(r);
+  }
+
+  const gsByGirl = new Map<string, HhGirlsRow>();
+  for (const r of girls) {
+    if (r.girl) gsByGirl.set(r.girl, r);
+  }
+
+  return [...girlIds].map((girl) => {
+    const hhSubs = hhByGirl.get(girl) || [];
+    const gsRow = gsByGirl.get(girl);
+    const hasFatherSurvey = hhSubs.some((s) => isFatherRespondent(s.respondent));
+    const hasMotherSurvey = hhSubs.some((s) => isMotherRespondent(s.respondent));
+    const hasGirlSurvey = Boolean(gsRow);
+
+    const fatherNotAvailable =
+      hhSubs.length > 0 && !hasFatherSurvey;
+    const motherNotAvailable =
+      hhSubs.length > 0 && !hasMotherSurvey;
+    const girlNotAvailable = hasGirlSurvey && gsRow?.girl_available === "0";
+
+    const isCompletedHousehold =
+      Boolean(gsRow?.survey_status === "1" && gsRow.girl_available === "1") &&
+      hhSubs.some((s) => isMotherRespondent(s.respondent) && isComplete(s)) &&
+      hhSubs.some((s) => isFatherRespondent(s.respondent) && isComplete(s)) &&
+      gsRow?.parental_consent_agree === "1" &&
+      gsRow?.child_consent_agree === "1";
+
+    return {
+      girl,
+      district: hhSubs[0]?.district || gsRow?.district || "unknown",
+      hasFatherSurvey,
+      hasMotherSurvey,
+      hasGirlSurvey,
+      fatherNotAvailable,
+      motherNotAvailable,
+      girlNotAvailable,
+      isCompletedHousehold,
+    };
+  });
+}
+
+function buildCombinedTrend(household: HhGirlsRow[], girls: HhGirlsRow[]) {
+  const trendMap = new Map<
+    string,
+    { date: string; father: number; mother: number; girls: number; total: number }
+  >();
+
+  const add = (
+    row: HhGirlsRow,
+    field: "father" | "mother" | "girls"
+  ) => {
+    const parsed = parseSubmissionDate(row.SubmissionDate || "");
+    const date = parsed
+      ? parsed.toISOString().slice(0, 10)
+      : (row.SubmissionDate || "").split(" ")[0];
+    if (!date) return;
+    if (!trendMap.has(date)) {
+      trendMap.set(date, { date, father: 0, mother: 0, girls: 0, total: 0 });
+    }
+    const entry = trendMap.get(date)!;
+    entry[field] += 1;
+    entry.total += 1;
+  };
+
+  for (const r of household) {
+    if (isFatherRespondent(r.respondent)) add(r, "father");
+    else if (isMotherRespondent(r.respondent)) add(r, "mother");
+  }
+  for (const r of girls) add(r, "girls");
+
+  return [...trendMap.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 interface GirlHhStatus {
   girl: string;
   hasMother: boolean;
@@ -257,6 +374,7 @@ export function computeHhGirlsMetrics(
   household: HhGirlsRow[],
   girls: HhGirlsRow[]
 ) {
+  const unifiedGirls = analyzeUnifiedGirls(household, girls);
   const girlStatuses = analyzeHouseholdGirls(household);
   const uniqueGirls = girlStatuses.length;
   const bothParent = girlStatuses.filter((g) => g.hasMother && g.hasFather).length;
@@ -284,7 +402,7 @@ export function computeHhGirlsMetrics(
   ).size;
   const completionRate =
     uniqueGirls > 0 ? (bothParent / uniqueGirls) * 100 : 0;
-  const progressToTarget =
+  const hhProgressToTarget =
     (bothParent / PROTOCOL.HH_SURVEY_TARGET) * 100;
 
   const fatherMotherByEnumerator = new Map<
@@ -490,11 +608,162 @@ export function computeHhGirlsMetrics(
 
   const girlsTrend = buildTrend(girls);
   const hhTrend = buildTrend(household);
+  const combinedTrend = buildCombinedTrend(household, girls);
+
+  const fatherSurveys = household.filter((r) =>
+    isFatherRespondent(r.respondent)
+  ).length;
+  const motherSurveys = household.filter((r) =>
+    isMotherRespondent(r.respondent)
+  ).length;
+  const girlsSurveys = girls.length;
+  const totalSubmissions = household.length + girls.length;
+  const uniqueGirlsRollout = unifiedGirls.length;
+  const fatherNotAvailable = unifiedGirls.filter(
+    (g) => g.fatherNotAvailable
+  ).length;
+  const motherNotAvailable = unifiedGirls.filter(
+    (g) => g.motherNotAvailable
+  ).length;
+  const girlNotAvailable = unifiedGirls.filter((g) => g.girlNotAvailable).length;
+  const totalUnavailable = unifiedGirls.filter(
+    (g) => g.fatherNotAvailable || g.motherNotAvailable || g.girlNotAvailable
+  ).length;
+  const consentRefused =
+    household.filter(isConsentRefused).length + girls.filter(isConsentRefused).length;
+  const completedHouseholds = unifiedGirls.filter(
+    (g) => g.isCompletedHousehold
+  ).length;
+  const progressToTarget =
+    (completedHouseholds / PROTOCOL.HH_SURVEY_TARGET) * 100;
+
+  const completionByDistrict = new Map<
+    string,
+    { completed: number; partial: number; girls: number }
+  >();
+  for (const g of unifiedGirls) {
+    const d = g.district || "unknown";
+    if (!completionByDistrict.has(d)) {
+      completionByDistrict.set(d, { completed: 0, partial: 0, girls: 0 });
+    }
+    const entry = completionByDistrict.get(d)!;
+    entry.girls += 1;
+    if (g.isCompletedHousehold) entry.completed += 1;
+    else if (g.hasFatherSurvey || g.hasMotherSurvey || g.hasGirlSurvey) {
+      entry.partial += 1;
+    }
+  }
+
+  const coreCompletionByDistrict = [...completionByDistrict.entries()].map(
+    ([district, stats]) => ({
+      district,
+      label: districtLabel(district),
+      completed: stats.completed,
+      partial: stats.partial,
+      girls: stats.girls,
+    })
+  );
+
+  const surveyMix = [
+    { name: "Father surveys", value: fatherSurveys, color: "#EDCA5C" },
+    { name: "Mother surveys", value: motherSurveys, color: "#21A1AA" },
+    { name: "Girls surveys", value: girlsSurveys, color: "#3B82F6" },
+  ].filter((x) => x.value > 0);
+
+  const unavailabilityBreakdown = [
+    { name: "Father not available", value: fatherNotAvailable, color: "#F59E0B" },
+    { name: "Mother not available", value: motherNotAvailable, color: "#EF4444" },
+    { name: "Girl not available", value: girlNotAvailable, color: "#94A3B8" },
+  ].filter((x) => x.value > 0);
+
+  let consentAgreed = 0;
+  let consentRefusedCount = 0;
+  let consentPending = 0;
+  for (const r of household) {
+    const val = isMotherRespondent(r.respondent)
+      ? r.agree_consent_mother
+      : isFatherRespondent(r.respondent)
+        ? r.agree_consent_father
+        : "";
+    if (val === "1") consentAgreed += 1;
+    else if (val === "0") consentRefusedCount += 1;
+    else consentPending += 1;
+  }
+  for (const r of girls) {
+    if (r.parental_consent_agree === "1" && r.child_consent_agree === "1") {
+      consentAgreed += 1;
+    } else if (
+      r.parental_consent_agree === "0" ||
+      r.child_consent_agree === "0"
+    ) {
+      consentRefusedCount += 1;
+    } else {
+      consentPending += 1;
+    }
+  }
+  const unifiedConsentOutcome = [
+    { name: "Consented", value: consentAgreed, color: "#21A1AA" },
+    { name: "Refused", value: consentRefusedCount, color: "#EF4444" },
+    { name: "Pending / Incomplete", value: consentPending, color: "#94A3B8" },
+  ].filter((x) => x.value > 0);
+
+  const surveysByEnumerator = new Map<
+    string,
+    { label: string; father: number; mother: number; girls: number }
+  >();
+  for (const r of household) {
+    const key = enumeratorKey(r) || "Unknown";
+    const label = cleanEnumeratorName(r.enumerator_name) || key;
+    if (!surveysByEnumerator.has(key)) {
+      surveysByEnumerator.set(key, { label, father: 0, mother: 0, girls: 0 });
+    }
+    const entry = surveysByEnumerator.get(key)!;
+    if (isFatherRespondent(r.respondent)) entry.father += 1;
+    if (isMotherRespondent(r.respondent)) entry.mother += 1;
+  }
+  for (const r of girls) {
+    const key = enumeratorKey(r) || "Unknown";
+    const label = cleanEnumeratorName(r.enumerator_name) || key;
+    if (!surveysByEnumerator.has(key)) {
+      surveysByEnumerator.set(key, { label, father: 0, mother: 0, girls: 0 });
+    }
+    surveysByEnumerator.get(key)!.girls += 1;
+  }
+  const surveyFormsByEnumerator = [...surveysByEnumerator.values()]
+    .map((e) => ({
+      name: e.label,
+      father: e.father,
+      mother: e.mother,
+      girls: e.girls,
+      total: e.father + e.mother + e.girls,
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 12);
 
   const filterOptions = getHhGirlsFilterOptions(household, girls);
 
   return {
     targetN: PROTOCOL.HH_SURVEY_TARGET,
+    core: {
+      totalSubmissions,
+      uniqueGirls: uniqueGirlsRollout,
+      fatherSurveys,
+      motherSurveys,
+      girlsSurveys,
+      totalUnavailable,
+      fatherNotAvailable,
+      motherNotAvailable,
+      girlNotAvailable,
+      consentRefused,
+      completedHouseholds,
+      progressToTarget,
+      surveyMix,
+      unavailabilityBreakdown,
+      combinedTrend,
+      completionByDistrict: coreCompletionByDistrict,
+      consentOutcome: unifiedConsentOutcome,
+      surveyFormsByEnumerator,
+    },
     household: {
       totalSubmissions: household.length,
       totalVillages: hhVillages,
@@ -506,8 +775,7 @@ export function computeHhGirlsMetrics(
       motherForms,
       fatherForms,
       completionRate,
-      progressToTarget,
-      totalEnumerators: hhEnumerators,
+      progressToTarget: hhProgressToTarget,
       parentAvailability: parentAvailabilityBreakdown(household),
       parentFormsByEnumerator,
       missingParentByEnumerator,

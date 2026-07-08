@@ -20,154 +20,7 @@ import { tooltipStyle, ChartGradients, chartMargin, legendProps } from "@/compon
 import { useFirm } from "@/components/brand/firm-provider";
 import { formatDisplayDate } from "@/lib/utils";
 
-export function HhGirlsHouseholdCharts({
-  metrics,
-  loading,
-}: {
-  metrics?: HhGirlsMetrics;
-  loading?: boolean;
-}) {
-  if (loading || !metrics) {
-    return <ChartGridSkeleton count={7} className="grid gap-4 lg:grid-cols-2" />;
-  }
-
-  const hh = metrics.household;
-
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <ChartCard title="Parent Availability" index={0}>
-        <ChartArea>
-          <PieChart>
-            <Pie
-              data={hh.parentAvailability}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              innerRadius={55}
-              outerRadius={85}
-              paddingAngle={2}
-            >
-              {hh.parentAvailability.map((entry, i) => (
-                <Cell key={entry.name} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend {...legendProps} />
-          </PieChart>
-        </ChartArea>
-      </ChartCard>
-
-      <ChartCard title="Father vs Mother Surveys" subtitle="Submissions by enumerator" index={1}>
-        <ChartArea>
-          <BarChart data={hh.parentFormsByEnumerator} margin={chartMargin.verticalBar} layout="vertical">
-            <ChartGradients />
-            <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-            <XAxis type="number" tick={{ fontSize: 11 }} />
-            <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend {...legendProps} />
-            <Bar dataKey="father" name="Father" fill="url(#grad-teal-h)" radius={[0, 4, 4, 0]} />
-            <Bar dataKey="mother" name="Mother" fill="url(#grad-gold-h)" radius={[0, 4, 4, 0]} />
-          </BarChart>
-        </ChartArea>
-      </ChartCard>
-
-      <ChartCard title="Missing Parent Surveys by Enumerator" index={2}>
-        <ChartArea>
-          <BarChart data={hh.missingParentByEnumerator} margin={chartMargin.verticalBar} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-            <XAxis type="number" tick={{ fontSize: 11 }} />
-            <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Bar dataKey="missing" name="Missing parent form" fill="#EF4444" radius={[0, 4, 4, 0]} />
-          </BarChart>
-        </ChartArea>
-      </ChartCard>
-
-      <ChartCard title="Household Completion by District" index={3}>
-        <ChartArea>
-          <BarChart data={hh.householdCompletionByDistrict} margin={chartMargin.default}>
-            <ChartGradients />
-            <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-            <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend {...legendProps} />
-            <Bar dataKey="bothParents" name="Both parents" fill="url(#grad-teal)" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="singleParent" name="Single parent" fill="url(#grad-gold)" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ChartArea>
-      </ChartCard>
-
-      <ChartCard title="Consent Agreed vs Refused" subtitle="By enumerator" index={4}>
-        <ChartArea>
-          <BarChart data={hh.consentAgreedDisagreed} margin={chartMargin.verticalBar} layout="vertical">
-            <ChartGradients />
-            <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-            <XAxis type="number" tick={{ fontSize: 11 }} />
-            <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend {...legendProps} />
-            <Bar dataKey="agreed" name="Agreed" fill="url(#grad-teal-h)" stackId="a" />
-            <Bar dataKey="refused" name="Refused" fill="#EF4444" stackId="a" radius={[0, 4, 4, 0]} />
-          </BarChart>
-        </ChartArea>
-      </ChartCard>
-
-      <ChartCard title="Consent Outcome" index={5} className="lg:col-span-2">
-        <ChartArea>
-          <PieChart>
-            <Pie
-              data={hh.consentOutcome}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              innerRadius={55}
-              outerRadius={85}
-              paddingAngle={2}
-            >
-              {hh.consentOutcome.map((entry) => (
-                <Cell key={entry.name} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend {...legendProps} />
-          </PieChart>
-        </ChartArea>
-      </ChartCard>
-
-      <ChartCard title="Household Surveys Over Time" className="lg:col-span-2" index={6}>
-        <ChartArea>
-          <LineChart data={hh.submissionTrend} margin={chartMargin.default}>
-            <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-            <XAxis
-              dataKey="date"
-              tick={{ fontSize: 10 }}
-              tickFormatter={(v) => formatDisplayDate(v)}
-            />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip
-              contentStyle={tooltipStyle}
-              labelFormatter={(v) => formatDisplayDate(String(v))}
-            />
-            <Line
-              type="monotone"
-              dataKey="count"
-              name="Submissions"
-              stroke="#21A1AA"
-              strokeWidth={2}
-              dot={{ r: 3 }}
-            />
-          </LineChart>
-        </ChartArea>
-      </ChartCard>
-    </div>
-  );
-}
-
-export function HhGirlsGirlsCharts({
+export function HhGirlsCharts({
   metrics,
   loading,
 }: {
@@ -180,15 +33,15 @@ export function HhGirlsGirlsCharts({
     return <ChartGridSkeleton count={6} className="grid gap-4 lg:grid-cols-2" />;
   }
 
-  const gs = metrics.girls;
+  const c = metrics.core;
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <ChartCard title="Consent Outcome" index={0}>
+      <ChartCard title="Survey Mix" subtitle="Father, mother, and girls forms" index={0}>
         <ChartArea>
           <PieChart>
             <Pie
-              data={gs.consentOutcome}
+              data={c.surveyMix}
               dataKey="value"
               nameKey="name"
               cx="50%"
@@ -197,7 +50,7 @@ export function HhGirlsGirlsCharts({
               outerRadius={85}
               paddingAngle={2}
             >
-              {gs.consentOutcome.map((entry) => (
+              {c.surveyMix.map((entry) => (
                 <Cell key={entry.name} fill={entry.color} />
               ))}
             </Pie>
@@ -207,26 +60,42 @@ export function HhGirlsGirlsCharts({
         </ChartArea>
       </ChartCard>
 
-      <ChartCard title="Education Status of Girls" subtitle="By district" index={1}>
+      <ChartCard title="Unavailability" subtitle="By tracked girl" index={1}>
         <ChartArea>
-          <BarChart data={gs.educationStatusByDistrict} margin={chartMargin.default}>
+          <BarChart data={c.unavailabilityBreakdown} margin={chartMargin.default}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+            <XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-12} textAnchor="end" height={70} />
+            <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+            <Tooltip contentStyle={tooltipStyle} />
+            <Bar dataKey="value" name="Girls" radius={[4, 4, 0, 0]}>
+              {c.unavailabilityBreakdown.map((entry) => (
+                <Cell key={entry.name} fill={entry.color} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ChartArea>
+      </ChartCard>
+
+      <ChartCard title="Completed Households by District" index={2}>
+        <ChartArea>
+          <BarChart data={c.completionByDistrict} margin={chartMargin.default}>
             <ChartGradients />
             <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
             <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-            <YAxis tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
             <Tooltip contentStyle={tooltipStyle} />
             <Legend {...legendProps} />
-            <Bar dataKey="studying" name="Studying" fill="url(#grad-teal)" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="notStudying" name="Not studying" fill="#94A3B8" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="completed" name="Completed" fill="url(#grad-teal)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="partial" name="In progress" fill="url(#grad-gold)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ChartArea>
       </ChartCard>
 
-      <ChartCard title="Girl Availability Status" index={2}>
+      <ChartCard title="Consent Outcome" subtitle="All survey forms combined" index={3}>
         <ChartArea>
           <PieChart>
             <Pie
-              data={gs.availabilityStatus}
+              data={c.consentOutcome}
               dataKey="value"
               nameKey="name"
               cx="50%"
@@ -235,7 +104,7 @@ export function HhGirlsGirlsCharts({
               outerRadius={85}
               paddingAngle={2}
             >
-              {gs.availabilityStatus.map((entry) => (
+              {c.consentOutcome.map((entry) => (
                 <Cell key={entry.name} fill={entry.color} />
               ))}
             </Pie>
@@ -245,79 +114,70 @@ export function HhGirlsGirlsCharts({
         </ChartArea>
       </ChartCard>
 
-      <ChartCard title="Girls Survey by Enumerator" subtitle="Top 10" index={3}>
+      <ChartCard
+        title="Survey Forms by Enumerator"
+        subtitle="Father, mother, and girls stacked"
+        index={4}
+      >
         <ChartArea>
-          <BarChart data={gs.girlsSurveyByEnumerator} margin={chartMargin.verticalBar} layout="vertical">
+          <BarChart data={c.surveyFormsByEnumerator} margin={chartMargin.verticalBar} layout="vertical">
             <ChartGradients />
             <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-            <XAxis type="number" tick={{ fontSize: 11 }} />
+            <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
             <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} />
             <Tooltip contentStyle={tooltipStyle} />
-            <Bar dataKey="count" name="Submissions" fill="url(#grad-teal-h)" radius={[0, 4, 4, 0]} />
+            <Legend {...legendProps} />
+            <Bar dataKey="father" name="Father" fill="url(#grad-gold-h)" stackId="a" />
+            <Bar dataKey="mother" name="Mother" fill="url(#grad-teal-h)" stackId="a" />
+            <Bar dataKey="girls" name="Girls" fill="#3B82F6" stackId="a" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ChartArea>
       </ChartCard>
 
-      <ChartCard title="Girls Surveys Over Time" index={4}>
+      <ChartCard title="Daily Submissions" subtitle="Father, mother, and girls over time" index={5}>
         <ChartArea>
-          <LineChart data={gs.submissionTrend} margin={chartMargin.default}>
+          <LineChart data={c.combinedTrend} margin={chartMargin.default}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
             <XAxis
               dataKey="date"
               tick={{ fontSize: 10 }}
               tickFormatter={(v) => formatDisplayDate(v)}
             />
-            <YAxis tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
             <Tooltip
               contentStyle={tooltipStyle}
               labelFormatter={(v) => formatDisplayDate(String(v))}
             />
-            <Line
-              type="monotone"
-              dataKey="count"
-              name="Submissions"
-              stroke={palette.teal}
-              strokeWidth={2}
-              dot={{ r: 3 }}
-            />
+            <Legend {...legendProps} />
+            <Line type="monotone" dataKey="father" name="Father" stroke="#EDCA5C" strokeWidth={2} dot={{ r: 3 }} />
+            <Line type="monotone" dataKey="mother" name="Mother" stroke={palette.teal} strokeWidth={2} dot={{ r: 3 }} />
+            <Line type="monotone" dataKey="girls" name="Girls" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
         </ChartArea>
       </ChartCard>
 
-      <ChartCard title="Parent vs Child Consent Refusal" index={5}>
-        <ChartArea>
-          <BarChart data={gs.consentRefusalByEnumerator} margin={chartMargin.rotatedLabels}>
-            <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-            <XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-20} textAnchor="end" height={60} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend {...legendProps} />
-            <Bar dataKey="parentRefused" name="Parent refused" fill="#EF4444" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="childRefused" name="Child refused" fill="#F59E0B" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ChartArea>
-      </ChartCard>
-
       <ChartCard
-        title="Child Consent Rate"
-        subtitle="Target: 90%"
+        title="Rollout Progress"
+        subtitle={`${metrics.targetN.toLocaleString()} completed households target`}
         className="lg:col-span-2"
         index={6}
       >
         <div className="flex flex-col items-center justify-center py-4">
           <p className="text-4xl font-bold text-teal">
-            {gs.childConsentRate.toFixed(1)}%
+            {c.completedHouseholds.toLocaleString()}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            completed households · {c.progressToTarget.toFixed(1)}% of target
           </p>
           <div className="relative mt-4 h-4 w-full max-w-md overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-teal to-gold transition-all"
-              style={{ width: `${Math.min(gs.childConsentRate, 100)}%` }}
+              className="h-full rounded-full bg-linear-to-r from-teal to-gold transition-all"
+              style={{ width: `${Math.min(c.progressToTarget, 100)}%` }}
             />
-            <div className="absolute left-[90%] top-0 h-full w-0.5 bg-foreground/30" />
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Parental consent: {gs.parentalConsentRate.toFixed(1)}% · Completed:{" "}
-            {gs.complete} · Revisits: {gs.revisits}
+          <p className="mt-3 text-xs text-muted-foreground">
+            {c.fatherSurveys} father · {c.motherSurveys} mother · {c.girlsSurveys} girls
+            surveys · {c.consentRefused} consent refusals
           </p>
         </div>
       </ChartCard>
