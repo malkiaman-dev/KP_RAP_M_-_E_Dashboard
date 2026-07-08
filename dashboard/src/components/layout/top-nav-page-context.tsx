@@ -3,16 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { isPathAllowed, NAV_TABS } from "@/lib/auth/nav-tabs";
+import { isNavTabActive, isPathAllowed, NAV_TABS } from "@/lib/auth/nav-tabs";
 import { useAuth } from "@/components/auth/auth-provider";
 import { cn } from "@/lib/utils";
 
 function getPageContext(pathname: string) {
-  const match = NAV_TABS.filter(
-    (tab) =>
-      pathname === tab.href ||
-      (tab.href !== "/" && pathname.startsWith(tab.href))
-  ).sort((a, b) => b.href.length - a.href.length)[0];
+  const match = NAV_TABS.filter((tab) => isNavTabActive(pathname, tab.href)).sort(
+    (a, b) => b.href.length - a.href.length
+  )[0];
 
   return (
     match ?? {
@@ -32,8 +30,7 @@ const JUMP_TO_HREFS = [
 ] as const;
 
 function isJumpLinkActive(pathname: string, href: string): boolean {
-  if (href === "/surveys") return pathname === "/surveys";
-  return pathname === href || pathname.startsWith(`${href}/`);
+  return isNavTabActive(pathname, href);
 }
 
 export function TopNavPageContext() {

@@ -23,7 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
 import { useAuth } from "@/components/auth/auth-provider";
-import { getTabsBySection } from "@/lib/auth/nav-tabs";
+import { getTabsBySection, isNavTabActive } from "@/lib/auth/nav-tabs";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import {
   fetchDashboardMetrics,
@@ -184,9 +184,7 @@ export function Sidebar({
             </AnimatePresence>
             <ul className="space-y-1">
               {section.items.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  (item.href !== "/" && pathname.startsWith(item.href));
+                const isActive = isNavTabActive(pathname, item.href);
                 const Icon = item.icon;
                 const allowed = canAccess(item.href);
                 const locked = !allowed;

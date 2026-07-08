@@ -37,6 +37,17 @@ export const NAV_SECTIONS = [...new Set(NAV_TABS.map((tab) => tab.section))];
 
 export const ALL_TAB_HREFS = NAV_TABS.map((tab) => tab.href);
 
+/** Hub routes that highlight only on an exact path match, not child routes. */
+const EXACT_MATCH_HREFS = new Set(["/surveys"]);
+
+/** Whether a nav tab should appear active for the current pathname. */
+export function isNavTabActive(pathname: string, href: string): boolean {
+  if (pathname === href) return true;
+  if (href === "/") return false;
+  if (EXACT_MATCH_HREFS.has(href)) return false;
+  return pathname.startsWith(`${href}/`);
+}
+
 export function getTabsBySection(): { label: string; items: NavTab[] }[] {
   return NAV_SECTIONS.map((section) => ({
     label: section,
