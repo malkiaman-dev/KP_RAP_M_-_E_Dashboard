@@ -1,0 +1,130 @@
+"use client";
+
+import { motion, AnimatePresence } from "framer-motion";
+import { useCollapsedOnMobile } from "@/lib/hooks/use-collapsed-on-mobile";
+import { Filter, Calendar, MapPin, Users, ChevronDown, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { FilterDateRange, FilterSelect } from "@/components/ui/filter-select";
+import {
+  defaultHhGirlsFilters,
+  type HhGirlsFilters,
+  type HhGirlsMetrics,
+} from "@/lib/data/hh-girls-metrics";
+
+export function HhGirlsFiltersPanel({
+  filterOptions,
+  filters,
+  onChange,
+}: {
+  filterOptions?: HhGirlsMetrics["filterOptions"];
+  filters: HhGirlsFilters;
+  onChange: (filters: HhGirlsFilters) => void;
+}) {
+  const [expanded, setExpanded] = useCollapsedOnMobile();
+
+  const fields = [
+    {
+      key: "district" as const,
+      label: "District",
+      icon: MapPin,
+      options: [{ value: "all", label: "All" }, ...(filterOptions?.districts || [])],
+    },
+    {
+      key: "enumerator" as const,
+      label: "Enumerator",
+      icon: Users,
+      options: [{ value: "all", label: "All" }, ...(filterOptions?.enumerators || [])],
+    },
+    {
+      key: "village" as const,
+      label: "Village",
+      icon: MapPin,
+      options: [{ value: "all", label: "All" }, ...(filterOptions?.villages || [])],
+    },
+  ];
+
+  const hasActive =
+    filters.district !== "all" ||
+    filters.enumerator !== "all" ||
+    filters.village !== "all" ||
+    filters.dateFrom !== "" ||
+    filters.dateTo !== "";
+
+  return (
+    <div className="mb-6 overflow-visible rounded-2xl border border-border/60 bg-card shadow-sm">
+      <div className="flex items-center justify-between border-b border-border/50 px-4 py-3 lg:px-5">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex flex-1 items-center gap-2 text-left text-sm font-semibold lg:cursor-default"
+        >
+          <Filter className="h-4 w-4 text-teal" aria-hidden="true" />
+          Filters
+          <ChevronDown
+            className={cn("ml-auto h-4 w-4 lg:hidden", expanded && "rotate-180")}
+          />
+        </button>
+        {hasActive && (
+          <button
+            type="button"
+            onClick={() => onChange(defaultHhGirlsFilters)}
+            className="ml-3 hidden items-center gap-1 text-xs text-muted-foreground hover:text-foreground lg:flex"
+          >
+            <X className="h-3 w-3" />
+            Reset
+          </button>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-visible"
+          >
+            <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
+              {fields.map((field) => {
+                const Icon = field.icon;
+                return (
+                  <div key={field.key}>
+                    <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <Icon className="h-3 w-3" aria-hidden="true" />
+                      {field.label}
+                    </label>
+                    <FilterSelect
+                      value={filters[field.key]}
+                      options={field.options}
+                      onChange={(value) => onChange({ ...filters, [field.key]: value })}
+                      aria-label={field.label}
+                    />
+                  </div>
+                );
+              })}
+              <div className="sm:col-span-2">
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Calendar className="h-3 w-3" aria-hidden="true" />
+                  Submission Date
+                </label>
+                <FilterDateRange
+                  dateFrom={filters.dateFrom}
+                  dateTo={filters.dateTo}
+                  min={filterOptions?.dateRange.start}
+                  max={filterOptions?.dateRange.end}
+                  onChange={(range) =>
+                    onChange({
+                      ...filters,
+                      dateFrom: range.dateFrom,
+                      dateTo: range.dateTo,
+                    })
+                  }
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

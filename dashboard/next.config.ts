@@ -23,6 +23,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, ".."),
   outputFileTracingIncludes: {
     "/api/tracking": ["../Surveys/**/*"],
+    "/api/hh-girls": ["../Surveys/**/*"],
     "/api/metrics": ["../Surveys/**/*"],
     "/api/errors": ["../Error_log/**/*"],
   },

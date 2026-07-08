@@ -1,50 +1,34 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Home, UserCheck } from "lucide-react";
-import { AnimatedCounter } from "@/components/ui/animated-counter";
-import type { DashboardMetrics } from "@/lib/data/survey-metrics";
+import { HhGirlsFiltersPanel } from "@/components/hh-girls/hh-girls-filters";
+import { HhGirlsActiveFilters } from "@/components/hh-girls/hh-girls-active-filters";
+import {
+  HhGirlsGirlsKpis,
+  HhGirlsHouseholdKpis,
+} from "@/components/hh-girls/hh-girls-kpis";
+import { HhGirlsRolloutOverview } from "@/components/hh-girls/hh-girls-rollout-overview";
+import { HhGirlsSecondaryKpis } from "@/components/hh-girls/hh-girls-secondary-kpis";
+import {
+  HhGirlsGirlsCharts,
+  HhGirlsHouseholdCharts,
+} from "@/components/hh-girls/hh-girls-charts";
+import {
+  applyHhGirlsFilters,
+  computeHhGirlsMetrics,
+  defaultHhGirlsFilters,
+  hhGirlsFiltersEqual,
+  type HhGirlsFilters,
+} from "@/lib/data/hh-girls-metrics";
 import { PROTOCOL } from "@/lib/data/protocol";
 import {
-  fetchDashboardMetrics,
+  fetchHhGirlsMetrics,
+  HH_GIRLS_METRICS_QUERY_KEY,
   QUERY_STALE_MS,
-  DASHBOARD_METRICS_QUERY_KEY,
 } from "@/lib/queries/app-data";
-
-function KpiCard({
-  label,
-  value,
-  loading,
-  suffix = "",
-  decimals = 0,
-  accent,
-}: {
-  label: string;
-  value?: number;
-  loading?: boolean;
-  suffix?: string;
-  decimals?: number;
-  accent?: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-card p-5">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-2xl font-bold ${accent ?? ""}`}>
-        {loading ? (
-          "-"
-        ) : (
-          <AnimatedCounter
-            value={value ?? 0}
-            suffix={suffix}
-            decimals={decimals}
-          />
-        )}
-      </p>
-    </div>
-  );
-}
 
 function SurveySection({
   icon: Icon,
@@ -58,7 +42,7 @@ function SurveySection({
   eyebrow: string;
   title: string;
   description: string;
-  children: ReactNode;
+  children: React.ReactNode;
   delay?: number;
 }) {
   return (
@@ -66,9 +50,9 @@ function SurveySection({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="mb-8"
+      className="mb-10"
     >
-      <div className="mb-4 flex items-start gap-3">
+      <div className="mb-5 flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal/10">
           <Icon className="h-5 w-5 text-teal" aria-hidden="true" />
         </div>
@@ -86,18 +70,29 @@ function SurveySection({
 }
 
 export default function HhGirlsSurveyPage() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: [...DASHBOARD_METRICS_QUERY_KEY],
-    queryFn: fetchDashboardMetrics,
+  const [filters, setFilters] = useState<HhGirlsFilters>(defaultHhGirlsFilters);
+  const deferredFilters = useDeferredValue(filters);
+
+  const { data, isLoading, isError, isFetching } = useQuery({
+    queryKey: [...HH_GIRLS_METRICS_QUERY_KEY],
+    queryFn: fetchHhGirlsMetrics,
     staleTime: QUERY_STALE_MS,
   });
 
-  const hh = data?.household;
-  const gs = data?.girls;
-  const childConsentRate = gs?.total ? (gs.complete / gs.total) * 100 : 0;
-  const hhTargetRate = hh?.uniqueGirls
-    ? (hh.bothParent / PROTOCOL.HH_SURVEY_TARGET) * 100
-    : 0;
+  const display = useMemo(() => {
+    if (!data?.allHousehold) return undefined;
+
+    if (hhGirlsFiltersEqual(deferredFilters, defaultHhGirlsFilters)) {
+      return data;
+    }
+
+    const household = applyHhGirlsFilters(data.allHousehold, deferredFilters);
+    const girls = applyHhGirlsFilters(data.allGirls, deferredFilters);
+    return computeHhGirlsMetrics(household, girls);
+  }, [data, deferredFilters]);
+
+  const showLoading = isLoading || (isFetching && !display);
+  const filtering = !hhGirlsFiltersEqual(filters, deferredFilters);
 
   if (isError) {
     return (
@@ -116,11 +111,11 @@ export default function HhGirlsSurveyPage() {
   }
 
   return (
-    <div>
+    <div className={filtering ? "opacity-80 transition-opacity" : undefined}>
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
+        className="mb-6"
       >
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
           HH / Girls Survey — Rollout Overview
@@ -132,46 +127,34 @@ export default function HhGirlsSurveyPage() {
         </p>
       </motion.div>
 
+      <HhGirlsFiltersPanel
+        filterOptions={data?.filterOptions}
+        filters={filters}
+        onChange={setFilters}
+      />
+
+      <HhGirlsActiveFilters
+        filters={filters}
+        onChange={setFilters}
+        filterOptions={data?.filterOptions}
+      />
+
+      <HhGirlsRolloutOverview metrics={display} loading={showLoading} />
+
+      <HhGirlsHouseholdKpis metrics={display} loading={showLoading} />
+
+      <HhGirlsSecondaryKpis metrics={display} loading={showLoading} />
+
       <SurveySection
         icon={Home}
         eyebrow="Household survey"
-        title="Father and mother interviews"
+        title="Father and Mother Surveys of Tracked Girls"
         description="Two forms per tracked girl expected — mother (required) and father"
         delay={0.05}
       >
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard label="Total Submissions" value={hh?.total} loading={isLoading} />
-          <KpiCard label="Unique Girls" value={hh?.uniqueGirls} loading={isLoading} />
-          <KpiCard label="Mother Forms" value={hh?.motherForms} loading={isLoading} />
-          <KpiCard label="Father Forms" value={hh?.fatherForms} loading={isLoading} />
-          <KpiCard
-            label="Both Parents"
-            value={hh?.bothParent}
-            loading={isLoading}
-            accent="text-teal"
-          />
-          <KpiCard
-            label="Completion Rate"
-            value={hh?.completionRate}
-            loading={isLoading}
-            suffix="%"
-            decimals={1}
-          />
-          <KpiCard
-            label="Progress to Target"
-            value={hhTargetRate}
-            loading={isLoading}
-            suffix="%"
-            decimals={1}
-            accent="text-gold"
-          />
-          <KpiCard
-            label="Target N"
-            value={PROTOCOL.HH_SURVEY_TARGET}
-            loading={isLoading}
-          />
+        <div className="mt-6">
+          <HhGirlsHouseholdCharts metrics={display} loading={showLoading} />
         </div>
-
         <div className="mt-4 rounded-2xl border border-gold/20 bg-gold/5 p-5">
           <p className="text-sm font-medium text-foreground">
             Duplicate Detection Rule
@@ -187,47 +170,13 @@ export default function HhGirlsSurveyPage() {
       <SurveySection
         icon={UserCheck}
         eyebrow="Girls survey"
-        title="Direct girl interview"
-        description="Parental consent, child consent, and learning assessment"
+        title="Direct Girl Interview with Learning Assessment"
+        description="Parental consent, child consent, and education status"
         delay={0.1}
       >
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <KpiCard label="Total Submissions" value={gs?.total} loading={isLoading} />
-          <KpiCard
-            label="Completed"
-            value={gs?.complete}
-            loading={isLoading}
-            accent="text-teal"
-          />
-          <KpiCard label="Revisits" value={gs?.revisits} loading={isLoading} />
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-border/60 bg-card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold">Child Consent Rate</p>
-              <p className="text-xs text-muted-foreground">Target: 90%</p>
-            </div>
-            <span className="text-3xl font-bold text-teal">
-              {isLoading ? (
-                "-"
-              ) : (
-                <AnimatedCounter
-                  value={childConsentRate}
-                  suffix="%"
-                  decimals={1}
-                />
-              )}
-            </span>
-          </div>
-          <div className="relative mt-4 h-4 overflow-hidden rounded-full bg-muted">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${childConsentRate}%` }}
-              className="h-full rounded-full bg-gradient-to-r from-teal to-gold"
-            />
-            <div className="absolute left-[90%] top-0 h-full w-0.5 bg-foreground/30" />
-          </div>
+        <HhGirlsGirlsKpis metrics={display} loading={showLoading} />
+        <div className="mt-6">
+          <HhGirlsGirlsCharts metrics={display} loading={showLoading} />
         </div>
       </SurveySection>
     </div>

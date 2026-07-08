@@ -1,10 +1,12 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { DashboardMetrics } from "@/lib/data/survey-metrics";
+import type { HhGirlsMetrics } from "@/lib/data/hh-girls-metrics";
 import type { TrackingMetrics } from "@/lib/data/tracking-metrics";
 
 export const TRACKING_METRICS_QUERY_KEY = ["tracking-metrics"] as const;
 export const TRACKING_EXPORTS_QUERY_KEY = ["tracking-exports"] as const;
 export const DASHBOARD_METRICS_QUERY_KEY = ["dashboard-metrics"] as const;
+export const HH_GIRLS_METRICS_QUERY_KEY = ["hh-girls-metrics"] as const;
 
 export interface TrackingExportPayload {
   operationalKpiLists: TrackingMetrics["operationalKpiLists"];
@@ -29,6 +31,12 @@ export async function fetchTrackingExports(): Promise<TrackingExportPayload> {
 export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
   const res = await fetch("/api/metrics");
   if (!res.ok) throw new Error("Failed to fetch metrics");
+  return res.json();
+}
+
+export async function fetchHhGirlsMetrics(): Promise<HhGirlsMetrics> {
+  const res = await fetch("/api/hh-girls");
+  if (!res.ok) throw new Error("Failed to load HH/Girls data");
   return res.json();
 }
 

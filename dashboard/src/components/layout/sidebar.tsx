@@ -27,10 +27,12 @@ import { getTabsBySection, isNavTabActive } from "@/lib/auth/nav-tabs";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import {
   fetchDashboardMetrics,
+  fetchHhGirlsMetrics,
   fetchTrackingExports,
   fetchTrackingMetrics,
   QUERY_STALE_MS,
   DASHBOARD_METRICS_QUERY_KEY,
+  HH_GIRLS_METRICS_QUERY_KEY,
   TRACKING_EXPORTS_QUERY_KEY,
   TRACKING_METRICS_QUERY_KEY,
 } from "@/lib/queries/app-data";
@@ -102,6 +104,13 @@ export function Sidebar({
         queryFn: fetchDashboardMetrics,
         staleTime: QUERY_STALE_MS,
       });
+      if (href === "/surveys/hh-girls") {
+        void queryClient.prefetchQuery({
+          queryKey: [...HH_GIRLS_METRICS_QUERY_KEY],
+          queryFn: fetchHhGirlsMetrics,
+          staleTime: QUERY_STALE_MS,
+        });
+      }
       return;
     }
 
