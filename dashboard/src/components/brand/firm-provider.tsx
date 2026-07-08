@@ -23,6 +23,7 @@ import {
   type FirmId,
   type FirmPalette,
 } from "@/lib/brand";
+import type { ServerAuthState } from "@/lib/auth/server-auth";
 import type { Session } from "@/lib/auth/types";
 
 interface FirmContextValue {
@@ -42,29 +43,38 @@ function readBootstrappedFirm(): FirmId {
   return resolveFirmPreference(localStorage.getItem(FIRM_STORAGE_KEY));
 }
 
-export function FirmProvider({ children }: { children: React.ReactNode }) {
+export function FirmProvider({
+  children,
+  initialAuth = null,
+}: {
+  children: React.ReactNode;
+  initialAuth?: ServerAuthState | null;
+}) {
   const router = useRouter();
-  const [user, setUser] = useState<Session | null>(null);
+  const [user, setUser] = useState<Session | null>(initialAuth?.user ?? null);
   const [firmId, setFirmId] = useState<FirmId>(readBootstrappedFirm);
-  const [mounted, setMounted] = useState(false);
+
+  const effectiveRole = user?.role ?? initialAuth?.user.role ?? null;
+  const canSwitch = canRoleSwitchFirm(effectiveRole);
 
   useLayoutEffect(() => {
     applyFirmTheme(firmId);
   }, [firmId]);
 
   useEffect(() => {
+    if (initialAuth?.user) {
+      setUser(initialAuth.user);
+      return;
+    }
+
     fetch("/api/auth/me")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setUser(data?.user ?? null))
-      .catch(() => setUser(null))
-      .finally(() => setMounted(true));
-  }, []);
+      .catch(() => setUser(null));
+  }, [initialAuth?.user]);
 
   useEffect(() => {
-    if (!mounted) return;
-
-    const role = user?.role ?? null;
-    const canSwitch = canRoleSwitchFirm(role);
+    const role = effectiveRole;
     const nextFirmId = canSwitch
       ? readBootstrappedFirm()
       : getDefaultFirmForRole(role);
@@ -76,17 +86,17 @@ export function FirmProvider({ children }: { children: React.ReactNode }) {
       document.documentElement.dataset.firm = nextFirmId;
     }
     applyFirmTheme(nextFirmId);
-  }, [user, mounted]);
+  }, [effectiveRole, canSwitch]);
 
   const setFirm = useCallback(
     (nextFirmId: FirmId) => {
-      if (!canRoleSwitchFirm(user?.role)) return;
+      if (!canRoleSwitchFirm(effectiveRole)) return;
       setFirmId(nextFirmId);
       persistFirmPreference(nextFirmId);
       applyFirmTheme(nextFirmId);
       router.refresh();
     },
-    [user?.role, router]
+    [effectiveRole, router]
   );
 
   const firm = FIRMS[firmId];
@@ -96,10 +106,10 @@ export function FirmProvider({ children }: { children: React.ReactNode }) {
       firmId,
       firm,
       palette: firm.palette,
-      canSwitchFirm: canRoleSwitchFirm(user?.role),
+      canSwitchFirm: canSwitch,
       setFirm,
     }),
-    [firmId, firm, user?.role, setFirm]
+    [firmId, firm, canSwitch, setFirm]
   );
 
   return <FirmContext.Provider value={value}>{children}</FirmContext.Provider>;

@@ -55,8 +55,7 @@ const TAB_ICONS: Record<string, LucideIcon> = {
   "/reports": FileText,
   "/surveys": ClipboardList,
   "/tracking": MapPin,
-  "/surveys/household": ClipboardList,
-  "/surveys/girls": ClipboardList,
+  "/surveys/hh-girls": ClipboardList,
   "/surveys/errors": AlertTriangle,
   "/monitoring": Activity,
   "/team": UserCog,
@@ -92,7 +91,12 @@ export function Sidebar({
   const effectiveCollapsed = collapsed && !isMobile;
 
   const prefetchRoute = (href: string) => {
-    if (href === "/" || href === "/analytics") {
+    if (
+      href === "/" ||
+      href === "/analytics" ||
+      href === "/surveys" ||
+      href === "/surveys/hh-girls"
+    ) {
       void queryClient.prefetchQuery({
         queryKey: [...DASHBOARD_METRICS_QUERY_KEY],
         queryFn: fetchDashboardMetrics,

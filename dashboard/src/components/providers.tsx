@@ -4,8 +4,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { useState } from "react";
 import { FirmProvider } from "@/components/brand/firm-provider";
+import type { ServerAuthState } from "@/lib/auth/server-auth";
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({
+  children,
+  initialAuth = null,
+}: {
+  children: React.ReactNode;
+  initialAuth?: ServerAuthState | null;
+}) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -27,7 +34,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         enableSystem
         disableTransitionOnChange={false}
       >
-        <FirmProvider>{children}</FirmProvider>
+        <FirmProvider initialAuth={initialAuth}>{children}</FirmProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

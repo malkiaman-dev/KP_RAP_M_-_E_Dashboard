@@ -8,10 +8,6 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_PATHS.includes(pathname)) {
-    const session = await verifySession(request.cookies.get(SESSION_COOKIE)?.value);
-    if (session) {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
     return NextResponse.next();
   }
 

@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Home, UserCheck, Users2, AlertTriangle } from "lucide-react";
+import { Users2, UserCheck, AlertTriangle } from "lucide-react";
 import { AnimatedCounter } from "@/components/ui/animated-counter";
 import type { DashboardMetrics } from "@/lib/data/survey-metrics";
 import type { ErrorMetrics } from "@/lib/data/error-metrics";
@@ -42,25 +42,14 @@ export default function SurveysPage() {
       icon: Users2,
     },
     {
-      title: "Household Survey",
-      desc: "Mother and father interviews per tracked girl",
+      title: "HH / Girls Survey",
+      desc: "Household parent interviews and direct girl survey with learning assessment",
       stats: [
-        { label: "Submissions", value: data?.household.total },
-        { label: "Both Parents", value: data?.household.bothParent },
+        { label: "HH Submissions", value: data?.household.total },
+        { label: "Girls Complete", value: data?.girls.complete },
       ],
-      href: "/surveys/household",
-      color: "from-deep-teal/20 to-deep-teal/5 border-deep-teal/20",
-      icon: Home,
-    },
-    {
-      title: "Girls Survey",
-      desc: "Direct girl interview with learning assessment",
-      stats: [
-        { label: "Submissions", value: data?.girls.total },
-        { label: "Complete", value: data?.girls.complete },
-      ],
-      href: "/surveys/girls",
-      color: "from-gold/20 to-gold/5 border-gold/30",
+      href: "/surveys/hh-girls",
+      color: "from-gold/20 to-deep-teal/5 border-gold/30",
       icon: UserCheck,
     },
     {
@@ -85,11 +74,11 @@ export default function SurveysPage() {
       >
         <h1 className="text-2xl font-bold tracking-tight">Surveys</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          KPRAP survey modules - tracking, household, and girls
+          KPRAP survey modules — tracking, HH/girls, and error reporting
         </p>
       </motion.div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {surveys.map((s, i) => {
           const Icon = s.icon;
           return (

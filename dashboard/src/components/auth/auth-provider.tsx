@@ -9,45 +9,120 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { isPathAllowed } from "@/lib/auth/nav-tabs";
+import type { ServerAuthState } from "@/lib/auth/server-auth";
 import type { Session } from "@/lib/auth/types";
+
+export type AuthRefreshResult = "authenticated" | "unauthenticated" | "error";
 
 interface AuthContextValue {
   user: Session | null;
   allowedRoutes: string[];
   defaultRoute: string;
   loading: boolean;
+  authError: boolean;
   canAccess: (href: string) => boolean;
-  refreshAuth: () => Promise<void>;
+  refreshAuth: () => Promise<AuthRefreshResult>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<Session | null>(null);
-  const [allowedRoutes, setAllowedRoutes] = useState<string[]>([]);
-  const [defaultRoute, setDefaultRoute] = useState("/");
-  const [loading, setLoading] = useState(true);
+export function AuthProvider({
+  children,
+  initialAuth = null,
+}: {
+  children: React.ReactNode;
+  initialAuth?: ServerAuthState | null;
+}) {
+  const [user, setUser] = useState<Session | null>(initialAuth?.user ?? null);
+  const [allowedRoutes, setAllowedRoutes] = useState<string[]>(
+    initialAuth?.allowedRoutes ?? []
+  );
+  const [defaultRoute, setDefaultRoute] = useState(
+    initialAuth?.defaultRoute ?? "/"
+  );
+  const [loading, setLoading] = useState(!initialAuth);
+  const [authError, setAuthError] = useState(false);
   const router = useRouter();
 
-  const refreshAuth = useCallback(async () => {
-    const res = await fetch("/api/auth/me");
-    if (!res.ok) {
+  const applyAuth = useCallback((state: ServerAuthState | null) => {
+    if (!state) {
       setUser(null);
       setAllowedRoutes([]);
       setDefaultRoute("/");
       return;
     }
 
-    const data = await res.json();
-    setUser(data.user ?? null);
-    setAllowedRoutes(data.allowedRoutes ?? []);
-    setDefaultRoute(data.defaultRoute ?? "/");
+    setUser(state.user);
+    setAllowedRoutes(state.allowedRoutes);
+    setDefaultRoute(state.defaultRoute);
   }, []);
 
+  const refreshAuth = useCallback(async (): Promise<AuthRefreshResult> => {
+    try {
+      const res = await fetch("/api/auth/me");
+
+      if (res.status === 401) {
+        applyAuth(null);
+        setAuthError(false);
+        return "unauthenticated";
+      }
+
+      if (!res.ok) {
+        setAuthError(true);
+        return "error";
+      }
+
+      const data = (await res.json()) as ServerAuthState & { user: Session };
+      if (!data.user) {
+        applyAuth(null);
+        setAuthError(false);
+        return "unauthenticated";
+      }
+
+      applyAuth({
+        user: data.user,
+        allowedRoutes: data.allowedRoutes ?? [],
+        defaultRoute: data.defaultRoute ?? "/",
+      });
+      setAuthError(false);
+      return "authenticated";
+    } catch {
+      setAuthError(true);
+      return "error";
+    }
+  }, [applyAuth]);
+
   useEffect(() => {
-    refreshAuth().finally(() => setLoading(false));
-  }, [refreshAuth]);
+    let cancelled = false;
+
+    async function syncAuth() {
+      if (initialAuth) {
+        setLoading(false);
+      }
+
+      for (let attempt = 0; attempt < 8; attempt++) {
+        if (cancelled) return;
+
+        const result = await refreshAuth();
+        if (result === "authenticated" || result === "unauthenticated") {
+          break;
+        }
+
+        await new Promise((resolve) =>
+          setTimeout(resolve, 750 * (attempt + 1))
+        );
+      }
+
+      if (!cancelled) setLoading(false);
+    }
+
+    void syncAuth();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialAuth, refreshAuth]);
 
   const canAccess = useCallback(
     (href: string) => isPathAllowed(allowedRoutes, href),
@@ -56,12 +131,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
-    setUser(null);
-    setAllowedRoutes([]);
-    setDefaultRoute("/");
+    applyAuth(null);
+    setAuthError(false);
     router.push("/login");
     router.refresh();
-  }, [router]);
+  }, [applyAuth, router]);
 
   return (
     <AuthContext.Provider
@@ -70,6 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         allowedRoutes,
         defaultRoute,
         loading,
+        authError,
         canAccess,
         refreshAuth,
         logout,

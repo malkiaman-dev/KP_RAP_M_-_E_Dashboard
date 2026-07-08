@@ -190,6 +190,8 @@ export function getDefaultFirmForRole(
 export function canRoleSwitchFirm(
   role: "malki" | "pidc" | "world-bank" | "piu" | null | undefined
 ): boolean {
+  // Before sign-in, allow branding preview; after sign-in only Malki can switch.
+  if (role == null) return true;
   return role === "malki";
 }
 

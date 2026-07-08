@@ -4,6 +4,7 @@ import { Providers } from "@/components/providers";
 import { AppShell } from "@/components/layout/app-shell";
 import { FIRM_THEME_BOOTSTRAP, FIRMS } from "@/lib/brand";
 import { getServerFirmContext } from "@/lib/brand-server";
+import { getServerAuthState } from "@/lib/auth/server-auth";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -39,6 +40,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const { firmId, locked } = await getServerFirmContext();
+  const initialAuth = await getServerAuthState();
 
   return (
     <html
@@ -61,8 +63,8 @@ export default async function RootLayout({
         >
           Skip to main content
         </a>
-        <Providers>
-          <AppShell>{children}</AppShell>
+        <Providers initialAuth={initialAuth}>
+          <AppShell initialAuth={initialAuth}>{children}</AppShell>
         </Providers>
       </body>
     </html>
