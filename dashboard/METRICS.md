@@ -50,10 +50,15 @@ When you filter by **Baseline** or **New Sample**, the dashboard uses that group
 A girl counts as **successfully tracked** when **at least one** of her submissions meets **all** of these conditions:
 
 ```
-house_found = 1 OR 2     (house located, or family moved)
-AND girl_found = 1       (girl was found)
-AND consent = 1          (consent given)
-AND survey_status = 1    (form marked complete)
+household effectively located
+  → house_found = 1
+  OR Case 5: house_found = 2 AND family_whereabouts = 1
+             AND family_moveadd_samevill = 1 AND house_found_1 = 1
+AND girl_found = 1, 2, or 3
+AND girl_found_confirm_enrolled is NOT 2 or 999
+AND consent = 1
+AND survey_status = 1
+AND not a protocol terminal incomplete case (Cases 1–6 below)
 ```
 
 **Formula (girl level):**
@@ -63,6 +68,30 @@ Successfully Tracked = count of unique girls where any submission passes the rul
 ```
 
 This is the same definition on the **Tracking** page and the main **Dashboard** (for tracking-type rows).
+
+### Protocol cases (incomplete / no revisit)
+
+| Case | Condition | Outcome |
+|------|-----------|---------|
+| **1** | `house_found = 1` and `girl_found` ∈ {4, 99, 999} | Incomplete, **no revisit** |
+| **2** | `house_found = 1` and `girl_found` ∈ {1, 2, 3} and `girl_found_confirm_enrolled` ∈ {2, 999} | Incomplete, **no revisit**. Other confirm values (1, 888) may continue toward completion. |
+| **3** | `house_found = 2` and `family_whereabouts` ∈ {2, 888, 999} | Incomplete, **no revisit** |
+| **4** | `house_found = 2` and `family_whereabouts = 1` and `family_moveadd_samevill` ∈ {2, 888, 999} | Incomplete, **no revisit** |
+| **5** | `house_found = 2` and `family_whereabouts = 1` and `family_moveadd_samevill = 1` | New address entered; re-apply location / girl logics via `house_found_1` (+ girl fields). Tracked only if new house located and girl/consent/status succeed. |
+| **6** | `house_found = 3` | Incomplete, **no revisit** |
+
+**Field name notes**
+
+| SurveyCTO list / question | Export column |
+|---------------------------|---------------|
+| `girlfound` | `girl_found` |
+| `housefound` | `house_found` |
+| enrollment confirm | `girl_found_confirm_enrolled` |
+| family still in village | `family_whereabouts` |
+| new address known | `family_moveadd_samevill` |
+| house at new address | `house_found_1` |
+
+Excel exports include protocol case, outcome, revisit needed, girl/house reason codes, elder/LHW/neighbour verification (`check_*`, names, numbers), visit comments, and survey comments for filtering.
 
 ---
 
@@ -103,18 +132,19 @@ One card each for **Baseline** and **New Sample** (when visible).
 
 Each **untracked** girl is classified into **one** reason (priority order):
 
-1. **House untraceable** — any submission has `house_found = 3`
-2. **House not located** — no submission with `house_found = 1` or `2`
-3. **Girl not found** — house located but no submission with `girl_found = 1`
-4. **Incomplete survey** — girl found but consent step not reached (e.g. `girl_found_confirm_enrolled = 2`), or consent step reached but `consent` is blank
+1. **House untraceable** — any submission has `house_found = 3` (Case 6)
+2. **House not located** — household never effectively located (includes Cases 3–4 closed move paths)
+3. **Girl not found** — household located but `girl_found` ∈ {4, 99, 999}, or girl never found positively at address
+4. **Incomplete survey** — Case 2 (`girl_found_confirm_enrolled` 2/999), consent step not reached, or consent blank
 5. **No consent** — consent step reached and `consent = 0` or `consent = 2` (explicit refusal only)
 
 **Consent step reached** means:
 
-- `girl_found = 1`, and
-- `girl_found_confirm_enrolled = 1` (new sample), or `girl_found_confirm_dropped = 1` (baseline), or neither confirm field is set (legacy path).
+- `girl_found` ∈ {1, 2, 3}, and
+- `girl_found_confirm_enrolled` is not 2/999, and
+- confirm is `1` or `888`, or `girl_found_confirm_dropped = 1` (baseline), or neither confirm field is set (legacy path).
 
-Girls with `girl_found_confirm_enrolled = 2` are **not** counted as “no consent” — the form ended before consent was requested.
+Girls with `girl_found_confirm_enrolled = 2` or `999` are **Case 2 incomplete** — not “no consent”.
 
 ### Visit attempts and revisits (protocol)
 
@@ -126,15 +156,33 @@ Each tracking form records the attempt number in `visit_num`:
 | `2` | 2nd attempt (first revisit) |
 | `3` | 3rd attempt (final revisit) |
 
-**Revisit rule (KPRAP Tracking Survey Field Protocol §2 & §3).** A revisit is required **only** when the household **structure was located** (`house_found = 1`) but the **respondent was temporarily unavailable** (`girl_found ≠ 1`). The maximum is **two revisits** (the initial visit plus visit 2 and visit 3). A revisit is **not** required — and the case is marked **Incomplete** — in any of these situations:
+**Revisit rule.** A revisit is required **only** when `house_found = 1` and the girl is **temporarily unavailable** (not found positively, and not a protocol terminal incomplete case). Maximum **two revisits** (attempts 2 and 3). Protocol Cases 1–6 above are always **Incomplete, no revisit**. Consent refused (`consent = 0` or `2`) also closes the case.
 
 | Situation | Field signal | Revisit? |
 |-----------|--------------|:--------:|
-| Completed case (located, respondent found, consent, survey done) | `isTracked` | No (Case 1) |
-| Structure located, respondent temporarily unavailable | `house_found = 1` & `girl_found ≠ 1` | **Yes (Case 2)** |
-| Structure not found after verification (elder/neighbour/LHW) | `house_found = 3` | No (Case 3) |
-| Consent refused | `consent = 0` or `2` | No (Case 4) |
-| Family permanently moved away | `house_found = 2` | No (Case 5) |
+| Successfully tracked | See §2 | No |
+| Structure located, girl temporarily unavailable | `house_found = 1` & girl blank / not 1–4/99/999 | **Yes** |
+| Protocol Cases 1–6 | See table in §2 | No |
+| Consent refused | `consent = 0` or `2` | No |
+
+**`girl_found` codes** (SurveyCTO choice list `girlfound`; export column `girl_found`):
+
+| Code | Label | Outcome |
+|-----:|-------|---------|
+| `1` | Yes | Girl found |
+| `2` | Yes, girl name not correct | Girl found |
+| `3` | Yes, father name not correct | Girl found |
+| `4` | No, she married and moved away | **Case 1** — incomplete, **no revisit** |
+| `99` | Other (Specify) | **Case 1** — incomplete, **no revisit** |
+| `999` | Refused to answer | **Case 1** — incomplete, **no revisit** |
+
+**`house_found` codes** (SurveyCTO `housefound`; export `house_found`):
+
+| Code | Label | Outcome |
+|-----:|-------|---------|
+| `1` | Yes found the household/family | Continue girl logics |
+| `2` | No, the family has moved away | Cases 3–5 via `family_whereabouts` / `family_moveadd_samevill` |
+| `3` | No, could not trace family | **Case 6** — incomplete, **no revisit** |
 
 **Follow-up KPIs** (operational metrics row):
 
@@ -243,7 +291,7 @@ Common SurveyCTO fields used in logic:
 | Field | Typical values | Meaning in dashboard |
 |-------|----------------|----------------------|
 | `house_found` | `1` located · `2` moved · `3` untraceable | Household location outcome |
-| `girl_found` | `1` yes · other/empty no | Whether the girl was found |
+| `girl_found` | `1`/`2`/`3` found · `4`/`99`/`999` permanent not-found (incomplete, no revisit) · empty temporary | Whether the girl was found (SurveyCTO list: `girlfound`) |
 | `girl_found_confirm_enrolled` | `1` enrolled · `2` not enrolled | New sample — whether interview reached consent |
 | `girl_found_confirm_dropped` | `1` / `2` | Baseline enrollment confirmation |
 | `consent` | `1` yes · `0`/`2` no/refused · empty not recorded | Consent outcome |

@@ -1,3 +1,5 @@
+import { isTrackedSubmission, type TrackingRow } from "./tracking-metrics";
+
 export type SurveyType = "tracking" | "household" | "girls";
 
 export interface SurveyRow {
@@ -187,13 +189,7 @@ export function computeMetrics(rows: SurveyRow[]) {
   );
   const trackedGirlIds = new Set(
     tracking
-      .filter(
-        (r) =>
-          (r.house_found === "1" || r.house_found === "2") &&
-          r.girl_found === "1" &&
-          r.consent === "1" &&
-          r.survey_status === "1"
-      )
+      .filter((r) => isTrackedSubmission(r as TrackingRow))
       .map((r) => r.girl_id || r.girl)
       .filter(Boolean)
   );
@@ -245,8 +241,8 @@ export function computeMetrics(rows: SurveyRow[]) {
     const dTracking = tracking.filter((r) => r.district === d);
     const dHH = household.filter((r) => r.district === d);
     const dGirls = girls.filter((r) => r.district === d);
-    const dTracked = dTracking.filter(
-      (r) => r.girl_found === "1" && r.consent === "1"
+    const dTracked = dTracking.filter((r) =>
+      isTrackedSubmission(r as TrackingRow)
     );
     return {
       district: d,
