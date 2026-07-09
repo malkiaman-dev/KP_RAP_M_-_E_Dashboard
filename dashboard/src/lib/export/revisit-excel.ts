@@ -46,7 +46,6 @@ function toSheetRows(rows: RevisitGirlExportRow[]) {
         row.familyMoveaddSamevillLabel
       ),
       moved_familyaddress: row.movedFamilyAddress,
-      house_found_1: codeWithLabel(row.houseFound1Code, row.houseFound1Label),
       check_villageelder: codeWithLabel(
         row.checkVillageElder,
         row.checkVillageElderLabel
