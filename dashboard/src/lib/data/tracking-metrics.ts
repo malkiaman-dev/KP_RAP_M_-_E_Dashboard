@@ -1495,14 +1495,18 @@ export function computeRevisitDetailMetrics(
     const hasThirdInFilter =
       third && filteredRows.some((r) => r.KEY === third.KEY);
 
+    // Girl-level outcome: if any attempt eventually succeeds, prior failed
+    // revisits must not remain in "not tracked" counts or exports.
+    const eventuallyTracked = girlIsTrackedAcrossAttempts(allRows, girl);
+
     if (hasSecondInFilter) {
       girls2ndRevisited += 1;
       const exportRow = toRevisitExportRow(second!, "2nd revisit");
       lists.girls2ndRevisited.push(exportRow);
-      if (isTrackedSubmission(second!)) {
+      if (isTrackedSubmission(second!) || isGirlTrackedForMetrics(second!)) {
         girlsTrackedOn2ndRevisit += 1;
         lists.girlsTrackedOn2ndRevisit.push(exportRow);
-      } else {
+      } else if (!eventuallyTracked) {
         girlsNotTrackedOn2ndRevisit += 1;
         lists.girlsNotTrackedOn2ndRevisit.push(exportRow);
       }
@@ -1513,10 +1517,10 @@ export function computeRevisitDetailMetrics(
       girls3rdRevisited += 1;
       const exportRow = toRevisitExportRow(third!, "3rd revisit");
       lists.girls3rdRevisited.push(exportRow);
-      if (isTrackedSubmission(third!)) {
+      if (isTrackedSubmission(third!) || isGirlTrackedForMetrics(third!)) {
         girlsTrackedOn3rdRevisit += 1;
         lists.girlsTrackedOn3rdRevisit.push(exportRow);
-      } else {
+      } else if (!eventuallyTracked) {
         girlsNotTrackedOn3rdRevisit += 1;
         lists.girlsNotTrackedOn3rdRevisit.push(exportRow);
       }
@@ -1999,6 +2003,9 @@ function computeOperationalKpiLists(
   }
 
   for (const row of rows) {
+    const girl = girlKey(row);
+    const eventuallyTracked = trackedGirlKeys.has(girl);
+
     if (isActualRevisitSubmission(row, allRows)) {
       pushSubmission("revisitSubmissions", row, "Follow-up attempt");
       const attemptNum = attemptNumberForRow(allRows, row);
@@ -2017,7 +2024,8 @@ function computeOperationalKpiLists(
       complete ? "Complete" : "Incomplete / other"
     );
 
-    if (isIncompleteSubmission(row)) {
+    // Do not list failed/incomplete prior attempts once the girl is tracked.
+    if (isIncompleteSubmission(row) && !eventuallyTracked) {
       pushSubmission("incompleteSubmissions", row, "Incomplete / other");
     }
   }
@@ -2559,7 +2567,11 @@ export function computeTrackingMetrics(
   const consentRate =
     locatedGirlKeys.size > 0 ? (withConsent / locatedGirlKeys.size) * 100 : 0;
 
-  const incompleteSubmissions = rows.filter(isIncompleteSubmission).length;
+  // Incomplete count is girl-outcome aware: once a girl is tracked on any
+  // attempt, her earlier incomplete forms are excluded from this KPI.
+  const incompleteSubmissions = rows.filter(
+    (r) => isIncompleteSubmission(r) && !trackedGirlKeys.has(girlKey(r))
+  ).length;
 
   const visitGroups = new Map<string, number>();
   for (const r of rows) {

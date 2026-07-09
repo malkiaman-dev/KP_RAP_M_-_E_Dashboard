@@ -123,7 +123,7 @@ const cards: {
   {
     label: "Not Tracked on 2nd Revisit",
     exportLabel: "not-tracked-on-2nd-revisit",
-    hint: "2nd follow-up completed but not tracked on that visit",
+    hint: "2nd follow-up not tracked, and girl never tracked later (excluded if tracked on 3rd)",
     icon: UserX,
     color: "text-orange-600",
     group: "2nd",
@@ -163,7 +163,7 @@ const cards: {
   {
     label: "Not Tracked on 3rd Revisit",
     exportLabel: "not-tracked-on-3rd-revisit",
-    hint: "3rd follow-up completed but not tracked on that visit",
+    hint: "3rd follow-up completed and girl still never tracked on any attempt",
     icon: UserX,
     color: "text-red-500",
     group: "3rd",
