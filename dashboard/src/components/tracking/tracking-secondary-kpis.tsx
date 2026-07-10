@@ -173,7 +173,7 @@ const cards: {
     key: "duplicateSubmissions",
     exportLabel: "duplicate-visits",
     label: "Extra Forms (Gap)",
-    hint: "Submissions − Attempted girls — see Duplicate records for the full mutually exclusive breakdown",
+    hint: "Submissions − Attempted girls — see Extra / unnecessary forms for the full category breakdown",
     icon: Copy,
     color: "text-purple-500",
   },

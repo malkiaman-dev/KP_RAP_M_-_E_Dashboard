@@ -1726,13 +1726,16 @@ export type DuplicateDetailListKey =
   | "exactDuplicates"
   | "crossCohortDuplicates"
   | "revisitDuplicates"
+  | "followUpAfterTracked"
+  | "sameVisitDifferentAnswers"
   | "otherExtras";
 
 export interface DuplicateDetailMetrics {
   /**
    * Extra submissions beyond one per girl:
    * `totalSubmissions − uniqueGirlsAttempted`.
-   * Category cards below are mutually exclusive and sum to this total.
+   * Exact + Revisit + Follow-up after tracked + Same-visit different + Other
+   * are mutually exclusive and sum to this total.
    */
   totalDuplicates: number;
   /** @deprecated Use totalDuplicates */
@@ -1740,9 +1743,8 @@ export interface DuplicateDetailMetrics {
   /** Extra forms with identical survey answers to another form (KEY/date may differ) */
   exactDuplicates: number;
   /**
-   * Extra forms that are also in a Baseline↔New Sample tracked pair.
-   * (Full cross-cohort flag count is `crossCohortAllForms` — most pairs use
-   * different listing IDs so they count as two attempted girls, not gap extras.)
+   * Girls present in both Baseline and New Sample (any outcome — tracked or not).
+   * Not part of the submissions−attempted gap sum.
    */
   crossCohortDuplicates: number;
   /**
@@ -1751,19 +1753,19 @@ export interface DuplicateDetailMetrics {
    */
   revisitDuplicates: number;
   /**
-   * Remaining extras: follow-up after already tracked, same-visit resubmit with
-   * different answers, and any other additional submission.
+   * Leftover extras that are not exact / revisit / follow-up-after-tracked /
+   * same-visit-different.
    */
   otherExtras: number;
-  /** Follow-up after already tracked (subset of otherExtras) */
+  /** Extra form after the girl was already successfully tracked */
   followUpAfterTracked: number;
-  /** Same visit # resubmitted with different answers (subset of otherExtras) */
+  /** Same visit # resubmitted with different answers */
   sameVisitDifferentAnswers: number;
   /** Distinct exact-content fingerprint groups with more than one submission */
   exactDuplicateGroups: number;
-  /** Distinct person identities tracked in both cohorts */
+  /** Same as crossCohortDuplicates — girls present in both cohorts */
   crossCohortGirls: number;
-  /** All tracked forms flagged in Baseline↔New Sample pairs (not limited to gap) */
+  /** All submissions for girls present in both Baseline and New Sample */
   crossCohortAllForms: number;
   /** Unique girls attempted in the filtered rows (for gap identity check) */
   uniqueGirlsInScope: number;
@@ -1784,13 +1786,15 @@ function emptyDuplicateLists(): Record<
     exactDuplicates: [],
     crossCohortDuplicates: [],
     revisitDuplicates: [],
+    followUpAfterTracked: [],
+    sameVisitDifferentAnswers: [],
     otherExtras: [],
   };
 }
 
 const EXACT_DUPLICATE_TYPE = "Exact duplicate";
 const CROSS_COHORT_DUPLICATE_TYPE =
-  "Tracked in Baseline and New Sample";
+  "Present in Baseline and New Sample";
 const REVISIT_DUPLICATE_TYPE = "Revisit duplicate form";
 const FOLLOWUP_AFTER_TRACKED_TYPE = "Follow-up after already tracked";
 const SAME_VISIT_DIFFERENT_TYPE = "Same-visit resubmit (different answers)";
@@ -1897,7 +1901,7 @@ function buildExactFingerprintIndex(rows: TrackingRow[]): {
 }
 
 function buildCrossCohortIndex(rows: TrackingRow[]): {
-  crossKeys: Set<string>;
+  crossRows: TrackingRow[];
   crossCohortGirls: number;
 } {
   const byPerson = new Map<
@@ -1905,7 +1909,6 @@ function buildCrossCohortIndex(rows: TrackingRow[]): {
     { baseline: TrackingRow[]; newSample: TrackingRow[] }
   >();
   for (const row of rows) {
-    if (!isGirlTrackedForMetrics(row)) continue;
     const person = crossCohortPersonKey(row);
     if (!person) continue;
     const cohort = inferTrackingCohort(row);
@@ -1917,21 +1920,18 @@ function buildCrossCohortIndex(rows: TrackingRow[]): {
     if (cohort === "baseline") entry.baseline.push(row);
     else entry.newSample.push(row);
   }
-  const crossKeys = new Set<string>();
+  const crossRows: TrackingRow[] = [];
   let crossCohortGirls = 0;
   for (const entry of byPerson.values()) {
     if (entry.baseline.length === 0 || entry.newSample.length === 0) continue;
     crossCohortGirls += 1;
-    for (const row of [...entry.baseline, ...entry.newSample]) {
-      crossKeys.add(row.KEY);
-    }
+    crossRows.push(...entry.baseline, ...entry.newSample);
   }
-  return { crossKeys, crossCohortGirls };
+  return { crossRows, crossCohortGirls };
 }
 
 type GapCategory =
   | "exact"
-  | "crossCohort"
   | "revisit"
   | "followUpAfterTracked"
   | "sameVisitDifferent"
@@ -1941,16 +1941,19 @@ type GapCategory =
  * Every submission beyond the first chronological attempt per girl is an
  * "extra" that creates the submissions − attempted gap. Classify each extra
  * into exactly one bucket so categories sum to the gap.
+ *
+ * Baseline↔New Sample is reported separately (girl presence in both cohorts)
+ * and is not part of this gap sum.
  */
 function classifyGapExtras(rows: TrackingRow[]): {
   byCategory: Record<GapCategory, TrackingRow[]>;
   exactGroups: number;
+  crossRows: TrackingRow[];
   crossCohortGirls: number;
-  crossCohortAllForms: number;
   uniqueGirls: number;
 } {
   const { exactKeys, exactGroups } = buildExactFingerprintIndex(rows);
-  const { crossKeys, crossCohortGirls } = buildCrossCohortIndex(rows);
+  const { crossRows, crossCohortGirls } = buildCrossCohortIndex(rows);
 
   const byGirl = new Map<string, TrackingRow[]>();
   for (const row of rows) {
@@ -1962,7 +1965,6 @@ function classifyGapExtras(rows: TrackingRow[]): {
 
   const byCategory: Record<GapCategory, TrackingRow[]> = {
     exact: [],
-    crossCohort: [],
     revisit: [],
     followUpAfterTracked: [],
     sameVisitDifferent: [],
@@ -1984,7 +1986,6 @@ function classifyGapExtras(rows: TrackingRow[]): {
 
       let category: GapCategory;
       if (exactKeys.has(row.KEY)) category = "exact";
-      else if (crossKeys.has(row.KEY)) category = "crossCohort";
       else if (priorTracked) category = "followUpAfterTracked";
       else if (isActualRevisitSubmission(row, rows)) category = "revisit";
       else if (sameVisitCount > 1) category = "sameVisitDifferent";
@@ -1997,8 +1998,8 @@ function classifyGapExtras(rows: TrackingRow[]): {
   return {
     byCategory,
     exactGroups,
+    crossRows,
     crossCohortGirls,
-    crossCohortAllForms: crossKeys.size,
     uniqueGirls: byGirl.size,
   };
 }
@@ -2012,19 +2013,18 @@ export function computeDuplicateDetailMetrics(
   const gap = classifyGapExtras(rows);
 
   const exactRows = gap.byCategory.exact;
-  const crossRows = gap.byCategory.crossCohort;
   const revisitRows = gap.byCategory.revisit;
-  const otherRows = [
-    ...gap.byCategory.followUpAfterTracked,
-    ...gap.byCategory.sameVisitDifferent,
-    ...gap.byCategory.other,
-  ];
+  const followUpRows = gap.byCategory.followUpAfterTracked;
+  const sameVisitRows = gap.byCategory.sameVisitDifferent;
+  const otherOnlyRows = gap.byCategory.other;
+  const crossRows = gap.crossRows;
 
   const totalDuplicates =
     exactRows.length +
-    crossRows.length +
     revisitRows.length +
-    otherRows.length;
+    followUpRows.length +
+    sameVisitRows.length +
+    otherOnlyRows.length;
 
   if (includeLists) {
     const toExport = (row: TrackingRow, type: string): RevisitGirlExportRow => ({
@@ -2041,19 +2041,20 @@ export function computeDuplicateDetailMetrics(
     lists.revisitDuplicates = revisitRows.map((r) =>
       toExport(r, REVISIT_DUPLICATE_TYPE)
     );
-    lists.otherExtras = [
-      ...gap.byCategory.followUpAfterTracked.map((r) =>
-        toExport(r, FOLLOWUP_AFTER_TRACKED_TYPE)
-      ),
-      ...gap.byCategory.sameVisitDifferent.map((r) =>
-        toExport(r, SAME_VISIT_DIFFERENT_TYPE)
-      ),
-      ...gap.byCategory.other.map((r) => toExport(r, OTHER_EXTRA_TYPE)),
-    ];
+    lists.followUpAfterTracked = followUpRows.map((r) =>
+      toExport(r, FOLLOWUP_AFTER_TRACKED_TYPE)
+    );
+    lists.sameVisitDifferentAnswers = sameVisitRows.map((r) =>
+      toExport(r, SAME_VISIT_DIFFERENT_TYPE)
+    );
+    lists.otherExtras = otherOnlyRows.map((r) =>
+      toExport(r, OTHER_EXTRA_TYPE)
+    );
     lists.totalDuplicates = mergeDuplicateExportRows(
       lists.exactDuplicates,
-      lists.crossCohortDuplicates,
       lists.revisitDuplicates,
+      lists.followUpAfterTracked,
+      lists.sameVisitDifferentAnswers,
       lists.otherExtras
     );
 
@@ -2073,14 +2074,14 @@ export function computeDuplicateDetailMetrics(
     totalDuplicates,
     totalUnnecessaryRows: totalDuplicates,
     exactDuplicates: exactRows.length,
-    crossCohortDuplicates: crossRows.length,
+    crossCohortDuplicates: gap.crossCohortGirls,
     revisitDuplicates: revisitRows.length,
-    otherExtras: otherRows.length,
-    followUpAfterTracked: gap.byCategory.followUpAfterTracked.length,
-    sameVisitDifferentAnswers: gap.byCategory.sameVisitDifferent.length,
+    otherExtras: otherOnlyRows.length,
+    followUpAfterTracked: followUpRows.length,
+    sameVisitDifferentAnswers: sameVisitRows.length,
     exactDuplicateGroups: gap.exactGroups,
     crossCohortGirls: gap.crossCohortGirls,
-    crossCohortAllForms: gap.crossCohortAllForms,
+    crossCohortAllForms: crossRows.length,
     uniqueGirlsInScope: gap.uniqueGirls,
     submissionsInScope: rows.length,
     lists,

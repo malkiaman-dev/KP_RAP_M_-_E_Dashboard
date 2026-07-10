@@ -145,7 +145,7 @@ export function loadTrackingSurvey(): TrackingRow[] {
 
 /** Fast path for the tracking page UI — counts only, no Excel row arrays. */
 export function loadTrackingMetricsForClient() {
-  const signature = filesSignature(trackingFilePaths());
+  const signature = `v2-gap-extras|${filesSignature(trackingFilePaths())}`;
   return getCached("tracking-metrics-light", signature, () =>
     computeTrackingMetrics(
       loadTrackingSurvey(),
@@ -158,7 +158,7 @@ export function loadTrackingMetricsForClient() {
 
 /** Full metrics including Excel export lists (used by /api/tracking/exports). */
 export function loadTrackingMetrics() {
-  const signature = filesSignature(trackingFilePaths());
+  const signature = `v2-gap-extras|${filesSignature(trackingFilePaths())}`;
   return getCached("tracking-metrics-full", signature, () =>
     computeTrackingMetrics(loadTrackingSurvey(), DEFAULT_TRACKING_TARGETS)
   );
