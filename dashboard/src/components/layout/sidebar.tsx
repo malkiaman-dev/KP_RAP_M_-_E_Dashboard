@@ -29,13 +29,11 @@ import {
   fetchDashboardMetrics,
   fetchHhGirlsExports,
   fetchHhGirlsMetrics,
-  fetchTrackingExports,
   fetchTrackingMetrics,
   QUERY_STALE_MS,
   DASHBOARD_METRICS_QUERY_KEY,
   HH_GIRLS_EXPORTS_QUERY_KEY,
   HH_GIRLS_METRICS_QUERY_KEY,
-  TRACKING_EXPORTS_QUERY_KEY,
   TRACKING_METRICS_QUERY_KEY,
 } from "@/lib/queries/app-data";
 import type { LucideIcon } from "lucide-react";
@@ -131,13 +129,7 @@ export function Sidebar({
         queryFn: fetchTrackingMetrics,
         staleTime: QUERY_STALE_MS,
       });
-      if (href === "/tracking") {
-        void queryClient.prefetchQuery({
-          queryKey: [...TRACKING_EXPORTS_QUERY_KEY],
-          queryFn: fetchTrackingExports,
-          staleTime: QUERY_STALE_MS,
-        });
-      }
+      // Exports are loaded after metrics on the tracking page — skip prefetch.
     }
   };
 

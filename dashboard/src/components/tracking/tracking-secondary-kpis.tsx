@@ -202,9 +202,12 @@ function downloadCardExport(
 export function TrackingSecondaryKpis({
   metrics,
   loading,
+  buildExportMetrics,
 }: {
   metrics?: TrackingMetrics;
   loading?: boolean;
+  /** Rebuild full Excel lists on click when they were skipped during filtering. */
+  buildExportMetrics?: () => TrackingMetrics | undefined;
 }) {
   if (loading) {
     return (
@@ -230,9 +233,12 @@ export function TrackingSecondaryKpis({
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
         {cards.map((card, i) => {
           const exportData = lists[card.key];
-          const hasExport =
+          const hasCachedExport =
             exportData.rows.length > 0 ||
             (exportData.enumeratorSummary?.length ?? 0) > 0;
+          const value = s[card.key] as number;
+          const canDownload =
+            hasCachedExport || (value > 0 && !!buildExportMetrics);
 
           return (
             <StatCard
@@ -240,7 +246,7 @@ export function TrackingSecondaryKpis({
               index={i}
               muted
               label={card.label}
-              value={s[card.key] as number}
+              value={value}
               icon={card.icon}
               color={card.color}
               hint={card.hint}
@@ -251,13 +257,27 @@ export function TrackingSecondaryKpis({
                   ? `2nd attempts: ${s.revisit2ndSubmissions} · 3rd attempts: ${s.revisit3rdSubmissions}`
                   : card.key === "revisitGirls"
                     ? `2nd revisits: ${s.girls2ndRevisit} girls · 3rd revisits: ${s.girls3rdRevisit} girls`
-                    : hasExport
+                    : hasCachedExport
                       ? `${exportData.rows.length || exportData.enumeratorSummary?.length || 0} record(s)`
-                      : undefined
+                      : canDownload
+                        ? "Click to prepare Excel download"
+                        : undefined
               }
               onClick={
-                hasExport
-                  ? () => downloadCardExport(lists, card.key, card.exportLabel)
+                canDownload
+                  ? () => {
+                      if (hasCachedExport) {
+                        downloadCardExport(lists, card.key, card.exportLabel);
+                        return;
+                      }
+                      const full = buildExportMetrics?.();
+                      if (!full?.operationalKpiLists) return;
+                      downloadCardExport(
+                        full.operationalKpiLists,
+                        card.key,
+                        card.exportLabel
+                      );
+                    }
                   : undefined
               }
             />

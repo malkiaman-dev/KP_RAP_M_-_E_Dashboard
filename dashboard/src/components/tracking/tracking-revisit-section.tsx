@@ -189,9 +189,11 @@ function downloadCardList(
 export function TrackingRevisitSection({
   metrics,
   loading,
+  buildExportMetrics,
 }: {
   metrics?: TrackingMetrics;
   loading?: boolean;
+  buildExportMetrics?: () => TrackingMetrics | undefined;
 }) {
   const [expanded, setExpanded] = useState(false);
   const d = metrics?.revisitDetail;
@@ -262,13 +264,17 @@ export function TrackingRevisitSection({
                         {colCards.map((card, i) => {
                           const Icon = card.icon;
                           const list = card.getList?.(d!);
+                          const value = card.value(d!);
+                          const canDownload =
+                            (list && list.length > 0) ||
+                            (value > 0 && !!buildExportMetrics);
                           return (
                             <StatCard
                               key={card.label}
                               index={i}
                               muted
                               label={card.label}
-                              value={card.value(d!)}
+                              value={value}
                               icon={Icon}
                               color={card.color}
                               hint={card.hint}
@@ -276,8 +282,20 @@ export function TrackingRevisitSection({
                               decimals={card.decimals}
                               hoverDetail={card.hoverDetail?.(d!)}
                               onClick={
-                                list
-                                  ? () => downloadCardList(list, card.exportLabel)
+                                canDownload
+                                  ? () => {
+                                      if (list && list.length > 0) {
+                                        downloadCardList(list, card.exportLabel);
+                                        return;
+                                      }
+                                      const full = buildExportMetrics?.();
+                                      const rows = card.getList?.(
+                                        full!.revisitDetail
+                                      );
+                                      if (rows?.length) {
+                                        downloadCardList(rows, card.exportLabel);
+                                      }
+                                    }
                                   : undefined
                               }
                             />

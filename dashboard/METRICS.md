@@ -75,10 +75,10 @@ This is the same definition on the **Tracking** page and the main **Dashboard** 
 |------|-----------|---------|
 | **1** | `house_found = 1` and `girl_found` ∈ {4, 99, 999} | Incomplete, **no revisit** |
 | **2** | `house_found = 1` and `girl_found` ∈ {1, 2, 3} and `girl_found_confirm_enrolled` ∈ {2, 999} | Incomplete, **no revisit**. Other confirm values (1, 888) may continue toward completion. |
-| **3** | `house_found = 2` and `family_whereabouts` ∈ {2, 888, 999} | Incomplete, **no revisit** |
-| **4** | `house_found = 2` and `family_whereabouts = 1` and `family_moveadd_samevill` ∈ {2, 888, 999} | Incomplete, **no revisit** |
+| **3** | `house_found = 2` and `family_whereabouts = 2` (No) | Incomplete, **no revisit**. If `family_whereabouts` is **888** (Don't Know) or **999** (Refused), **revisit needed**. |
+| **4** | `house_found = 2` and `family_whereabouts = 1` and `family_moveadd_samevill` ∈ {2, 888, 999} | **Revisit needed** (No / Don't Know / Refused for new address) |
 | **5** | `house_found = 2` and `family_whereabouts = 1` and `family_moveadd_samevill = 1` | New address entered; re-apply location / girl logics via `house_found_1` (+ girl fields). Tracked only if new house located and girl/consent/status succeed. |
-| **6** | `house_found = 3` | Incomplete, **no revisit** |
+| **6** | `house_found = 3` **and** at least one of `check_villageelder` / `check_lhw` / `check_neighbour` = 1 | Incomplete, **no revisit**. If `house_found = 3` and **none** were asked → **revisit needed**. |
 
 **Field name notes**
 
@@ -162,7 +162,10 @@ Each tracking form records the attempt number in `visit_num`:
 |-----------|--------------|:--------:|
 | Successfully tracked | See §2 | No |
 | Structure located, girl temporarily unavailable | `house_found = 1` & girl blank / not 1–4/99/999 | **Yes** |
-| Protocol Cases 1–6 | See table in §2 | No |
+| Family moved; whereabouts Don't Know / Refused | `house_found = 2` & `family_whereabouts` ∈ {888, 999} | **Yes** |
+| Family in village; no usable new address | `house_found = 2` & `family_whereabouts = 1` & `family_moveadd_samevill` ∈ {2, 888, 999} | **Yes** |
+| House untraceable without verification | `house_found = 3` and none of elder/LHW/neighbour asked | **Yes** |
+| Protocol Cases 1–6 (terminal) | See table in §2 | No |
 | Consent refused | `consent = 0` or `2` | No |
 
 **`girl_found` codes** (SurveyCTO choice list `girlfound`; export column `girl_found`):
@@ -182,7 +185,7 @@ Each tracking form records the attempt number in `visit_num`:
 |-----:|-------|---------|
 | `1` | Yes found the household/family | Continue girl logics |
 | `2` | No, the family has moved away | Cases 3–5 via `family_whereabouts` / `family_moveadd_samevill` |
-| `3` | No, could not trace family | **Case 6** — incomplete, **no revisit** |
+| `3` | No, could not trace family | **Case 6** — incomplete, **no revisit** only if at least one of elder/LHW/neighbour was asked; otherwise **revisit needed** |
 
 **Follow-up KPIs** (operational metrics row):
 

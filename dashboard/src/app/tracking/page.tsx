@@ -19,14 +19,12 @@ import {
   resolveActiveCohort,
   trackingFiltersEqual,
   type TrackingFilters,
+  type TrackingMetrics,
   type TrackingTargets,
 } from "@/lib/data/tracking-metrics";
-import { mergeTrackingExportLists } from "@/lib/data/tracking-serialization";
 import {
-  fetchTrackingExports,
   fetchTrackingMetrics,
   QUERY_STALE_MS,
-  TRACKING_EXPORTS_QUERY_KEY,
   TRACKING_METRICS_QUERY_KEY,
 } from "@/lib/queries/app-data";
 import {
@@ -72,12 +70,6 @@ export default function TrackingPage() {
     staleTime: QUERY_STALE_MS,
   });
 
-  const { data: exports } = useQuery({
-    queryKey: [...TRACKING_EXPORTS_QUERY_KEY],
-    queryFn: fetchTrackingExports,
-    staleTime: QUERY_STALE_MS,
-  });
-
   const targets = useMemo(
     () => targetsForFilters(deferredFilters),
     [deferredFilters]
@@ -91,24 +83,35 @@ export default function TrackingPage() {
   const display = useMemo(() => {
     if (!data?.allSubmissions) return undefined;
 
-    let metrics =
-      trackingFiltersEqual(deferredFilters, defaultTrackingFilters)
-        ? data
-        : computeTrackingMetrics(
-            applyTrackingFilters(data.allSubmissions, deferredFilters),
-            targets,
-            data.allSubmissions
-          );
-
-    if (
-      exports &&
-      trackingFiltersEqual(deferredFilters, defaultTrackingFilters)
-    ) {
-      metrics = mergeTrackingExportLists(metrics, exports);
+    if (trackingFiltersEqual(deferredFilters, defaultTrackingFilters)) {
+      return data;
     }
 
-    return metrics;
-  }, [data, deferredFilters, targets, exports]);
+    // Skip Excel row arrays while filtering — keeps the browser responsive.
+    return computeTrackingMetrics(
+      applyTrackingFilters(data.allSubmissions, deferredFilters),
+      targets,
+      data.allSubmissions,
+      { includeExportLists: false }
+    );
+  }, [data, deferredFilters, targets]);
+
+  /** Build full export lists on demand (download click) for the active filters. */
+  const buildExportMetrics = (): TrackingMetrics | undefined => {
+    if (!data?.allSubmissions) return undefined;
+    return computeTrackingMetrics(
+      applyTrackingFilters(data.allSubmissions, filters),
+      targetsForFilters(filters),
+      data.allSubmissions,
+      { includeExportLists: true }
+    );
+  };
+
+  const onFiltersChange = (next: TrackingFilters) => {
+    // Update filter state immediately so the date picker / chips stay in sync.
+    // Heavy metric recompute is already deferred via useDeferredValue(filters).
+    setFilters(next);
+  };
 
   const showLoading = isLoading || (isFetching && !display);
   const filtering = !trackingFiltersEqual(filters, deferredFilters);
@@ -149,13 +152,13 @@ export default function TrackingPage() {
       <TrackingFiltersPanel
         filterOptions={data?.filterOptions}
         filters={filters}
-        onChange={setFilters}
+        onChange={onFiltersChange}
         showTodayToggle
       />
 
       <TrackingActiveFilters
         filters={filters}
-        onChange={setFilters}
+        onChange={onFiltersChange}
         filterOptions={data?.filterOptions}
       />
 
@@ -179,27 +182,29 @@ export default function TrackingPage() {
         />
       )}
 
-      <TrackingSecondaryKpis metrics={display} loading={showLoading} />
+      <TrackingSecondaryKpis
+        metrics={display}
+        loading={showLoading}
+        buildExportMetrics={buildExportMetrics}
+      />
 
-      <TrackingRevisitSection metrics={display} loading={showLoading} />
+      <TrackingRevisitSection
+        metrics={display}
+        loading={showLoading}
+        buildExportMetrics={buildExportMetrics}
+      />
 
-      <TrackingDuplicateSection metrics={display} loading={showLoading} />
-
-      {display && !showLoading && (
-        <p className="mb-4 text-xs text-muted-foreground">
-          {display.untrackedInData} girls in export not yet successfully tracked ·{" "}
-          {display.secondaryKpis.locatedGirls} households located ·{" "}
-          {display.successTarget.toLocaleString()} success target ·{" "}
-          {Math.round(display.secondaryKpis.avgSubmissionsPerEnumerator)} avg
-          submissions per enumerator
-        </p>
-      )}
+      <TrackingDuplicateSection
+        metrics={display}
+        loading={showLoading}
+        buildExportMetrics={buildExportMetrics}
+      />
 
       <TrackingCharts
         metrics={display}
         loading={showLoading}
         filters={filters}
-        onFilterChange={setFilters}
+        onFilterChange={onFiltersChange}
       />
     </div>
   );

@@ -445,23 +445,35 @@ export function FilterDateRange({
 }: FilterDateRangeProps) {
   const [open, setOpen] = useState(false);
   const [viewDate, setViewDate] = useState(() => new Date());
+  // Draft selection while the calendar is open — do not push to parent until
+  // the range is complete, otherwise the page recomputes and freezes mid-pick.
+  const [draftFrom, setDraftFrom] = useState(dateFrom);
+  const [draftTo, setDraftTo] = useState(dateTo);
   const anchorRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const calendarId = useId();
 
   const minDate = useMemo(() => (min ? parseDateValue(min) : null), [min]);
   const maxDate = useMemo(() => (max ? parseDateValue(max) : null), [max]);
-  const fromDate = parseDateValue(dateFrom);
-  const toDate = parseDateValue(dateTo);
+  const displayFrom = open ? draftFrom : dateFrom;
+  const displayTo = open ? draftTo : dateTo;
+  const fromDate = parseDateValue(displayFrom);
+  const toDate = parseDateValue(displayTo);
   const today = startOfDay(new Date());
   const activeIso = toIsoDateString(today);
 
   const close = () => setOpen(false);
+  const wasOpenRef = useRef(false);
 
+  // Sync draft from props only when the calendar opens — never while picking,
+  // or the first click gets wiped by a parent re-render.
   useEffect(() => {
-    if (open) {
+    if (open && !wasOpenRef.current) {
+      setDraftFrom(dateFrom);
+      setDraftTo(dateTo);
       setViewDate(resolveActiveViewDate(dateFrom, dateTo, minDate, maxDate));
     }
+    wasOpenRef.current = open;
   }, [open, dateFrom, dateTo, minDate, maxDate]);
 
   useDismissiblePanel(open, close, anchorRef, panelRef);
@@ -474,6 +486,8 @@ export function FilterDateRange({
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
   const applyRange = (from: string, to: string) => {
+    setDraftFrom(from);
+    setDraftTo(to);
     onChange({ dateFrom: from, dateTo: to });
     close();
   };
@@ -482,18 +496,19 @@ export function FilterDateRange({
     if (isDateDisabled(day, minDate, maxDate)) return;
     const iso = toIsoDateString(day);
 
-    // First click: start a new selection (keep calendar open).
-    if (!dateFrom || (dateFrom && dateTo)) {
-      onChange({ dateFrom: iso, dateTo: "" });
+    // First click: start a new draft selection (keep calendar open; no parent update).
+    if (!draftFrom || (draftFrom && draftTo)) {
+      setDraftFrom(iso);
+      setDraftTo("");
       return;
     }
 
-    // Second click: complete the range (same day = single-day filter).
-    const start = fromDate!;
+    // Second click: complete the range and apply to filters.
+    const start = parseDateValue(draftFrom)!;
     if (isBefore(day, start)) {
-      applyRange(iso, dateFrom);
+      applyRange(iso, draftFrom);
     } else {
-      applyRange(dateFrom, iso);
+      applyRange(draftFrom, iso);
     }
   };
 
@@ -504,7 +519,10 @@ export function FilterDateRange({
         aria-expanded={open}
         aria-controls={calendarId}
         aria-label={ariaLabel}
-        onClick={() => setOpen((current) => !current)}
+        onClick={(event) => {
+          event.preventDefault();
+          setOpen((current) => !current);
+        }}
         className={cn(
           filterFieldClassName,
           open && "border-teal/60 ring-2 ring-teal/20"
@@ -513,10 +531,10 @@ export function FilterDateRange({
         <span
           className={cn(
             "truncate",
-            !dateFrom && !dateTo && "font-normal text-muted-foreground"
+            !displayFrom && !displayTo && "font-normal text-muted-foreground"
           )}
         >
-          {formatRangeDisplay(dateFrom, dateTo)}
+          {formatRangeDisplay(displayFrom, displayTo)}
         </span>
         <Calendar
           className="ml-2 h-4 w-4 shrink-0 text-muted-foreground"
@@ -532,7 +550,7 @@ export function FilterDateRange({
           <div className="mb-2">
             <p className="text-sm font-semibold text-foreground">Date range</p>
             <p className="text-[11px] text-muted-foreground">
-              {dateFrom && !dateTo
+              {draftFrom && !draftTo
                 ? "Click the same day again for one day only, or another day for a range"
                 : "Click a day to start - click again to finish (same day = single day)"}
             </p>
@@ -580,14 +598,18 @@ export function FilterDateRange({
               const isEnd = toDate ? isSameDay(day, toDate) : false;
               const inRange = isDayInRange(day, fromDate, toDate);
               const isActiveAnchor =
-                !dateFrom && !dateTo && todayMatch && !disabled;
+                !displayFrom && !displayTo && todayMatch && !disabled;
 
               return (
                 <button
                   key={day.toISOString()}
                   type="button"
                   disabled={disabled}
-                  onClick={() => selectDay(day)}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    selectDay(day);
+                  }}
                   className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-lg text-sm transition-colors",
                     !inMonth && "text-muted-foreground/35",
@@ -615,6 +637,8 @@ export function FilterDateRange({
             <button
               type="button"
               onClick={() => {
+                setDraftFrom("");
+                setDraftTo("");
                 onChange({ dateFrom: "", dateTo: "" });
                 close();
               }}

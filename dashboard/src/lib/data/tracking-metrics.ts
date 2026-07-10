@@ -453,16 +453,20 @@ function isEnrollmentConfirmTerminal(row: TrackingRow): boolean {
  *
  * Case 1: house_found=1 + girl_found 4/99/999
  * Case 2: house_found=1 + girl_found 1/2/3 + confirm_enrolled 2/999
- * Case 3: house_found=2 + family_whereabouts 2/888/999
- * Case 4: house_found=2 + whereabouts=1 + moveadd 2/888/999
+ * Case 3: house_found=2 + family_whereabouts = 2 (No — not in village)
+ *          Note: whereabouts 888/999 need a revisit (not terminal)
+ * Case 4: house_found=2 + whereabouts=1 + moveadd 2/888/999 → revisit (not terminal)
  * Case 5 dead-end: new address entered but new house not located (or nested move)
- * Case 6: house_found=3
+ * Case 6: house_found=3 AND at least one of elder/LHW/neighbour was asked
+ *          If house_found=3 with no verification asked → revisit (not terminal)
  */
 function isProtocolTerminalIncomplete(row: TrackingRow): boolean {
   const house = row.house_found?.trim();
 
-  // Case 6
-  if (house === "3") return true;
+  // Case 6: untraceable only closes when verification was attempted
+  if (house === "3") {
+    return hasUntraceableVerificationAsked(row);
+  }
 
   // Case 1
   if (house === "1" && isGirlExplicitlyNotFound(row)) return true;
@@ -480,18 +484,19 @@ function isProtocolTerminalIncomplete(row: TrackingRow): boolean {
     const whereabouts = row.family_whereabouts?.trim();
     const moveadd = row.family_moveadd_samevill?.trim();
 
-    // Case 3
-    if (codeIn(whereabouts, ["2", "888", "999"])) return true;
+    // Case 3 terminal: family moved and confirmed NOT still in village
+    if (whereabouts === "2") return true;
+    // whereabouts 888/999 → revisit needed (handled in priorAttemptRequiresRevisit)
 
-    // Case 4
-    if (whereabouts === "1" && codeIn(moveadd, ["2", "888", "999"])) {
-      return true;
-    }
+    // Case 4: in village but no usable new address (2/888/999) → revisit, not terminal
 
     // Case 5: new address entered — re-check location / girl logics
     if (whereabouts === "1" && moveadd === "1") {
       const house1 = row.house_found_1?.trim();
-      if (house1 === "3") return true;
+      if (house1 === "3") {
+        // Same rule at new address: verified via *_1 checks → terminal
+        return hasUntraceableVerificationAskedAtNewAddress(row);
+      }
       if (house1 === "2") return true; // nested move with no further usable path
       if (house1 === "1") {
         if (isGirlExplicitlyNotFound(row)) return true;
@@ -503,17 +508,78 @@ function isProtocolTerminalIncomplete(row: TrackingRow): boolean {
     }
 
     // Moved away but whereabouts / address path not usable
+    // (blank whereabouts stays terminal; 888/999 and Case 4 are revisit, not terminal)
     if (!whereabouts || (whereabouts === "1" && !moveadd)) return true;
   }
 
   return false;
 }
 
+/** At least one local source was asked when house could not be traced. */
+function hasUntraceableVerificationAsked(row: TrackingRow): boolean {
+  return (
+    row.check_villageelder?.trim() === "1" ||
+    row.check_lhw?.trim() === "1" ||
+    row.check_neighbour?.trim() === "1"
+  );
+}
+
+/** Same verification rule for the new-address path (Case 5 → house_found_1). */
+function hasUntraceableVerificationAskedAtNewAddress(row: TrackingRow): boolean {
+  return (
+    row.check_villageelder_1?.trim() === "1" ||
+    row.check_lhw_1?.trim() === "1" ||
+    row.check_neighbour_1?.trim() === "1"
+  );
+}
+
+/** Case 6 without verification — needs follow-up visit. */
+function isUntraceableRevisitNeeded(row: TrackingRow): boolean {
+  return (
+    row.house_found?.trim() === "3" && !hasUntraceableVerificationAsked(row)
+  );
+}
+
+/** Case 5→6 without verification at new address — needs follow-up visit. */
+function isNewAddressUntraceableRevisitNeeded(row: TrackingRow): boolean {
+  return (
+    row.house_found?.trim() === "2" &&
+    row.family_whereabouts?.trim() === "1" &&
+    row.family_moveadd_samevill?.trim() === "1" &&
+    row.house_found_1?.trim() === "3" &&
+    !hasUntraceableVerificationAskedAtNewAddress(row)
+  );
+}
+
+/** Family moved; whereabouts Don't Know / Refused — needs follow-up visit. */
+function isFamilyWhereaboutsRevisitNeeded(row: TrackingRow): boolean {
+  return (
+    row.house_found?.trim() === "2" &&
+    codeIn(row.family_whereabouts, ["888", "999"])
+  );
+}
+
+/**
+ * Case 4: family still in village but new address unknown / refused / No —
+ * needs follow-up visit.
+ */
+function isFamilyMoveAddressRevisitNeeded(row: TrackingRow): boolean {
+  return (
+    row.house_found?.trim() === "2" &&
+    row.family_whereabouts?.trim() === "1" &&
+    codeIn(row.family_moveadd_samevill, ["2", "888", "999"])
+  );
+}
+
 /** Human-readable protocol case label for exports / filtering. */
 function protocolCaseLabel(row: TrackingRow): string {
   const house = row.house_found?.trim();
 
-  if (house === "3") return "Case 6 — House untraceable";
+  if (house === "3") {
+    return hasUntraceableVerificationAsked(row)
+      ? "Case 6 — House untraceable (verified, no revisit)"
+      : "Case 6 — House untraceable (no elder/LHW/neighbour asked — revisit needed)";
+  }
 
   if (house === "1" && isGirlExplicitlyNotFound(row)) {
     return "Case 1 — Girl permanently not found";
@@ -531,11 +597,14 @@ function protocolCaseLabel(row: TrackingRow): string {
     const whereabouts = row.family_whereabouts?.trim();
     const moveadd = row.family_moveadd_samevill?.trim();
 
-    if (codeIn(whereabouts, ["2", "888", "999"])) {
-      return "Case 3 — Family moved, whereabouts unknown/refused";
+    if (whereabouts === "2") {
+      return "Case 3 — Family moved, not in village (no revisit)";
+    }
+    if (codeIn(whereabouts, ["888", "999"])) {
+      return "Case 3 — Family moved, whereabouts Don't Know/Refused (revisit needed)";
     }
     if (whereabouts === "1" && codeIn(moveadd, ["2", "888", "999"])) {
-      return "Case 4 — Family in village but no new address";
+      return "Case 4 — Family in village but no new address (revisit needed)";
     }
     if (whereabouts === "1" && moveadd === "1") {
       const house1 = row.house_found_1?.trim();
@@ -551,7 +620,11 @@ function protocolCaseLabel(row: TrackingRow): string {
       }
       if (house1 === "1") return "Case 5 — New address located (continue)";
       if (house1 === "2") return "Case 5 — Moved again from new address";
-      if (house1 === "3") return "Case 5→6 — New address untraceable";
+      if (house1 === "3") {
+        return hasUntraceableVerificationAskedAtNewAddress(row)
+          ? "Case 5→6 — New address untraceable (verified, no revisit)"
+          : "Case 5→6 — New address untraceable (no verification asked — revisit needed)";
+      }
       return "Case 5 — New address entered, house not re-checked";
     }
     return "Case — Family moved (path incomplete)";
@@ -729,6 +802,11 @@ function describeProtocolCriteria(row: TrackingRow): string {
     parts.push(
       `Asked elder=${yesNoAskedLabel(row.check_villageelder) || "(blank)"}, LHW=${yesNoAskedLabel(row.check_lhw) || "(blank)"}, neighbour=${yesNoAskedLabel(row.check_neighbour) || "(blank)"}`
     );
+    if (hasUntraceableVerificationAsked(row)) {
+      parts.push("At least one source asked — Incomplete, no revisit");
+    } else {
+      parts.push("No elder/LHW/neighbour asked — Revisit needed");
+    }
     if (row.visit_comments?.trim()) {
       parts.push(`visit_comments: ${row.visit_comments.trim()}`);
     }
@@ -759,12 +837,19 @@ function describeProtocolCriteria(row: TrackingRow): string {
   }
 
   if (row.house_found?.trim() === "2") {
-    // Case 3
-    if (codeIn(row.family_whereabouts, ["2", "888", "999"])) {
+    // Case 3 — No (not in village): terminal. Don't Know / Refused: revisit.
+    if (row.family_whereabouts?.trim() === "2") {
+      parts.push(
+        `Case 3: house_found = 2 (family moved), family_whereabouts = 2 (No)`
+      );
+      parts.push("Incomplete, no revisit");
+      return parts.join(" | ");
+    }
+    if (codeIn(row.family_whereabouts, ["888", "999"])) {
       parts.push(
         `Case 3: house_found = 2 (family moved), family_whereabouts = ${whereabouts} (${yesNoDkRefuseLabel(row.family_whereabouts)})`
       );
-      parts.push("Incomplete, no revisit");
+      parts.push("Revisit needed");
       return parts.join(" | ");
     }
 
@@ -776,7 +861,7 @@ function describeProtocolCriteria(row: TrackingRow): string {
       parts.push(
         `Case 4: house_found = 2, family_whereabouts = 1 (Yes), family_moveadd_samevill = ${moveadd} (${yesNoDkRefuseLabel(row.family_moveadd_samevill)})`
       );
-      parts.push("Incomplete, no revisit");
+      parts.push("Revisit needed");
       return parts.join(" | ");
     }
 
@@ -792,7 +877,15 @@ function describeProtocolCriteria(row: TrackingRow): string {
         parts.push(`new address: ${row.moved_familyaddress.trim()}`);
       }
       if (house1 === "3") {
-        parts.push("Case 5→6: new address untraceable — Incomplete, no revisit");
+        if (hasUntraceableVerificationAskedAtNewAddress(row)) {
+          parts.push(
+            "Case 5→6: new address untraceable with verification — Incomplete, no revisit"
+          );
+        } else {
+          parts.push(
+            "Case 5→6: new address untraceable, no elder/LHW/neighbour asked — Revisit needed"
+          );
+        }
       } else if (house1 === "2") {
         parts.push("Moved again from new address — Incomplete, no revisit");
       } else if (house1 === "1" && isGirlExplicitlyNotFound(row)) {
@@ -956,18 +1049,46 @@ function parseVisitNum(row: TrackingRow): number {
   return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
-function chronologicalGirlSubmissions(
-  allRows: TrackingRow[],
-  girl: string
-): TrackingRow[] {
-  return allRows
-    .filter((r) => girlKey(r) === girl)
-    .sort((a, b) => {
+/**
+ * Per-array index of chronological submissions by girl. Avoids O(n) rescans
+ * inside hot paths (revisit, untracked, summarize) that previously made
+ * computeTrackingMetrics O(n²) on ~3k rows.
+ */
+const girlSubmissionsIndexCache = new WeakMap<
+  TrackingRow[],
+  Map<string, TrackingRow[]>
+>();
+
+function girlSubmissionsIndex(
+  allRows: TrackingRow[]
+): Map<string, TrackingRow[]> {
+  const cached = girlSubmissionsIndexCache.get(allRows);
+  if (cached) return cached;
+
+  const index = new Map<string, TrackingRow[]>();
+  for (const r of allRows) {
+    const key = girlKey(r);
+    const list = index.get(key);
+    if (list) list.push(r);
+    else index.set(key, [r]);
+  }
+  for (const subs of index.values()) {
+    subs.sort((a, b) => {
       const da = parseDate(a.SubmissionDate || "")?.getTime() ?? 0;
       const db = parseDate(b.SubmissionDate || "")?.getTime() ?? 0;
       if (da !== db) return da - db;
       return parseVisitNum(a) - parseVisitNum(b);
     });
+  }
+  girlSubmissionsIndexCache.set(allRows, index);
+  return index;
+}
+
+function chronologicalGirlSubmissions(
+  allRows: TrackingRow[],
+  girl: string
+): TrackingRow[] {
+  return girlSubmissionsIndex(allRows).get(girl) ?? [];
 }
 
 /** True if the girl meets tracking success on any chronological attempt. */
@@ -1021,22 +1142,35 @@ function firstAttemptSubmission(
 /**
  * Tracking-stage revisit rule (protocol Cases 1–6).
  *
- * A revisit is required ONLY when:
- *   - the household structure was successfully located at the listed address
- *     (`house_found = 1`); AND
- *   - the respondent was temporarily unavailable (girl not found positively
- *     and not a permanent not-found / terminal case); AND
- *   - the case is not already completed and consent was not refused.
+ * A revisit is required when:
+ *   - house_found = 1 and girl temporarily unavailable; OR
+ *   - house_found = 2 and family_whereabouts = 888/999 (Don't Know / Refused); OR
+ *   - house_found = 2 and family_whereabouts = 1 and family_moveadd_samevill
+ *     ∈ {2, 888, 999} (Case 4 — no usable new address); OR
+ *   - house_found = 3 with no elder/LHW/neighbour asked (Case 6 unverified)
  *
- * No revisit for protocol terminal incomplete cases (Cases 1–6), consent
- * refusal, family-moved paths that close without a usable new address, or
- * already-tracked submissions.
+ * No revisit for protocol terminal incomplete cases, consent refusal,
+ * family-moved confirmed not in village (whereabouts = 2), verified
+ * untraceable (Case 6 with at least one check asked), or already tracked.
  *
  * Maximum of three chronological attempts is enforced by the callers.
  */
 function priorAttemptRequiresRevisit(row: TrackingRow): boolean {
   if (isTrackedSubmission(row)) return false;
   if (isProtocolTerminalIncomplete(row)) return false;
+
+  // Case 6 without verification → revisit.
+  if (isUntraceableRevisitNeeded(row)) return true;
+
+  // Case 5→6 without verification at new address → revisit.
+  if (isNewAddressUntraceableRevisitNeeded(row)) return true;
+
+  // Family moved; whereabouts Don't Know / Refused → revisit.
+  if (isFamilyWhereaboutsRevisitNeeded(row)) return true;
+
+  // Case 4: in village but new address No / Don't Know / Refused → revisit.
+  if (isFamilyMoveAddressRevisitNeeded(row)) return true;
+
   // Only original listed address can trigger a temporary-unavailability revisit.
   if (row.house_found !== "1") return false;
   if (row.consent === "0" || row.consent === "2") return false;
@@ -1081,19 +1215,35 @@ export function computeRevisitMetrics(
   filteredRows: TrackingRow[],
   allRows: TrackingRow[] = filteredRows
 ): RevisitMetrics {
-  const actual = filteredRows.filter((r) =>
-    isActualRevisitSubmission(r, allRows)
-  );
-  const second = actual.filter((r) => attemptNumberForRow(allRows, r) === 2);
-  const third = actual.filter((r) => attemptNumberForRow(allRows, r) === 3);
+  const secondKeys = new Set<string>();
+  const thirdKeys = new Set<string>();
+  let revisitSubmissions = 0;
+  let revisit2ndSubmissions = 0;
+  let revisit3rdSubmissions = 0;
+  const revisitGirls = new Set<string>();
+
+  for (const r of filteredRows) {
+    if (!isActualRevisitSubmission(r, allRows)) continue;
+    const girl = girlKey(r);
+    const attempt = attemptNumberForRow(allRows, r);
+    revisitSubmissions += 1;
+    revisitGirls.add(girl);
+    if (attempt === 2) {
+      revisit2ndSubmissions += 1;
+      secondKeys.add(girl);
+    } else if (attempt === 3) {
+      revisit3rdSubmissions += 1;
+      thirdKeys.add(girl);
+    }
+  }
 
   return {
-    revisitSubmissions: actual.length,
-    revisitGirls: new Set(actual.map(girlKey)).size,
-    revisit2ndSubmissions: second.length,
-    revisit3rdSubmissions: third.length,
-    girls2ndRevisit: new Set(second.map(girlKey)).size,
-    girls3rdRevisit: new Set(third.map(girlKey)).size,
+    revisitSubmissions,
+    revisitGirls: revisitGirls.size,
+    revisit2ndSubmissions,
+    revisit3rdSubmissions,
+    girls2ndRevisit: secondKeys.size,
+    girls3rdRevisit: thirdKeys.size,
   };
 }
 
@@ -1450,11 +1600,14 @@ function girlPendingRevisit(
 
 export function computeRevisitDetailMetrics(
   filteredRows: TrackingRow[],
-  allRows: TrackingRow[] = filteredRows
+  allRows: TrackingRow[] = filteredRows,
+  options: { includeLists?: boolean } = {}
 ): RevisitDetailData {
+  const includeLists = options.includeLists !== false;
   const attemptedGirls = [...new Set(filteredRows.map(girlKey))];
   const lists = emptyRevisitLists();
   const revisitedGirlRows = new Map<string, RevisitGirlExportRow>();
+  const filteredKeys = new Set(filteredRows.map((r) => r.KEY));
 
   let revisitsNeed2nd = 0;
   let revisitsNeed3rd = 0;
@@ -1468,32 +1621,31 @@ export function computeRevisitDetailMetrics(
 
   for (const girl of attemptedGirls) {
     const subs = chronologicalGirlSubmissions(allRows, girl);
-    const inFilter = filteredRows.some((r) => girlKey(r) === girl);
-
-    if (!inFilter) continue;
 
     const pending = girlPendingRevisit(subs, allRows);
     if (pending === "2nd") {
       revisitsNeed2nd += 1;
-      const row =
-        firstAttemptSubmission(allRows, girl) ?? subs[subs.length - 1]!;
-      const exportRow = toRevisitExportRow(row, "2nd attempt still needed");
-      lists.revisitsNeed2nd.push(exportRow);
-      lists.revisitsNeedToBeDone.push(exportRow);
+      if (includeLists) {
+        const row =
+          firstAttemptSubmission(allRows, girl) ?? subs[subs.length - 1]!;
+        const exportRow = toRevisitExportRow(row, "2nd attempt still needed");
+        lists.revisitsNeed2nd.push(exportRow);
+        lists.revisitsNeedToBeDone.push(exportRow);
+      }
     } else if (pending === "3rd") {
       revisitsNeed3rd += 1;
-      const second = latestActualRevisitSubmission(subs, allRows, 2)!;
-      const exportRow = toRevisitExportRow(second, "3rd attempt still needed");
-      lists.revisitsNeed3rd.push(exportRow);
-      lists.revisitsNeedToBeDone.push(exportRow);
+      if (includeLists) {
+        const second = latestActualRevisitSubmission(subs, allRows, 2)!;
+        const exportRow = toRevisitExportRow(second, "3rd attempt still needed");
+        lists.revisitsNeed3rd.push(exportRow);
+        lists.revisitsNeedToBeDone.push(exportRow);
+      }
     }
 
     const second = latestActualRevisitSubmission(subs, allRows, 2);
     const third = latestActualRevisitSubmission(subs, allRows, 3);
-    const hasSecondInFilter =
-      second && filteredRows.some((r) => r.KEY === second.KEY);
-    const hasThirdInFilter =
-      third && filteredRows.some((r) => r.KEY === third.KEY);
+    const hasSecondInFilter = second ? filteredKeys.has(second.KEY) : false;
+    const hasThirdInFilter = third ? filteredKeys.has(third.KEY) : false;
 
     // Girl-level outcome: if any attempt eventually succeeds, prior failed
     // revisits must not remain in "not tracked" counts or exports.
@@ -1501,36 +1653,50 @@ export function computeRevisitDetailMetrics(
 
     if (hasSecondInFilter) {
       girls2ndRevisited += 1;
-      const exportRow = toRevisitExportRow(second!, "2nd revisit");
-      lists.girls2ndRevisited.push(exportRow);
-      if (isTrackedSubmission(second!) || isGirlTrackedForMetrics(second!)) {
+      if (includeLists) {
+        const exportRow = toRevisitExportRow(second!, "2nd revisit");
+        lists.girls2ndRevisited.push(exportRow);
+        if (isTrackedSubmission(second!) || isGirlTrackedForMetrics(second!)) {
+          girlsTrackedOn2ndRevisit += 1;
+          lists.girlsTrackedOn2ndRevisit.push(exportRow);
+        } else if (!eventuallyTracked) {
+          girlsNotTrackedOn2ndRevisit += 1;
+          lists.girlsNotTrackedOn2ndRevisit.push(exportRow);
+        }
+        revisitedGirlRows.set(girl, exportRow);
+      } else if (isTrackedSubmission(second!) || isGirlTrackedForMetrics(second!)) {
         girlsTrackedOn2ndRevisit += 1;
-        lists.girlsTrackedOn2ndRevisit.push(exportRow);
       } else if (!eventuallyTracked) {
         girlsNotTrackedOn2ndRevisit += 1;
-        lists.girlsNotTrackedOn2ndRevisit.push(exportRow);
       }
-      revisitedGirlRows.set(girl, exportRow);
     }
 
     if (hasThirdInFilter) {
       girls3rdRevisited += 1;
-      const exportRow = toRevisitExportRow(third!, "3rd revisit");
-      lists.girls3rdRevisited.push(exportRow);
-      if (isTrackedSubmission(third!) || isGirlTrackedForMetrics(third!)) {
+      if (includeLists) {
+        const exportRow = toRevisitExportRow(third!, "3rd revisit");
+        lists.girls3rdRevisited.push(exportRow);
+        if (isTrackedSubmission(third!) || isGirlTrackedForMetrics(third!)) {
+          girlsTrackedOn3rdRevisit += 1;
+          lists.girlsTrackedOn3rdRevisit.push(exportRow);
+        } else if (!eventuallyTracked) {
+          girlsNotTrackedOn3rdRevisit += 1;
+          lists.girlsNotTrackedOn3rdRevisit.push(exportRow);
+        }
+        revisitedGirlRows.set(girl, exportRow);
+      } else if (isTrackedSubmission(third!) || isGirlTrackedForMetrics(third!)) {
         girlsTrackedOn3rdRevisit += 1;
-        lists.girlsTrackedOn3rdRevisit.push(exportRow);
       } else if (!eventuallyTracked) {
         girlsNotTrackedOn3rdRevisit += 1;
-        lists.girlsNotTrackedOn3rdRevisit.push(exportRow);
       }
-      revisitedGirlRows.set(girl, exportRow);
     }
 
     if (hasSecondInFilter || hasThirdInFilter) totalRevisitedGirls += 1;
   }
 
-  lists.totalRevisitedGirls = [...revisitedGirlRows.values()];
+  if (includeLists) {
+    lists.totalRevisitedGirls = [...revisitedGirlRows.values()];
+  }
 
   return {
     revisitsNeedToBeDone: revisitsNeed2nd + revisitsNeed3rd,
@@ -1637,14 +1803,20 @@ const UNNECESSARY_FOLLOWUP_TYPE = "Unnecessary follow-up after success";
  * - Attempts 1 & 2 fail, attempt 3 done (fail or success) → 2 (attempts 1 & 2 obsolete)
  */
 function computeSequentialDuplicateIssues(
-  rows: TrackingRow[]
-): Pick<
-  Record<DuplicateDetailListKey, RevisitGirlExportRow[]>,
-  "supersededUnsuccessful" | "unnecessaryFollowUp"
-> {
+  rows: TrackingRow[],
+  options: { includeLists?: boolean } = {}
+): {
+  supersededUnsuccessful: RevisitGirlExportRow[];
+  unnecessaryFollowUp: RevisitGirlExportRow[];
+  supersededUnsuccessfulCount: number;
+  unnecessaryFollowUpCount: number;
+} {
+  const includeLists = options.includeLists !== false;
   const supersededUnsuccessful: RevisitGirlExportRow[] = [];
   const unnecessaryFollowUp: RevisitGirlExportRow[] = [];
   const girls = [...new Set(rows.map(girlKey))];
+  let supersededUnsuccessfulCount = 0;
+  let unnecessaryFollowUpCount = 0;
 
   for (const girl of girls) {
     const attempts = girlAttemptSequence(rows, girl);
@@ -1654,11 +1826,14 @@ function computeSequentialDuplicateIssues(
       const before = attempts.slice(0, i).map((a) => a.row);
 
       if (attemptNumber >= 2 && before.some(isTrackedSubmission)) {
-        unnecessaryFollowUp.push({
-          ...toGirlExportRow(row, UNNECESSARY_FOLLOWUP_TYPE),
-          duplicateType: UNNECESSARY_FOLLOWUP_TYPE,
-          visitNum: String(attemptNumber),
-        });
+        unnecessaryFollowUpCount += 1;
+        if (includeLists) {
+          unnecessaryFollowUp.push({
+            ...toGirlExportRow(row, UNNECESSARY_FOLLOWUP_TYPE),
+            duplicateType: UNNECESSARY_FOLLOWUP_TYPE,
+            visitNum: String(attemptNumber),
+          });
+        }
         continue;
       }
 
@@ -1667,15 +1842,23 @@ function computeSequentialDuplicateIssues(
       const hasLaterAttempt = attemptNumber < attempts.length;
       if (!hasLaterAttempt) continue;
 
-      supersededUnsuccessful.push({
-        ...toGirlExportRow(row, SUPERSEDED_FAILED_ATTEMPT_TYPE),
-        duplicateType: SUPERSEDED_FAILED_ATTEMPT_TYPE,
-        visitNum: String(attemptNumber),
-      });
+      supersededUnsuccessfulCount += 1;
+      if (includeLists) {
+        supersededUnsuccessful.push({
+          ...toGirlExportRow(row, SUPERSEDED_FAILED_ATTEMPT_TYPE),
+          duplicateType: SUPERSEDED_FAILED_ATTEMPT_TYPE,
+          visitNum: String(attemptNumber),
+        });
+      }
     }
   }
 
-  return { supersededUnsuccessful, unnecessaryFollowUp };
+  return {
+    supersededUnsuccessful,
+    unnecessaryFollowUp,
+    supersededUnsuccessfulCount,
+    unnecessaryFollowUpCount,
+  };
 }
 
 function mergeDuplicateExportRows(
@@ -1710,8 +1893,10 @@ function mergeDuplicateExportRows(
 }
 
 export function computeDuplicateDetailMetrics(
-  rows: TrackingRow[]
+  rows: TrackingRow[],
+  options: { includeLists?: boolean } = {}
 ): DuplicateDetailData {
+  const includeLists = options.includeLists !== false;
   const visitGroups = new Map<string, TrackingRow[]>();
   for (const row of rows) {
     const k = `${girlKey(row)}_${row.visit_num || "1"}`;
@@ -1721,15 +1906,26 @@ export function computeDuplicateDetailMetrics(
 
   const lists = emptyDuplicateLists();
   let duplicateGroups = 0;
+  let sameVisitDuplicateRows = 0;
+  let exactDuplicates = 0;
+  let revisitDuplicates = 0;
+  let differentEnumeratorDuplicates = 0;
 
   for (const subs of visitGroups.values()) {
     if (subs.length <= 1) continue;
     duplicateGroups += 1;
+    sameVisitDuplicateRows += subs.length;
 
     const duplicateType = classifyDuplicateGroup(subs);
     const isExact = duplicateType.includes("Exact duplicate");
     const isRevisit = duplicateType.includes("Revisit duplicate");
     const isDiffEnum = duplicateType.includes("Different enumerator duplicate");
+
+    if (isExact) exactDuplicates += subs.length;
+    if (isRevisit) revisitDuplicates += subs.length;
+    if (isDiffEnum) differentEnumeratorDuplicates += subs.length;
+
+    if (!includeLists) continue;
 
     for (const row of subs) {
       const exportRow: RevisitGirlExportRow = {
@@ -1743,40 +1939,52 @@ export function computeDuplicateDetailMetrics(
     }
   }
 
-  const sequential = computeSequentialDuplicateIssues(rows);
-  lists.supersededUnsuccessful = sequential.supersededUnsuccessful;
-  lists.unnecessaryFollowUp = sequential.unnecessaryFollowUp;
+  let supersededUnsuccessful = 0;
+  let unnecessaryFollowUp = 0;
 
-  lists.totalDuplicates = mergeDuplicateExportRows(
-    lists.sameVisitDuplicates,
-    lists.supersededUnsuccessful,
-    lists.unnecessaryFollowUp
-  );
+  const sequential = computeSequentialDuplicateIssues(rows, { includeLists });
+  supersededUnsuccessful = sequential.supersededUnsuccessfulCount;
+  unnecessaryFollowUp = sequential.unnecessaryFollowUpCount;
 
-  const sortByDate = (
-    a: RevisitGirlExportRow,
-    b: RevisitGirlExportRow
-  ) =>
-    new Date(b.submissionDate || 0).getTime() -
-    new Date(a.submissionDate || 0).getTime();
+  if (includeLists) {
+    lists.supersededUnsuccessful = sequential.supersededUnsuccessful;
+    lists.unnecessaryFollowUp = sequential.unnecessaryFollowUp;
 
-  for (const key of Object.keys(lists) as DuplicateDetailListKey[]) {
-    lists[key].sort(sortByDate);
+    lists.totalDuplicates = mergeDuplicateExportRows(
+      lists.sameVisitDuplicates,
+      lists.supersededUnsuccessful,
+      lists.unnecessaryFollowUp
+    );
+
+    const sortByDate = (
+      a: RevisitGirlExportRow,
+      b: RevisitGirlExportRow
+    ) =>
+      new Date(b.submissionDate || 0).getTime() -
+      new Date(a.submissionDate || 0).getTime();
+
+    for (const key of Object.keys(lists) as DuplicateDetailListKey[]) {
+      lists[key].sort(sortByDate);
+    }
   }
 
-  const sameVisitDuplicateRows = lists.sameVisitDuplicates.length;
   const extraDuplicates = sameVisitDuplicateRows - duplicateGroups;
 
   return {
-    totalUnnecessaryRows: lists.totalDuplicates.length,
+    totalUnnecessaryRows:
+      sameVisitDuplicateRows + supersededUnsuccessful + unnecessaryFollowUp,
     sameVisitDuplicateRows,
     extraDuplicates,
     uniqueGirlVisitSlots: visitGroups.size,
-    exactDuplicates: lists.exactDuplicates.length,
-    revisitDuplicates: lists.revisitDuplicates.length,
-    differentEnumeratorDuplicates: lists.differentEnumeratorDuplicates.length,
-    supersededUnsuccessful: lists.supersededUnsuccessful.length,
-    unnecessaryFollowUp: lists.unnecessaryFollowUp.length,
+    exactDuplicates: includeLists ? lists.exactDuplicates.length : exactDuplicates,
+    revisitDuplicates: includeLists
+      ? lists.revisitDuplicates.length
+      : revisitDuplicates,
+    differentEnumeratorDuplicates: includeLists
+      ? lists.differentEnumeratorDuplicates.length
+      : differentEnumeratorDuplicates,
+    supersededUnsuccessful,
+    unnecessaryFollowUp,
     duplicateGroups,
     lists,
   };
@@ -2318,11 +2526,21 @@ function computeCohortMetrics(
   };
 }
 
+export interface ComputeTrackingOptions {
+  /**
+   * When false, skip building Excel export row arrays (counts still computed).
+   * Use on the client during filter changes to keep the UI responsive.
+   */
+  includeExportLists?: boolean;
+}
+
 export function computeTrackingMetrics(
   rows: TrackingRow[],
   targets: TrackingTargets = DEFAULT_TRACKING_TARGETS,
-  allRows: TrackingRow[] = rows
+  allRows: TrackingRow[] = rows,
+  options: ComputeTrackingOptions = {}
 ) {
+  const includeExportLists = options.includeExportLists !== false;
   const girls = summarizeByGirl(rows, allRows);
   const trackedGirls = girls.filter((g) => g.tracked);
   const untrackedGirls = girls.filter((g) => !g.tracked);
@@ -2500,14 +2718,20 @@ export function computeTrackingMetrics(
     .sort((a, b) => a.getTime() - b.getTime());
 
   const revisit = computeRevisitMetrics(rows, allRows);
-  const revisitDetail = computeRevisitDetailMetrics(rows, allRows);
-  const duplicateDetail = computeDuplicateDetailMetrics(rows);
-  const operationalKpiLists = computeOperationalKpiLists(
-    rows,
-    allRows,
-    revisitDetail,
-    duplicateDetail
-  );
+  const revisitDetail = computeRevisitDetailMetrics(rows, allRows, {
+    includeLists: includeExportLists,
+  });
+  const duplicateDetail = computeDuplicateDetailMetrics(rows, {
+    includeLists: includeExportLists,
+  });
+  const operationalKpiLists = includeExportLists
+    ? computeOperationalKpiLists(
+        rows,
+        allRows,
+        revisitDetail,
+        duplicateDetail
+      )
+    : emptyOperationalKpiLists();
 
   const districts = districtIds.map((d) => ({
     value: d,
@@ -2697,13 +2921,15 @@ export function computeTrackingMetrics(
         end: dates[dates.length - 1]?.toISOString().slice(0, 10) || "",
       },
     },
-    allSubmissions: rows
-      .slice()
-      .sort(
-        (a, b) =>
-          new Date(b.SubmissionDate || 0).getTime() -
-          new Date(a.SubmissionDate || 0).getTime()
-      ),
+    allSubmissions: includeExportLists
+      ? rows
+          .slice()
+          .sort(
+            (a, b) =>
+              new Date(b.SubmissionDate || 0).getTime() -
+              new Date(a.SubmissionDate || 0).getTime()
+          )
+      : rows,
   };
 }
 

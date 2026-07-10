@@ -121,9 +121,11 @@ function downloadCardList(
 export function TrackingDuplicateSection({
   metrics,
   loading,
+  buildExportMetrics,
 }: {
   metrics?: TrackingMetrics;
   loading?: boolean;
+  buildExportMetrics?: () => TrackingMetrics | undefined;
 }) {
   const [expanded, setExpanded] = useState(false);
   const d = metrics?.duplicateDetail;
@@ -208,7 +210,12 @@ export function TrackingDuplicateSection({
                       card.exportable !== false && card.listKey
                         ? d!.lists[card.listKey]
                         : undefined;
-                    const hasExport = (list?.length ?? 0) > 0;
+                    const value = card.value(d!);
+                    const hasCachedExport = (list?.length ?? 0) > 0;
+                    const canDownload =
+                      card.exportable !== false &&
+                      !!card.exportLabel &&
+                      (hasCachedExport || (value > 0 && !!buildExportMetrics));
 
                     return (
                       <StatCard
@@ -216,15 +223,26 @@ export function TrackingDuplicateSection({
                         index={i}
                         muted
                         label={card.label}
-                        value={card.value(d!)}
+                        value={value}
                         icon={card.icon}
                         color={card.color}
                         hint={card.hint}
                         hoverDetail={card.hoverDetail?.(d!)}
                         onClick={
-                          hasExport && card.exportLabel
-                            ? () =>
-                                downloadCardList(list!, card.exportLabel!)
+                          canDownload
+                            ? () => {
+                                if (hasCachedExport && list) {
+                                  downloadCardList(list, card.exportLabel!);
+                                  return;
+                                }
+                                const full = buildExportMetrics?.();
+                                const rows =
+                                  card.listKey &&
+                                  full?.duplicateDetail.lists[card.listKey];
+                                if (rows?.length) {
+                                  downloadCardList(rows, card.exportLabel!);
+                                }
+                              }
                             : undefined
                         }
                       />

@@ -59,15 +59,18 @@ export function prefetchAppQueries(queryClient: QueryClient) {
     queryFn: fetchTrackingMetrics,
     staleTime: QUERY_STALE_MS,
   });
-  void queryClient.prefetchQuery({
-    queryKey: [...TRACKING_EXPORTS_QUERY_KEY],
-    queryFn: fetchTrackingExports,
-    staleTime: QUERY_STALE_MS,
-  });
-  void queryClient.prefetchQuery({
-    queryKey: [...DASHBOARD_METRICS_QUERY_KEY],
-    queryFn: fetchDashboardMetrics,
-    staleTime: QUERY_STALE_MS,
+  // Defer dashboard metrics so they do not compete with tracking on cold start
+  // (Node is single-threaded; parallel heavy computes serialize wall-clock).
+  const schedule =
+    typeof globalThis.requestIdleCallback === "function"
+      ? globalThis.requestIdleCallback
+      : (cb: () => void) => window.setTimeout(cb, 2500);
+  schedule(() => {
+    void queryClient.prefetchQuery({
+      queryKey: [...DASHBOARD_METRICS_QUERY_KEY],
+      queryFn: fetchDashboardMetrics,
+      staleTime: QUERY_STALE_MS,
+    });
   });
 }
 
