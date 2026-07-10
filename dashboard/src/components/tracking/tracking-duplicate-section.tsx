@@ -31,12 +31,11 @@ type CardDef = {
   listKey?: DuplicateDetailListKey;
   value: number;
   hoverDetail?: string;
-  hideWhenZero?: boolean;
 };
 
 /**
- * Build the exclusive gap breakdown so categories always sum to
- * submissions − attempted girls (never double-count).
+ * Exclusive gap breakdown. Same person in Baseline + New Sample counts as one
+ * girl, so Baseline↔New Sample extras are inside submissions − attempted.
  */
 function gapBreakdown(d: Detail) {
   const submissions = d.submissionsInScope ?? 0;
@@ -47,26 +46,28 @@ function gapBreakdown(d: Detail) {
       : (d.totalDuplicates ?? d.totalUnnecessaryRows ?? 0);
 
   const exact = d.exactDuplicates ?? 0;
+  const cross = d.crossCohortDuplicates ?? 0;
   const revisit = d.revisitDuplicates ?? 0;
   const afterTracked = d.followUpAfterTracked ?? 0;
   const sameVisit = d.sameVisitDifferentAnswers ?? 0;
-  // Residual only — ignores stale otherExtras that used to include afterTracked+sameVisit
   const other = Math.max(
     0,
-    total - exact - revisit - afterTracked - sameVisit
+    total - exact - cross - revisit - afterTracked - sameVisit
   );
 
-  return { submissions, girls, total, exact, revisit, afterTracked, sameVisit, other };
+  return {
+    submissions,
+    girls,
+    total,
+    exact,
+    cross,
+    revisit,
+    afterTracked,
+    sameVisit,
+    other,
+    crossGirls: d.crossCohortGirls ?? 0,
+  };
 }
-
-const crossCohortCardBase = {
-  label: "Baseline ↔ New Sample",
-  exportLabel: "cross-cohort-duplicates",
-  hint: "Girls present in both cohorts (tracked or not) — not part of the extra-forms gap",
-  icon: Users,
-  color: "text-fuchsia-600",
-  listKey: "crossCohortDuplicates" as const,
-};
 
 function downloadCardList(rows: RevisitGirlExportRow[], exportLabel: string) {
   const date = new Date().toISOString().slice(0, 10);
@@ -131,7 +132,6 @@ export function TrackingDuplicateSection({
   const [expanded, setExpanded] = useState(false);
   const d = metrics?.duplicateDetail;
   const gap = useMemo(() => (d ? gapBreakdown(d) : null), [d]);
-  const crossGirls = d?.crossCohortGirls ?? d?.crossCohortDuplicates ?? 0;
 
   const gapCards: CardDef[] = useMemo(() => {
     if (!gap) return [];
@@ -139,7 +139,7 @@ export function TrackingDuplicateSection({
       {
         label: "Total Extra Forms",
         exportLabel: "total-extra-forms",
-        hint: "Submissions − Attempted girls. Categories below are exclusive and sum to this.",
+        hint: "Submissions − unique girls (Baseline↔New Sample pairs count as one girl). Categories below sum to this.",
         icon: Copy,
         color: "text-purple-600",
         listKey: "totalDuplicates",
@@ -155,6 +155,16 @@ export function TrackingDuplicateSection({
         listKey: "exactDuplicates",
         value: gap.exact,
         hoverDetail: `${d?.exactDuplicateGroups ?? 0} matching group(s)`,
+      },
+      {
+        label: "Baseline ↔ New Sample",
+        exportLabel: "cross-cohort-duplicates",
+        hint: "Extra form from the other cohort when the same girl appears in both Baseline and New Sample",
+        icon: Users,
+        color: "text-fuchsia-600",
+        listKey: "crossCohortDuplicates",
+        value: gap.cross,
+        hoverDetail: `${gap.crossGirls} girl(s) present in both cohorts`,
       },
       {
         label: "Revisit Duplicates",
@@ -188,7 +198,7 @@ export function TrackingDuplicateSection({
       cards.push({
         label: "Other Extras",
         exportLabel: "other-extras",
-        hint: "Remaining extras that do not fit Exact / Revisit / After tracked / Same visit",
+        hint: "Remaining extras that do not fit the categories above",
         icon: Layers,
         color: "text-slate-600",
         listKey: "otherExtras",
@@ -198,12 +208,15 @@ export function TrackingDuplicateSection({
     return cards;
   }, [gap, d?.exactDuplicateGroups]);
 
-  if (!loading && (!d || !gap || (gap.total === 0 && crossGirls === 0))) {
-    return null;
-  }
+  if (!loading && (!d || !gap || gap.total === 0)) return null;
 
   const partsSum = gap
-    ? gap.exact + gap.revisit + gap.afterTracked + gap.sameVisit + gap.other
+    ? gap.exact +
+      gap.cross +
+      gap.revisit +
+      gap.afterTracked +
+      gap.sameVisit +
+      gap.other
     : 0;
 
   return (
@@ -216,28 +229,25 @@ export function TrackingDuplicateSection({
             </p>
             {!expanded && gap && (
               <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-700">
-                {gap.total} extra forms (= submissions − attempted)
+                {gap.total} extra forms (= submissions − girls)
               </span>
             )}
           </div>
           {expanded && gap && (
             <div className="mt-1 space-y-1 text-[10px] text-muted-foreground">
               <p>
-                Only the gap between submissions and attempted girls — each extra
-                form is in exactly one category.
+                Same girl in Baseline and New Sample counts as one attempted girl,
+                so those forms are included in the gap below.
               </p>
               <p className="font-medium text-foreground">
                 {gap.submissions.toLocaleString()} submissions −{" "}
-                {gap.girls.toLocaleString()} attempted ={" "}
-                {gap.total.toLocaleString()}
+                {gap.girls.toLocaleString()} girls = {gap.total.toLocaleString()}
                 {" = "}
-                Exact {gap.exact.toLocaleString()} + Revisit{" "}
-                {gap.revisit.toLocaleString()} + After tracked{" "}
-                {gap.afterTracked.toLocaleString()} + Same visit{" "}
+                Exact {gap.exact.toLocaleString()} + Baseline↔New Sample{" "}
+                {gap.cross.toLocaleString()} + Revisit {gap.revisit.toLocaleString()}{" "}
+                + After tracked {gap.afterTracked.toLocaleString()} + Same visit{" "}
                 {gap.sameVisit.toLocaleString()}
-                {gap.other > 0
-                  ? ` + Other ${gap.other.toLocaleString()}`
-                  : ""}
+                {gap.other > 0 ? ` + Other ${gap.other.toLocaleString()}` : ""}
                 {" = "}
                 {partsSum.toLocaleString()}
               </p>
@@ -272,46 +282,20 @@ export function TrackingDuplicateSection({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="space-y-4 p-4 sm:p-5">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3">
-                {loading
-                  ? Array.from({ length: 5 }).map((_, i) => (
-                      <StatCardSkeleton key={i} count={1} />
-                    ))
-                  : gapCards.map((card, i) => (
-                      <DuplicateStatCard
-                        key={card.label}
-                        card={card}
-                        index={i}
-                        detail={d!}
-                        buildExportMetrics={buildExportMetrics}
-                      />
-                    ))}
-              </div>
-
-              {(loading || crossGirls > 0) && (
-                <div>
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Also flagged (not in the {gap?.total ?? ""} above)
-                  </p>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3">
-                    {loading ? (
-                      <StatCardSkeleton count={1} />
-                    ) : (
-                      <DuplicateStatCard
-                        card={{
-                          ...crossCohortCardBase,
-                          value: crossGirls,
-                          hoverDetail: `${d!.crossCohortAllForms ?? 0} submission(s) · matched by district, village, name, father`,
-                        }}
-                        index={gapCards.length}
-                        detail={d!}
-                        buildExportMetrics={buildExportMetrics}
-                      />
-                    )}
-                  </div>
-                </div>
-              )}
+            <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 sm:p-5 lg:grid-cols-3">
+              {loading
+                ? Array.from({ length: 6 }).map((_, i) => (
+                    <StatCardSkeleton key={i} count={1} />
+                  ))
+                : gapCards.map((card, i) => (
+                    <DuplicateStatCard
+                      key={card.label}
+                      card={card}
+                      index={i}
+                      detail={d!}
+                      buildExportMetrics={buildExportMetrics}
+                    />
+                  ))}
             </div>
           </motion.div>
         )}

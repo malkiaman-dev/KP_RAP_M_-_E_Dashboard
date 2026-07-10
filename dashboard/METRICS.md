@@ -230,7 +230,7 @@ Secondary KPI row. All respect active filters.
 | **Consent Rate %** | `(Unique girls with consent = 1 among located households ÷ Unique girls with located household) × 100` | Girl |
 | **Form Completion %** | `(Submissions with survey_status = 1 ÷ Total submissions) × 100` | Submission |
 | **Incomplete / Other** | Submissions with `survey_status = 2` or `99` | Submission |
-| **Extra / unnecessary forms** | `Total Submissions − Attempted Girls`. Mutually exclusive: **Exact duplicates** + **Revisit duplicates** + **After already tracked** + **Same visit, different answers** + **Other**. **Baseline ↔ New Sample** is separate (girls in both cohorts) and not in that sum. | Submission |
+| **Extra / unnecessary forms** | `Submissions − unique girls`, where the same person in Baseline and New Sample counts as **one** girl. Mutually exclusive: **Exact** + **Baseline↔New Sample** + **Revisit** + **After already tracked** + **Same visit, different answers** + **Other**. | Submission |
 | **Girls / Enumerator** | `Girls Attempted ÷ Total Enumerators` | Average |
 
 ### Form Completion % vs Success Rate %

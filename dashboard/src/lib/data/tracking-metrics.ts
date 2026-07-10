@@ -1732,10 +1732,9 @@ export type DuplicateDetailListKey =
 
 export interface DuplicateDetailMetrics {
   /**
-   * Extra submissions beyond one per girl:
-   * `totalSubmissions − uniqueGirlsAttempted`.
-   * Exact + Revisit + Follow-up after tracked + Same-visit different + Other
-   * are mutually exclusive and sum to this total.
+   * Extra submissions beyond one per girl (same person in Baseline + New Sample
+   * counted once). Categories below are mutually exclusive and sum to this:
+   * Exact + Baseline↔New Sample + Revisit + After tracked + Same visit + Other.
    */
   totalDuplicates: number;
   /** @deprecated Use totalDuplicates */
@@ -1743,8 +1742,8 @@ export interface DuplicateDetailMetrics {
   /** Extra forms with identical survey answers to another form (KEY/date may differ) */
   exactDuplicates: number;
   /**
-   * Girls present in both Baseline and New Sample (any outcome — tracked or not).
-   * Not part of the submissions−attempted gap sum.
+   * Extra forms from the other cohort when the same person appears in both
+   * Baseline and New Sample (matched by district + village + name + father).
    */
   crossCohortDuplicates: number;
   /**
@@ -1753,8 +1752,8 @@ export interface DuplicateDetailMetrics {
    */
   revisitDuplicates: number;
   /**
-   * Leftover extras that are not exact / revisit / follow-up-after-tracked /
-   * same-visit-different.
+   * Leftover extras that are not exact / cross-cohort / revisit /
+   * follow-up-after-tracked / same-visit-different.
    */
   otherExtras: number;
   /** Extra form after the girl was already successfully tracked */
@@ -1763,11 +1762,14 @@ export interface DuplicateDetailMetrics {
   sameVisitDifferentAnswers: number;
   /** Distinct exact-content fingerprint groups with more than one submission */
   exactDuplicateGroups: number;
-  /** Same as crossCohortDuplicates — girls present in both cohorts */
+  /** Persons present in both Baseline and New Sample */
   crossCohortGirls: number;
   /** All submissions for girls present in both Baseline and New Sample */
   crossCohortAllForms: number;
-  /** Unique girls attempted in the filtered rows (for gap identity check) */
+  /**
+   * Unique girls in scope for the gap: listing IDs merged when the same person
+   * appears in both cohorts.
+   */
   uniqueGirlsInScope: number;
   /** Total submissions in scope */
   submissionsInScope: number;
@@ -1900,94 +1902,94 @@ function buildExactFingerprintIndex(rows: TrackingRow[]): {
   return { exactKeys, exactGroups };
 }
 
-function buildCrossCohortIndex(rows: TrackingRow[]): {
-  crossRows: TrackingRow[];
-  crossCohortGirls: number;
-} {
-  const byPerson = new Map<
-    string,
-    { baseline: TrackingRow[]; newSample: TrackingRow[] }
-  >();
-  for (const row of rows) {
-    const person = crossCohortPersonKey(row);
-    if (!person) continue;
-    const cohort = inferTrackingCohort(row);
-    let entry = byPerson.get(person);
-    if (!entry) {
-      entry = { baseline: [], newSample: [] };
-      byPerson.set(person, entry);
-    }
-    if (cohort === "baseline") entry.baseline.push(row);
-    else entry.newSample.push(row);
-  }
-  const crossRows: TrackingRow[] = [];
-  let crossCohortGirls = 0;
-  for (const entry of byPerson.values()) {
-    if (entry.baseline.length === 0 || entry.newSample.length === 0) continue;
-    crossCohortGirls += 1;
-    crossRows.push(...entry.baseline, ...entry.newSample);
-  }
-  return { crossRows, crossCohortGirls };
-}
-
 type GapCategory =
   | "exact"
+  | "crossCohort"
   | "revisit"
   | "followUpAfterTracked"
   | "sameVisitDifferent"
   | "other";
 
+/** Person key for gap accounting; falls back to listing girlKey when name/father missing. */
+function gapIdentityKey(row: TrackingRow): string {
+  return crossCohortPersonKey(row) || `id:${girlKey(row)}`;
+}
+
+function chronologicalRows(subs: TrackingRow[]): TrackingRow[] {
+  return [...subs].sort((a, b) => {
+    const da = parseDate(a.SubmissionDate || "")?.getTime() ?? 0;
+    const db = parseDate(b.SubmissionDate || "")?.getTime() ?? 0;
+    if (da !== db) return da - db;
+    return parseVisitNum(a) - parseVisitNum(b);
+  });
+}
+
 /**
- * Every submission beyond the first chronological attempt per girl is an
- * "extra" that creates the submissions − attempted gap. Classify each extra
- * into exactly one bucket so categories sum to the gap.
- *
- * Baseline↔New Sample is reported separately (girl presence in both cohorts)
- * and is not part of this gap sum.
+ * Extra forms = every submission beyond the first per person.
+ * Same person in Baseline and New Sample is one girl, so the other cohort's
+ * forms become Baseline↔New Sample extras and sit inside the gap total.
  */
 function classifyGapExtras(rows: TrackingRow[]): {
   byCategory: Record<GapCategory, TrackingRow[]>;
   exactGroups: number;
-  crossRows: TrackingRow[];
   crossCohortGirls: number;
+  crossCohortAllForms: number;
   uniqueGirls: number;
 } {
   const { exactKeys, exactGroups } = buildExactFingerprintIndex(rows);
-  const { crossRows, crossCohortGirls } = buildCrossCohortIndex(rows);
 
-  const byGirl = new Map<string, TrackingRow[]>();
+  const byPerson = new Map<string, TrackingRow[]>();
   for (const row of rows) {
-    const key = girlKey(row);
-    const list = byGirl.get(key);
+    const key = gapIdentityKey(row);
+    const list = byPerson.get(key);
     if (list) list.push(row);
-    else byGirl.set(key, [row]);
+    else byPerson.set(key, [row]);
+  }
+
+  let crossCohortGirls = 0;
+  let crossCohortAllForms = 0;
+  for (const subs of byPerson.values()) {
+    const hasBaseline = subs.some((r) => inferTrackingCohort(r) === "baseline");
+    const hasNew = subs.some((r) => inferTrackingCohort(r) === "new-sample");
+    if (hasBaseline && hasNew) {
+      crossCohortGirls += 1;
+      crossCohortAllForms += subs.length;
+    }
   }
 
   const byCategory: Record<GapCategory, TrackingRow[]> = {
     exact: [],
+    crossCohort: [],
     revisit: [],
     followUpAfterTracked: [],
     sameVisitDifferent: [],
     other: [],
   };
 
-  for (const [girl, subs] of byGirl) {
+  for (const subs of byPerson.values()) {
     if (subs.length <= 1) continue;
-    const attempts = girlAttemptSequence(rows, girl);
+    const attempts = chronologicalRows(subs);
+    const first = attempts[0]!;
+    const firstCohort = inferTrackingCohort(first);
+    const inBothCohorts =
+      attempts.some((r) => inferTrackingCohort(r) === "baseline") &&
+      attempts.some((r) => inferTrackingCohort(r) === "new-sample");
 
     for (let i = 1; i < attempts.length; i++) {
-      const row = attempts[i]!.row;
-      const before = attempts.slice(0, i).map((a) => a.row);
+      const row = attempts[i]!;
+      const before = attempts.slice(0, i);
       const priorTracked = before.some(isTrackedSubmission);
       const visit = row.visit_num || "1";
       const sameVisitCount = attempts.filter(
-        (a) => (a.row.visit_num || "1") === visit
+        (a) => (a.visit_num || "1") === visit
       ).length;
+      const otherCohort =
+        inBothCohorts && inferTrackingCohort(row) !== firstCohort;
 
       let category: GapCategory;
       if (exactKeys.has(row.KEY)) category = "exact";
+      else if (otherCohort) category = "crossCohort";
       else if (priorTracked) category = "followUpAfterTracked";
-      else if (isActualRevisitSubmission(row, rows)) category = "revisit";
       else if (sameVisitCount > 1) category = "sameVisitDifferent";
       else category = "revisit";
 
@@ -1998,9 +2000,9 @@ function classifyGapExtras(rows: TrackingRow[]): {
   return {
     byCategory,
     exactGroups,
-    crossRows,
     crossCohortGirls,
-    uniqueGirls: byGirl.size,
+    crossCohortAllForms,
+    uniqueGirls: byPerson.size,
   };
 }
 
@@ -2013,14 +2015,15 @@ export function computeDuplicateDetailMetrics(
   const gap = classifyGapExtras(rows);
 
   const exactRows = gap.byCategory.exact;
+  const crossRows = gap.byCategory.crossCohort;
   const revisitRows = gap.byCategory.revisit;
   const followUpRows = gap.byCategory.followUpAfterTracked;
   const sameVisitRows = gap.byCategory.sameVisitDifferent;
   const otherOnlyRows = gap.byCategory.other;
-  const crossRows = gap.crossRows;
 
   const totalDuplicates =
     exactRows.length +
+    crossRows.length +
     revisitRows.length +
     followUpRows.length +
     sameVisitRows.length +
@@ -2052,6 +2055,7 @@ export function computeDuplicateDetailMetrics(
     );
     lists.totalDuplicates = mergeDuplicateExportRows(
       lists.exactDuplicates,
+      lists.crossCohortDuplicates,
       lists.revisitDuplicates,
       lists.followUpAfterTracked,
       lists.sameVisitDifferentAnswers,
@@ -2074,14 +2078,14 @@ export function computeDuplicateDetailMetrics(
     totalDuplicates,
     totalUnnecessaryRows: totalDuplicates,
     exactDuplicates: exactRows.length,
-    crossCohortDuplicates: gap.crossCohortGirls,
+    crossCohortDuplicates: crossRows.length,
     revisitDuplicates: revisitRows.length,
     otherExtras: otherOnlyRows.length,
     followUpAfterTracked: followUpRows.length,
     sameVisitDifferentAnswers: sameVisitRows.length,
     exactDuplicateGroups: gap.exactGroups,
     crossCohortGirls: gap.crossCohortGirls,
-    crossCohortAllForms: crossRows.length,
+    crossCohortAllForms: gap.crossCohortAllForms,
     uniqueGirlsInScope: gap.uniqueGirls,
     submissionsInScope: rows.length,
     lists,
