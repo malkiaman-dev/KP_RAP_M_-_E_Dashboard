@@ -1723,34 +1723,52 @@ export function computeRevisitDetailMetrics(
 
 export type DuplicateDetailListKey =
   | "totalDuplicates"
-  | "sameVisitDuplicates"
   | "exactDuplicates"
+  | "crossCohortDuplicates"
   | "revisitDuplicates"
-  | "differentEnumeratorDuplicates"
-  | "supersededUnsuccessful"
-  | "unnecessaryFollowUp";
+  | "otherExtras";
 
 export interface DuplicateDetailMetrics {
-  /** Every unnecessary submission row across all duplicate categories (deduped by Key ID) */
+  /**
+   * Extra submissions beyond one per girl:
+   * `totalSubmissions − uniqueGirlsAttempted`.
+   * Category cards below are mutually exclusive and sum to this total.
+   */
+  totalDuplicates: number;
+  /** @deprecated Use totalDuplicates */
   totalUnnecessaryRows: number;
-  /** Submission rows belonging to a girl + visit group with more than one submission */
-  sameVisitDuplicateRows: number;
-  /** Extra submission rows beyond one per girl + visit (same-visit copies only) */
-  extraDuplicates: number;
-  /** Distinct girl + visit combinations after removing same-visit redundant rows */
-  uniqueGirlVisitSlots: number;
-  /** Same girl, visit, and enumerator submitted more than once */
+  /** Extra forms with identical survey answers to another form (KEY/date may differ) */
   exactDuplicates: number;
-  /** Duplicate submissions on visit 2 or 3 (same girl + same visit twice) */
+  /**
+   * Extra forms that are also in a Baseline↔New Sample tracked pair.
+   * (Full cross-cohort flag count is `crossCohortAllForms` — most pairs use
+   * different listing IDs so they count as two attempted girls, not gap extras.)
+   */
+  crossCohortDuplicates: number;
+  /**
+   * Extra forms filed after a failed prior attempt (revisit path), before any
+   * successful track on an earlier attempt.
+   */
   revisitDuplicates: number;
-  /** Same girl and visit submitted by more than one enumerator */
-  differentEnumeratorDuplicates: number;
-  /** Earlier failed visit made obsolete once a higher visit exists (excludes active revisit queue) */
-  supersededUnsuccessful: number;
-  /** Visit 2/3 submitted after the girl was already tracked on an earlier visit */
-  unnecessaryFollowUp: number;
-  /** Count of girl + visit combinations with same-visit duplicates */
-  duplicateGroups: number;
+  /**
+   * Remaining extras: follow-up after already tracked, same-visit resubmit with
+   * different answers, and any other additional submission.
+   */
+  otherExtras: number;
+  /** Follow-up after already tracked (subset of otherExtras) */
+  followUpAfterTracked: number;
+  /** Same visit # resubmitted with different answers (subset of otherExtras) */
+  sameVisitDifferentAnswers: number;
+  /** Distinct exact-content fingerprint groups with more than one submission */
+  exactDuplicateGroups: number;
+  /** Distinct person identities tracked in both cohorts */
+  crossCohortGirls: number;
+  /** All tracked forms flagged in Baseline↔New Sample pairs (not limited to gap) */
+  crossCohortAllForms: number;
+  /** Unique girls attempted in the filtered rows (for gap identity check) */
+  uniqueGirlsInScope: number;
+  /** Total submissions in scope */
+  submissionsInScope: number;
 }
 
 export interface DuplicateDetailData extends DuplicateDetailMetrics {
@@ -1763,102 +1781,66 @@ function emptyDuplicateLists(): Record<
 > {
   return {
     totalDuplicates: [],
-    sameVisitDuplicates: [],
     exactDuplicates: [],
+    crossCohortDuplicates: [],
     revisitDuplicates: [],
-    differentEnumeratorDuplicates: [],
-    supersededUnsuccessful: [],
-    unnecessaryFollowUp: [],
+    otherExtras: [],
   };
 }
 
-function classifyDuplicateGroup(subs: TrackingRow[]): string {
-  const visit = parseVisitNum(subs[0]!);
-  const enumKeys = new Set(subs.map(enumeratorIdentityKey));
-  const types: string[] = [];
+const EXACT_DUPLICATE_TYPE = "Exact duplicate";
+const CROSS_COHORT_DUPLICATE_TYPE =
+  "Tracked in Baseline and New Sample";
+const REVISIT_DUPLICATE_TYPE = "Revisit duplicate form";
+const FOLLOWUP_AFTER_TRACKED_TYPE = "Follow-up after already tracked";
+const SAME_VISIT_DIFFERENT_TYPE = "Same-visit resubmit (different answers)";
+const OTHER_EXTRA_TYPE = "Other extra submission";
 
-  if (enumKeys.size === 1) {
-    types.push("Exact duplicate");
-  } else {
-    types.push("Different enumerator duplicate");
-  }
+/** Fields that may differ on otherwise identical form resubmits. */
+const EXACT_DUP_EXCLUDE = new Set([
+  "KEY",
+  "SubmissionDate",
+  "formdef_version",
+  "cohort",
+  "session",
+]);
 
-  if (visit >= 2) {
-    types.push("Revisit duplicate");
-  }
-
-  return types.join(" · ");
+function exactDuplicateFingerprint(row: TrackingRow): string {
+  return Object.keys(row)
+    .filter((key) => !EXACT_DUP_EXCLUDE.has(key))
+    .sort()
+    .map((key) => `${key}=${String(row[key] ?? "").trim()}`)
+    .join("\u0001");
 }
 
-const SUPERSEDED_FAILED_ATTEMPT_TYPE = "Superseded failed attempt";
-const UNNECESSARY_FOLLOWUP_TYPE = "Unnecessary follow-up after success";
+function normalizePersonToken(value: string | undefined): string {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function resolveFatherName(row: TrackingRow): string {
+  const direct = String(row.girl_fathername || "").trim();
+  if (direct) return direct;
+  const parts = String(row.girl_label || "")
+    .split("|")
+    .map((p) => p.trim());
+  return parts[1] || "";
+}
 
 /**
- * Flags prior failed attempts that are obsolete once a later chronological
- * attempt exists. Uses attempt order (submission date), not form visit_num.
- *
- * Revisit duplicate / garbage count grows as later attempts are filed:
- * - Attempt 1 fails, no attempt 2 yet → 0 (still in revisit queue)
- * - Attempt 1 fails, attempt 2 fails, no attempt 3 yet → 1 (attempt 1 obsolete)
- * - Attempts 1 & 2 fail, attempt 3 done (fail or success) → 2 (attempts 1 & 2 obsolete)
+ * Cross-cohort person key. Listing IDs differ between Baseline and New Sample,
+ * so match on district + village + girl name + father name.
  */
-function computeSequentialDuplicateIssues(
-  rows: TrackingRow[],
-  options: { includeLists?: boolean } = {}
-): {
-  supersededUnsuccessful: RevisitGirlExportRow[];
-  unnecessaryFollowUp: RevisitGirlExportRow[];
-  supersededUnsuccessfulCount: number;
-  unnecessaryFollowUpCount: number;
-} {
-  const includeLists = options.includeLists !== false;
-  const supersededUnsuccessful: RevisitGirlExportRow[] = [];
-  const unnecessaryFollowUp: RevisitGirlExportRow[] = [];
-  const girls = [...new Set(rows.map(girlKey))];
-  let supersededUnsuccessfulCount = 0;
-  let unnecessaryFollowUpCount = 0;
-
-  for (const girl of girls) {
-    const attempts = girlAttemptSequence(rows, girl);
-
-    for (let i = 0; i < attempts.length; i++) {
-      const { row, attemptNumber } = attempts[i]!;
-      const before = attempts.slice(0, i).map((a) => a.row);
-
-      if (attemptNumber >= 2 && before.some(isTrackedSubmission)) {
-        unnecessaryFollowUpCount += 1;
-        if (includeLists) {
-          unnecessaryFollowUp.push({
-            ...toGirlExportRow(row, UNNECESSARY_FOLLOWUP_TYPE),
-            duplicateType: UNNECESSARY_FOLLOWUP_TYPE,
-            visitNum: String(attemptNumber),
-          });
-        }
-        continue;
-      }
-
-      if (isTrackedSubmission(row)) continue;
-
-      const hasLaterAttempt = attemptNumber < attempts.length;
-      if (!hasLaterAttempt) continue;
-
-      supersededUnsuccessfulCount += 1;
-      if (includeLists) {
-        supersededUnsuccessful.push({
-          ...toGirlExportRow(row, SUPERSEDED_FAILED_ATTEMPT_TYPE),
-          duplicateType: SUPERSEDED_FAILED_ATTEMPT_TYPE,
-          visitNum: String(attemptNumber),
-        });
-      }
-    }
-  }
-
-  return {
-    supersededUnsuccessful,
-    unnecessaryFollowUp,
-    supersededUnsuccessfulCount,
-    unnecessaryFollowUpCount,
-  };
+function crossCohortPersonKey(row: TrackingRow): string {
+  const name = normalizePersonToken(resolveGirlName(row));
+  const father = normalizePersonToken(resolveFatherName(row));
+  const district = String(row.district || "").trim();
+  const village = normalizePersonToken(resolveVillageLabel(row) || "");
+  if (!name || !father || !district) return "";
+  return `${district}|${village}|${name}|${father}`;
 }
 
 function mergeDuplicateExportRows(
@@ -1892,68 +1874,187 @@ function mergeDuplicateExportRows(
   return [...byKey.values()];
 }
 
+function buildExactFingerprintIndex(rows: TrackingRow[]): {
+  exactKeys: Set<string>;
+  exactGroups: number;
+} {
+  const byFp = new Map<string, TrackingRow[]>();
+  for (const row of rows) {
+    const fp = exactDuplicateFingerprint(row);
+    if (!fp) continue;
+    const list = byFp.get(fp);
+    if (list) list.push(row);
+    else byFp.set(fp, [row]);
+  }
+  const exactKeys = new Set<string>();
+  let exactGroups = 0;
+  for (const subs of byFp.values()) {
+    if (subs.length <= 1) continue;
+    exactGroups += 1;
+    for (const row of subs) exactKeys.add(row.KEY);
+  }
+  return { exactKeys, exactGroups };
+}
+
+function buildCrossCohortIndex(rows: TrackingRow[]): {
+  crossKeys: Set<string>;
+  crossCohortGirls: number;
+} {
+  const byPerson = new Map<
+    string,
+    { baseline: TrackingRow[]; newSample: TrackingRow[] }
+  >();
+  for (const row of rows) {
+    if (!isGirlTrackedForMetrics(row)) continue;
+    const person = crossCohortPersonKey(row);
+    if (!person) continue;
+    const cohort = inferTrackingCohort(row);
+    let entry = byPerson.get(person);
+    if (!entry) {
+      entry = { baseline: [], newSample: [] };
+      byPerson.set(person, entry);
+    }
+    if (cohort === "baseline") entry.baseline.push(row);
+    else entry.newSample.push(row);
+  }
+  const crossKeys = new Set<string>();
+  let crossCohortGirls = 0;
+  for (const entry of byPerson.values()) {
+    if (entry.baseline.length === 0 || entry.newSample.length === 0) continue;
+    crossCohortGirls += 1;
+    for (const row of [...entry.baseline, ...entry.newSample]) {
+      crossKeys.add(row.KEY);
+    }
+  }
+  return { crossKeys, crossCohortGirls };
+}
+
+type GapCategory =
+  | "exact"
+  | "crossCohort"
+  | "revisit"
+  | "followUpAfterTracked"
+  | "sameVisitDifferent"
+  | "other";
+
+/**
+ * Every submission beyond the first chronological attempt per girl is an
+ * "extra" that creates the submissions − attempted gap. Classify each extra
+ * into exactly one bucket so categories sum to the gap.
+ */
+function classifyGapExtras(rows: TrackingRow[]): {
+  byCategory: Record<GapCategory, TrackingRow[]>;
+  exactGroups: number;
+  crossCohortGirls: number;
+  crossCohortAllForms: number;
+  uniqueGirls: number;
+} {
+  const { exactKeys, exactGroups } = buildExactFingerprintIndex(rows);
+  const { crossKeys, crossCohortGirls } = buildCrossCohortIndex(rows);
+
+  const byGirl = new Map<string, TrackingRow[]>();
+  for (const row of rows) {
+    const key = girlKey(row);
+    const list = byGirl.get(key);
+    if (list) list.push(row);
+    else byGirl.set(key, [row]);
+  }
+
+  const byCategory: Record<GapCategory, TrackingRow[]> = {
+    exact: [],
+    crossCohort: [],
+    revisit: [],
+    followUpAfterTracked: [],
+    sameVisitDifferent: [],
+    other: [],
+  };
+
+  for (const [girl, subs] of byGirl) {
+    if (subs.length <= 1) continue;
+    const attempts = girlAttemptSequence(rows, girl);
+
+    for (let i = 1; i < attempts.length; i++) {
+      const row = attempts[i]!.row;
+      const before = attempts.slice(0, i).map((a) => a.row);
+      const priorTracked = before.some(isTrackedSubmission);
+      const visit = row.visit_num || "1";
+      const sameVisitCount = attempts.filter(
+        (a) => (a.row.visit_num || "1") === visit
+      ).length;
+
+      let category: GapCategory;
+      if (exactKeys.has(row.KEY)) category = "exact";
+      else if (crossKeys.has(row.KEY)) category = "crossCohort";
+      else if (priorTracked) category = "followUpAfterTracked";
+      else if (isActualRevisitSubmission(row, rows)) category = "revisit";
+      else if (sameVisitCount > 1) category = "sameVisitDifferent";
+      else category = "revisit";
+
+      byCategory[category].push(row);
+    }
+  }
+
+  return {
+    byCategory,
+    exactGroups,
+    crossCohortGirls,
+    crossCohortAllForms: crossKeys.size,
+    uniqueGirls: byGirl.size,
+  };
+}
+
 export function computeDuplicateDetailMetrics(
   rows: TrackingRow[],
   options: { includeLists?: boolean } = {}
 ): DuplicateDetailData {
   const includeLists = options.includeLists !== false;
-  const visitGroups = new Map<string, TrackingRow[]>();
-  for (const row of rows) {
-    const k = `${girlKey(row)}_${row.visit_num || "1"}`;
-    if (!visitGroups.has(k)) visitGroups.set(k, []);
-    visitGroups.get(k)!.push(row);
-  }
-
   const lists = emptyDuplicateLists();
-  let duplicateGroups = 0;
-  let sameVisitDuplicateRows = 0;
-  let exactDuplicates = 0;
-  let revisitDuplicates = 0;
-  let differentEnumeratorDuplicates = 0;
+  const gap = classifyGapExtras(rows);
 
-  for (const subs of visitGroups.values()) {
-    if (subs.length <= 1) continue;
-    duplicateGroups += 1;
-    sameVisitDuplicateRows += subs.length;
+  const exactRows = gap.byCategory.exact;
+  const crossRows = gap.byCategory.crossCohort;
+  const revisitRows = gap.byCategory.revisit;
+  const otherRows = [
+    ...gap.byCategory.followUpAfterTracked,
+    ...gap.byCategory.sameVisitDifferent,
+    ...gap.byCategory.other,
+  ];
 
-    const duplicateType = classifyDuplicateGroup(subs);
-    const isExact = duplicateType.includes("Exact duplicate");
-    const isRevisit = duplicateType.includes("Revisit duplicate");
-    const isDiffEnum = duplicateType.includes("Different enumerator duplicate");
-
-    if (isExact) exactDuplicates += subs.length;
-    if (isRevisit) revisitDuplicates += subs.length;
-    if (isDiffEnum) differentEnumeratorDuplicates += subs.length;
-
-    if (!includeLists) continue;
-
-    for (const row of subs) {
-      const exportRow: RevisitGirlExportRow = {
-        ...toGirlExportRow(row, duplicateType),
-        duplicateType,
-      };
-      lists.sameVisitDuplicates.push(exportRow);
-      if (isExact) lists.exactDuplicates.push(exportRow);
-      if (isRevisit) lists.revisitDuplicates.push(exportRow);
-      if (isDiffEnum) lists.differentEnumeratorDuplicates.push(exportRow);
-    }
-  }
-
-  let supersededUnsuccessful = 0;
-  let unnecessaryFollowUp = 0;
-
-  const sequential = computeSequentialDuplicateIssues(rows, { includeLists });
-  supersededUnsuccessful = sequential.supersededUnsuccessfulCount;
-  unnecessaryFollowUp = sequential.unnecessaryFollowUpCount;
+  const totalDuplicates =
+    exactRows.length +
+    crossRows.length +
+    revisitRows.length +
+    otherRows.length;
 
   if (includeLists) {
-    lists.supersededUnsuccessful = sequential.supersededUnsuccessful;
-    lists.unnecessaryFollowUp = sequential.unnecessaryFollowUp;
+    const toExport = (row: TrackingRow, type: string): RevisitGirlExportRow => ({
+      ...toGirlExportRow(row, type),
+      duplicateType: type,
+    });
 
+    lists.exactDuplicates = exactRows.map((r) =>
+      toExport(r, EXACT_DUPLICATE_TYPE)
+    );
+    lists.crossCohortDuplicates = crossRows.map((r) =>
+      toExport(r, CROSS_COHORT_DUPLICATE_TYPE)
+    );
+    lists.revisitDuplicates = revisitRows.map((r) =>
+      toExport(r, REVISIT_DUPLICATE_TYPE)
+    );
+    lists.otherExtras = [
+      ...gap.byCategory.followUpAfterTracked.map((r) =>
+        toExport(r, FOLLOWUP_AFTER_TRACKED_TYPE)
+      ),
+      ...gap.byCategory.sameVisitDifferent.map((r) =>
+        toExport(r, SAME_VISIT_DIFFERENT_TYPE)
+      ),
+      ...gap.byCategory.other.map((r) => toExport(r, OTHER_EXTRA_TYPE)),
+    ];
     lists.totalDuplicates = mergeDuplicateExportRows(
-      lists.sameVisitDuplicates,
-      lists.supersededUnsuccessful,
-      lists.unnecessaryFollowUp
+      lists.exactDuplicates,
+      lists.crossCohortDuplicates,
+      lists.revisitDuplicates,
+      lists.otherExtras
     );
 
     const sortByDate = (
@@ -1968,24 +2069,20 @@ export function computeDuplicateDetailMetrics(
     }
   }
 
-  const extraDuplicates = sameVisitDuplicateRows - duplicateGroups;
-
   return {
-    totalUnnecessaryRows:
-      sameVisitDuplicateRows + supersededUnsuccessful + unnecessaryFollowUp,
-    sameVisitDuplicateRows,
-    extraDuplicates,
-    uniqueGirlVisitSlots: visitGroups.size,
-    exactDuplicates: includeLists ? lists.exactDuplicates.length : exactDuplicates,
-    revisitDuplicates: includeLists
-      ? lists.revisitDuplicates.length
-      : revisitDuplicates,
-    differentEnumeratorDuplicates: includeLists
-      ? lists.differentEnumeratorDuplicates.length
-      : differentEnumeratorDuplicates,
-    supersededUnsuccessful,
-    unnecessaryFollowUp,
-    duplicateGroups,
+    totalDuplicates,
+    totalUnnecessaryRows: totalDuplicates,
+    exactDuplicates: exactRows.length,
+    crossCohortDuplicates: crossRows.length,
+    revisitDuplicates: revisitRows.length,
+    otherExtras: otherRows.length,
+    followUpAfterTracked: gap.byCategory.followUpAfterTracked.length,
+    sameVisitDifferentAnswers: gap.byCategory.sameVisitDifferent.length,
+    exactDuplicateGroups: gap.exactGroups,
+    crossCohortGirls: gap.crossCohortGirls,
+    crossCohortAllForms: gap.crossCohortAllForms,
+    uniqueGirlsInScope: gap.uniqueGirls,
+    submissionsInScope: rows.length,
     lists,
   };
 }
@@ -2797,12 +2894,7 @@ export function computeTrackingMetrics(
     (r) => isIncompleteSubmission(r) && !trackedGirlKeys.has(girlKey(r))
   ).length;
 
-  const visitGroups = new Map<string, number>();
-  for (const r of rows) {
-    const k = `${girlKey(r)}_${r.visit_num || "1"}`;
-    visitGroups.set(k, (visitGroups.get(k) || 0) + 1);
-  }
-  const duplicateSubmissions = [...visitGroups.values()].filter((c) => c > 1).length;
+  const duplicateSubmissions = duplicateDetail.totalDuplicates;
 
   const dataCoverageRate =
     targets.assignmentPool > 0

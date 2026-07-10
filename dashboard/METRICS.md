@@ -230,7 +230,7 @@ Secondary KPI row. All respect active filters.
 | **Consent Rate %** | `(Unique girls with consent = 1 among located households ÷ Unique girls with located household) × 100` | Girl |
 | **Form Completion %** | `(Submissions with survey_status = 1 ÷ Total submissions) × 100` | Submission |
 | **Incomplete / Other** | Submissions with `survey_status = 2` or `99` | Submission |
-| **Duplicate Visits** | Count of girl + visit combinations submitted more than once | Submission groups |
+| **Duplicate / Extra Forms** | `Total Submissions − Attempted Girls`. Mutually exclusive gap breakdown: **Exact** (extra identical forms), **Baseline ↔ New Sample** (extra forms that are also in a cross-cohort tracked pair), **Revisit** (extra form after a failed prior attempt), **Other** (follow-up after already tracked + same-visit resubmit with different answers). Categories sum to the gap. Cross-cohort pairs with different listing IDs count as two attempted girls, so most of those forms sit outside the gap (see hover on that card). | Submission |
 | **Girls / Enumerator** | `Girls Attempted ÷ Total Enumerators` | Average |
 
 ### Form Completion % vs Success Rate %

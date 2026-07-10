@@ -40,6 +40,7 @@ const CLIENT_ROW_FIELDS = [
   "girlname_label",
   "new_name",
   "girl_name",
+  "girl_fathername",
   "name",
   "girl_label",
   "school_label",
