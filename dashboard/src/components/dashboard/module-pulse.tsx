@@ -94,11 +94,11 @@ export function ModulePulse({
       bar: "bg-gold",
       chip: "bg-gold/15 text-amber-700 dark:text-gold",
       filterPatch: { surveyType: "girls" as const },
-      primary: metrics.girls.complete,
-      primaryLabel: "Completed forms",
-      secondary: `${metrics.girlsCompletionRate.toFixed(1)}% completion · ${metrics.girls.total.toLocaleString()} forms`,
-      progress: metrics.girlsCompletionRate,
-      progressLabel: `${metrics.girls.complete.toLocaleString()} complete of ${metrics.girls.total.toLocaleString()}`,
+      primary: metrics.uniqueGirlsCompleted,
+      primaryLabel: "Completed girls surveys",
+      secondary: `${metrics.girlsTargetProgress.toFixed(1)}% of target · ${metrics.girls.total.toLocaleString()} forms`,
+      progress: metrics.girlsTargetProgress,
+      progressLabel: `${metrics.uniqueGirlsCompleted.toLocaleString()} / ${PROTOCOL.HH_SURVEY_TARGET.toLocaleString()} target`,
     },
   ];
 

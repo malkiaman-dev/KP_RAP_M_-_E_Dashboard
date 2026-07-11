@@ -282,6 +282,13 @@ export function computeMetrics(
   const girlsComplete = girls.filter((r) => r.survey_status === "1");
   const girlsCompletionRate =
     girls.length > 0 ? (girlsComplete.length / girls.length) * 100 : 0;
+  const uniqueGirlsCompleted = new Set(
+    girlsComplete.map((r) => r.girl).filter(Boolean)
+  ).size;
+  const girlsTargetProgress =
+    PROTOCOL.HH_SURVEY_TARGET > 0
+      ? (uniqueGirlsCompleted / PROTOCOL.HH_SURVEY_TARGET) * 100
+      : 0;
 
   const completedSubmissions = rows.filter((r) => r.survey_status === "1").length;
   const surveyCompletionRate =
@@ -359,6 +366,8 @@ export function computeMetrics(
     trackingTargetProgress,
     hhCompletionRate,
     girlsCompletionRate,
+    girlsTargetProgress,
+    uniqueGirlsCompleted,
     completedHouseholds,
     hhTargetProgress,
     totalRevisits: revisits,
@@ -381,6 +390,7 @@ export function computeMetrics(
     girls: {
       total: girls.length,
       complete: girlsComplete.length,
+      uniqueCompleted: uniqueGirlsCompleted,
       revisits: girls.filter((r) => Number(r.attempt) > 1).length,
     },
     districtPerformance,
