@@ -13,7 +13,10 @@ export type HhGirlsCoreKpiKey =
   | "motherNotAvailable"
   | "girlNotAvailable"
   | "consentRefused"
-  | "completedHouseholds";
+  | "completedHouseholds"
+  | "hhTarget"
+  | "remainingToTarget"
+  | "progressToTarget";
 
 export type HhGirlsCoreKpiLists = Record<HhGirlsCoreKpiKey, HhGirlsExportRow[]>;
 
@@ -30,6 +33,9 @@ function emptyCoreKpiLists(): HhGirlsCoreKpiLists {
     girlNotAvailable: [],
     consentRefused: [],
     completedHouseholds: [],
+    hhTarget: [],
+    remainingToTarget: [],
+    progressToTarget: [],
   };
 }
 
@@ -158,9 +164,9 @@ export function computeHhGirlsCoreKpiLists(
       );
     }
     if (isCompletedHouseholdForGirl(hhSubs, gsRow)) {
-      lists.completedHouseholds.push(
-        toCompletedHouseholdExportRow(hhSubs, gsRow)
-      );
+      const completedRow = toCompletedHouseholdExportRow(hhSubs, gsRow);
+      lists.completedHouseholds.push(completedRow);
+      lists.progressToTarget.push(completedRow);
     }
   }
 

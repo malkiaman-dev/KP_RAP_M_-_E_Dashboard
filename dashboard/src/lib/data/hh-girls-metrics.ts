@@ -671,8 +671,10 @@ export function computeHhGirlsMetrics(
   const completedHouseholds = unifiedGirls.filter(
     (g) => g.isCompletedHousehold
   ).length;
+  const hhTarget = PROTOCOL.HH_SURVEY_TARGET;
+  const remainingToTarget = Math.max(0, hhTarget - completedHouseholds);
   const progressToTarget =
-    (completedHouseholds / PROTOCOL.HH_SURVEY_TARGET) * 100;
+    hhTarget > 0 ? (completedHouseholds / hhTarget) * 100 : 0;
 
   const completionByDistrict = new Map<
     string,
@@ -783,7 +785,7 @@ export function computeHhGirlsMetrics(
   const coreKpiLists = computeHhGirlsCoreKpiLists(household, girls);
 
   return {
-    targetN: PROTOCOL.HH_SURVEY_TARGET,
+    targetN: hhTarget,
     core: {
       totalSubmissions,
       uniqueGirls: uniqueGirlsRollout,
@@ -796,6 +798,8 @@ export function computeHhGirlsMetrics(
       girlNotAvailable,
       consentRefused,
       completedHouseholds,
+      hhTarget,
+      remainingToTarget,
       progressToTarget,
       surveyMix,
       unavailabilityBreakdown,

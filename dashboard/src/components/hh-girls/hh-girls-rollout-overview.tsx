@@ -34,9 +34,9 @@ export function HhGirlsRolloutOverview({
   const c = metrics.core;
 
   const stats = [
-    { label: "Total submissions", value: c.totalSubmissions },
-    { label: "Unique submissions", value: c.uniqueGirls },
+    { label: "HH target", value: c.hhTarget },
     { label: "Completed households", value: c.completedHouseholds },
+    { label: "Remaining to target", value: c.remainingToTarget },
     {
       label: "Progress to target",
       value: c.progressToTarget,

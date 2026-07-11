@@ -25,16 +25,16 @@ export function HhGirlsFiltersPanel({
 
   const fields = [
     {
-      key: "surveyType" as const,
-      label: "Survey",
-      icon: ClipboardList,
-      options: HH_GIRLS_SURVEY_FILTER_OPTIONS,
-    },
-    {
       key: "district" as const,
       label: "District",
       icon: MapPin,
       options: [{ value: "all", label: "All" }, ...(filterOptions?.districts || [])],
+    },
+    {
+      key: "surveyType" as const,
+      label: "Survey",
+      icon: ClipboardList,
+      options: HH_GIRLS_SURVEY_FILTER_OPTIONS,
     },
     {
       key: "enumerator" as const,
