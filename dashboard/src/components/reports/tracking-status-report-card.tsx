@@ -141,8 +141,6 @@ export function TrackingStatusReportCard({
     !!selectedDistrict &&
     baseRows.some((r) => r.district === selectedDistrict);
 
-  const formatLabel = format === "pdf" ? "PDF" : "Word";
-
   return (
     <ReportCard
       icon={MapPin}
@@ -151,8 +149,8 @@ export function TrackingStatusReportCard({
       status="available"
       footer={`Period: ${dateRangeLabel} · Formats: Word (.docx) & PDF · Categories: ≥70% · >50% and <70% · ≤50%`}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-        <div className="min-w-[200px] flex-1 sm:max-w-xs">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-[160px] flex-1 basis-[160px] sm:max-w-[220px]">
           <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
             District
           </label>
@@ -165,7 +163,7 @@ export function TrackingStatusReportCard({
           />
         </div>
 
-        <div className="min-w-[200px] flex-1 sm:max-w-xs">
+        <div className="min-w-[140px] flex-1 basis-[140px] sm:max-w-[180px]">
           <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
             Format
           </label>
@@ -184,24 +182,24 @@ export function TrackingStatusReportCard({
           disabled={
             !districtHasData || downloading !== null || baseRows.length === 0
           }
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-teal/30 bg-teal/10 px-4 py-2 text-xs font-medium text-teal hover:bg-teal/15 disabled:pointer-events-none disabled:opacity-50"
+          className="inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-teal/30 bg-teal/10 px-4 py-2 text-xs font-medium text-teal hover:bg-teal/15 disabled:pointer-events-none disabled:opacity-50"
         >
           <Download className="h-3.5 w-3.5" aria-hidden="true" />
           {downloading === "district"
             ? "Generating…"
-            : `Download district report (${formatLabel})`}
+            : "Download district report"}
         </button>
 
         <button
           type="button"
           onClick={handleAllDistrictsDownload}
           disabled={downloading !== null || baseRows.length === 0}
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-4 py-2 text-xs font-medium text-foreground hover:bg-muted/60 disabled:pointer-events-none disabled:opacity-50"
+          className="inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-border/60 bg-muted/40 px-4 py-2 text-xs font-medium text-foreground hover:bg-muted/60 disabled:pointer-events-none disabled:opacity-50"
         >
           <Download className="h-3.5 w-3.5" aria-hidden="true" />
           {downloading === "all"
             ? "Generating…"
-            : `Download all districts report (${formatLabel})`}
+            : "Download all districts report"}
         </button>
       </div>
     </ReportCard>
