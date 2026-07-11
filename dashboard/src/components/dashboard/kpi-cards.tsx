@@ -64,10 +64,6 @@ export function KpiCards({
     v: p.value,
   }));
 
-  const trackingTargetPct =
-    PROTOCOL.SUCCESSFUL_TRACKING_TARGET > 0
-      ? (metrics.girlsTracked / PROTOCOL.SUCCESSFUL_TRACKING_TARGET) * 100
-      : 0;
   const hhTargetPct = metrics.hhTargetProgress;
 
   const kpiConfig: {
@@ -91,23 +87,23 @@ export function KpiCards({
     },
     {
       key: "girlsTracked",
-      label: "Girls Tracked",
+      label: "Tracked Girls",
       value: metrics.girlsTracked,
-      sublabel: `${trackingTargetPct.toFixed(1)}% of ${PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()} target`,
+      sublabel: `${metrics.trackingTargetProgress.toFixed(1)}% of ${PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()} target`,
       icon: Target,
       color: "teal",
       filterPatch: { surveyType: "tracking" },
     },
     {
       key: "trackingSuccessRate",
-      label: "Tracking Success",
+      label: "Attempt Success",
       value: metrics.trackingSuccessRate,
       sublabel: `${metrics.tracking.tracked} of ${metrics.tracking.uniqueGirls} attempted`,
       icon: MapPin,
       color: "teal",
       suffix: "%",
       decimals: 1,
-      filterPatch: { surveyType: "tracking", status: "complete" },
+      filterPatch: { surveyType: "tracking" },
     },
     {
       key: "hhTargetProgress",

@@ -65,10 +65,9 @@ export function ModulePulse({
       chip: "bg-teal/10 text-teal",
       filterPatch: { surveyType: "tracking" as const },
       primary: metrics.girlsTracked,
-      primaryLabel: "Girls tracked",
-      secondary: `${metrics.trackingSuccessRate.toFixed(1)}% success · ${metrics.tracking.total.toLocaleString()} forms`,
-      progress:
-        (metrics.girlsTracked / PROTOCOL.SUCCESSFUL_TRACKING_TARGET) * 100,
+      primaryLabel: "Tracked girls",
+      secondary: `${metrics.trackingTargetProgress.toFixed(1)}% of target · ${metrics.tracking.total.toLocaleString()} forms`,
+      progress: metrics.trackingTargetProgress,
       progressLabel: `${metrics.girlsTracked.toLocaleString()} / ${PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()} target`,
     },
     {

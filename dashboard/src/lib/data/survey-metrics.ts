@@ -1,4 +1,9 @@
-import { isTrackedSubmission, type TrackingRow } from "./tracking-metrics";
+import {
+  girlKey,
+  isGirlTrackedForMetrics,
+  isTrackedSubmission,
+  type TrackingRow,
+} from "./tracking-metrics";
 import { isCompletedHouseholdForGirl } from "./hh-girls-completion";
 import type { HhGirlsRow } from "./hh-girls-metrics";
 import { PROTOCOL } from "./protocol";
@@ -207,24 +212,52 @@ function countCompletedHouseholds(
   return completed;
 }
 
-export function computeMetrics(rows: SurveyRow[]) {
+/** Match Tracking operational metrics: unique girls + tracked across all attempts. */
+function countOperationalTrackingGirls(
+  trackingInView: TrackingRow[],
+  allTracking: TrackingRow[]
+): { uniqueGirls: number; trackedGirls: number } {
+  const attemptedKeys = new Set(
+    trackingInView.map((r) => girlKey(r)).filter((k) => k.length > 0)
+  );
+
+  const allByGirl = new Map<string, TrackingRow[]>();
+  for (const row of allTracking) {
+    const key = girlKey(row);
+    if (!key) continue;
+    if (!allByGirl.has(key)) allByGirl.set(key, []);
+    allByGirl.get(key)!.push(row);
+  }
+
+  let trackedGirls = 0;
+  for (const key of attemptedKeys) {
+    const subs = allByGirl.get(key) || [];
+    if (subs.some(isGirlTrackedForMetrics)) trackedGirls += 1;
+  }
+
+  return { uniqueGirls: attemptedKeys.size, trackedGirls };
+}
+
+export function computeMetrics(
+  rows: SurveyRow[],
+  options?: { allRows?: SurveyRow[] }
+) {
+  const allRows = options?.allRows ?? rows;
   const tracking = rows.filter((r) => r.survey_type === "tracking");
   const household = rows.filter((r) => r.survey_type === "household");
   const girls = rows.filter((r) => r.survey_type === "girls");
+  const allTracking = allRows.filter(
+    (r) => r.survey_type === "tracking"
+  ) as TrackingRow[];
 
-  const uniqueTrackingGirls = new Set(
-    tracking.map((r) => r.girl_id || r.girl).filter(Boolean)
-  );
-  const trackedGirlIds = new Set(
-    tracking
-      .filter((r) => isTrackedSubmission(r as TrackingRow))
-      .map((r) => r.girl_id || r.girl)
-      .filter(Boolean)
-  );
+  const { uniqueGirls: uniqueTrackingGirls, trackedGirls } =
+    countOperationalTrackingGirls(tracking as TrackingRow[], allTracking);
 
   const trackingSuccessRate =
-    uniqueTrackingGirls.size > 0
-      ? (trackedGirlIds.size / uniqueTrackingGirls.size) * 100
+    uniqueTrackingGirls > 0 ? (trackedGirls / uniqueTrackingGirls) * 100 : 0;
+  const trackingTargetProgress =
+    PROTOCOL.SUCCESSFUL_TRACKING_TARGET > 0
+      ? (trackedGirls / PROTOCOL.SUCCESSFUL_TRACKING_TARGET) * 100
       : 0;
 
   const uniqueHHGirls = new Set(household.map((r) => r.girl).filter(Boolean));
@@ -316,13 +349,14 @@ export function computeMetrics(rows: SurveyRow[]) {
 
   return {
     totalSubmissions: rows.length,
-    girlsTracked: trackedGirlIds.size,
+    girlsTracked: trackedGirls,
     totalEnumerators: enumerators.size,
     totalVillages: villages.size,
     totalSchools: schools.size,
     activeDistricts: districts.size,
     surveyCompletionRate,
     trackingSuccessRate,
+    trackingTargetProgress,
     hhCompletionRate,
     girlsCompletionRate,
     completedHouseholds,
@@ -330,10 +364,10 @@ export function computeMetrics(rows: SurveyRow[]) {
     totalRevisits: revisits,
     tracking: {
       total: tracking.length,
-      tracked: trackedGirlIds.size,
-      uniqueGirls: uniqueTrackingGirls.size,
+      tracked: trackedGirls,
+      uniqueGirls: uniqueTrackingGirls,
       revisits: tracking.filter((r) => Number(r.visit_num) > 1).length,
-      untracked: uniqueTrackingGirls.size - trackedGirlIds.size,
+      untracked: Math.max(0, uniqueTrackingGirls - trackedGirls),
     },
     household: {
       total: household.length,

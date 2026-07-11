@@ -35,7 +35,9 @@ export function DashboardContent() {
 
   const displayMetrics = useMemo(() => {
     if (!data?.allSubmissions) return data;
-    return computeMetrics(applyFilters(data.allSubmissions, deferredFilters));
+    return computeMetrics(applyFilters(data.allSubmissions, deferredFilters), {
+      allRows: data.allSubmissions,
+    });
   }, [data, deferredFilters]);
 
   const tableData = useMemo(() => {

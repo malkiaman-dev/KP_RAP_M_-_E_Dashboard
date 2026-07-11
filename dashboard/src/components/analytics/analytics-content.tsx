@@ -89,7 +89,8 @@ export function AnalyticsContent() {
   const dashboard = useMemo(() => {
     if (!dashboardQuery.data?.allSubmissions) return undefined;
     return computeMetrics(
-      applyFilters(dashboardQuery.data.allSubmissions, deferredFilters)
+      applyFilters(dashboardQuery.data.allSubmissions, deferredFilters),
+      { allRows: dashboardQuery.data.allSubmissions }
     );
   }, [dashboardQuery.data, deferredFilters]);
 
@@ -101,7 +102,8 @@ export function AnalyticsContent() {
         ...deferredFilters,
         surveyType: "all",
         status: "all",
-      })
+      }),
+      { allRows: dashboardQuery.data.allSubmissions }
     );
   }, [dashboardQuery.data, deferredFilters]);
 
