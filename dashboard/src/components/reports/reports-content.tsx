@@ -3,101 +3,74 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Download, Home, Users } from "lucide-react";
-import { FilterSelect } from "@/components/ui/filter-select";
 import { TrackingFiltersPanel } from "@/components/tracking/tracking-filters";
 import { TrackingActiveFilters } from "@/components/tracking/tracking-active-filters";
-import { ReportCard } from "@/components/reports/report-card";
+import { HhGirlsFiltersPanel } from "@/components/hh-girls/hh-girls-filters";
+import { HhGirlsActiveFilters } from "@/components/hh-girls/hh-girls-active-filters";
 import { TrackingStatusReportCard } from "@/components/reports/tracking-status-report-card";
 import { TrackingProgressReportCard } from "@/components/reports/tracking-progress-report-card";
+import { HhGirlsStatusReportCard } from "@/components/reports/hh-girls-status-report-card";
+import { HhGirlsProgressReportCard } from "@/components/reports/hh-girls-progress-report-card";
 import { cn } from "@/lib/utils";
 import {
   defaultMonitoringFilters,
   type TrackingFilters,
 } from "@/lib/data/tracking-metrics";
 import {
+  defaultHhGirlsMonitoringFilters,
+  type HhGirlsMonitoringFilters,
+} from "@/lib/data/hh-girls-monitoring";
+import type { HhGirlsFilters } from "@/lib/data/hh-girls-metrics";
+import {
+  fetchHhGirlsMetrics,
   fetchTrackingMetrics,
+  HH_GIRLS_METRICS_QUERY_KEY,
   QUERY_STALE_MS,
   TRACKING_METRICS_QUERY_KEY,
 } from "@/lib/queries/app-data";
 
+type SurveyModule = "tracking" | "hh-girls";
 type ReportMode = "operations" | "progress";
 
-function ComingSoonReportActions({
-  districts,
-}: {
-  districts: { value: string; label: string }[];
-}) {
-  const districtSelectOptions = [
-    { value: "", label: "Select a district…" },
-    ...districts,
-  ];
-
-  return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-      <div className="min-w-[200px] flex-1 sm:max-w-xs">
-        <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
-          District
-        </label>
-        <FilterSelect
-          value=""
-          options={districtSelectOptions}
-          onChange={() => {}}
-          disabled
-          aria-label="Report district"
-        />
-      </div>
-
-      <div className="min-w-[200px] flex-1 sm:max-w-xs">
-        <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
-          Format
-        </label>
-        <FilterSelect
-          value="pdf"
-          options={[
-            { value: "pdf", label: "PDF (.pdf)" },
-            { value: "docx", label: "Microsoft Word (.docx)" },
-          ]}
-          onChange={() => {}}
-          disabled
-          aria-label="Report format"
-        />
-      </div>
-
-      <button
-        type="button"
-        disabled
-        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground"
-      >
-        <Download className="h-3.5 w-3.5" aria-hidden="true" />
-        Download district report
-      </button>
-
-      <button
-        type="button"
-        disabled
-        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground"
-      >
-        <Download className="h-3.5 w-3.5" aria-hidden="true" />
-        Download all districts report
-      </button>
-    </div>
-  );
-}
-
 export function ReportsContent() {
-  const [filters, setFilters] = useState<TrackingFilters>(() =>
-    defaultMonitoringFilters()
-  );
+  const [surveyModule, setSurveyModule] = useState<SurveyModule>("tracking");
   const [reportMode, setReportMode] = useState<ReportMode>("operations");
 
-  const { data, isLoading, isError } = useQuery({
+  const [trackingFilters, setTrackingFilters] = useState<TrackingFilters>(() =>
+    defaultMonitoringFilters()
+  );
+  const [hhFilters, setHhFilters] = useState<HhGirlsMonitoringFilters>(() =>
+    defaultHhGirlsMonitoringFilters()
+  );
+
+  const setHhReportFilters = (
+    next: HhGirlsFilters | HhGirlsMonitoringFilters
+  ) => {
+    setHhFilters({
+      ...defaultHhGirlsMonitoringFilters(),
+      ...next,
+      todayOnly: "todayOnly" in next ? Boolean(next.todayOnly) : false,
+    });
+  };
+
+  const trackingQuery = useQuery({
     queryKey: [...TRACKING_METRICS_QUERY_KEY],
     queryFn: fetchTrackingMetrics,
     staleTime: QUERY_STALE_MS,
+    enabled: surveyModule === "tracking",
   });
 
-  const districts = data?.filterOptions?.districts ?? [];
+  const hhQuery = useQuery({
+    queryKey: [...HH_GIRLS_METRICS_QUERY_KEY],
+    queryFn: fetchHhGirlsMetrics,
+    staleTime: QUERY_STALE_MS,
+    enabled: surveyModule === "hh-girls",
+  });
+
+  const isError =
+    surveyModule === "tracking" ? trackingQuery.isError : hhQuery.isError;
+  const isLoading =
+    surveyModule === "tracking" ? trackingQuery.isLoading : hhQuery.isLoading;
 
   if (isError) {
     return (
@@ -105,12 +78,18 @@ export function ReportsContent() {
         <div>
           <p className="font-semibold text-red-600">Failed to load report data</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Ensure survey data files are available in the Surveys folder.
+            {surveyModule === "tracking"
+              ? "Ensure tracking survey CSV files are available in the Surveys folder."
+              : "Ensure Household_Survey.csv and Girls_Survey.csv are available in the Surveys folder."}
           </p>
         </div>
       </div>
     );
   }
+
+  const trackingDistricts =
+    trackingQuery.data?.filterOptions?.districts ?? [];
+  const hhDistricts = hhQuery.data?.filterOptions?.districts ?? [];
 
   return (
     <div>
@@ -123,11 +102,38 @@ export function ReportsContent() {
           Reports
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Generate and export tracking reports for field operations or programme
-          progress summaries. Download district-wise or all-district reports in
-          PDF or Word, with Girls and Household reports coming soon.
+          Generate and export field operations or programme progress reports for
+          Tracking or combined HH / Girls surveys. Download district-wise or
+          all-district reports in PDF or Word.
         </p>
       </motion.div>
+
+      <div className="mb-4 inline-flex rounded-xl border border-border/60 bg-muted/30 p-1">
+        <button
+          type="button"
+          onClick={() => setSurveyModule("tracking")}
+          className={cn(
+            "rounded-lg px-4 py-2 text-xs font-medium transition-colors",
+            surveyModule === "tracking"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Tracking
+        </button>
+        <button
+          type="button"
+          onClick={() => setSurveyModule("hh-girls")}
+          className={cn(
+            "rounded-lg px-4 py-2 text-xs font-medium transition-colors",
+            surveyModule === "hh-girls"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          HH / Girls
+        </button>
+      </div>
 
       <div className="mb-6 inline-flex rounded-xl border border-border/60 bg-muted/30 p-1">
         <button
@@ -156,60 +162,75 @@ export function ReportsContent() {
         </button>
       </div>
 
-      <TrackingFiltersPanel
-        filterOptions={data?.filterOptions}
-        filters={filters}
-        onChange={setFilters}
-        showTodayToggle
-        resetFilters={defaultMonitoringFilters}
-      />
-
-      <TrackingActiveFilters
-        filters={filters}
-        onChange={setFilters}
-        filterOptions={data?.filterOptions}
-        resetFilters={defaultMonitoringFilters}
-      />
-
-      <div className="mt-6 space-y-4">
-        {reportMode === "progress" ? (
-          <TrackingProgressReportCard
-            allSubmissions={data?.allSubmissions}
-            filters={filters}
-            districtOptions={districts}
-            loading={isLoading}
+      {surveyModule === "tracking" ? (
+        <>
+          <TrackingFiltersPanel
+            filterOptions={trackingQuery.data?.filterOptions}
+            filters={trackingFilters}
+            onChange={setTrackingFilters}
+            showTodayToggle
+            resetFilters={defaultMonitoringFilters}
           />
-        ) : (
-          <TrackingStatusReportCard
-            allSubmissions={data?.allSubmissions}
-            filters={filters}
-            districtOptions={districts}
-            loading={isLoading}
+          <TrackingActiveFilters
+            filters={trackingFilters}
+            onChange={setTrackingFilters}
+            filterOptions={trackingQuery.data?.filterOptions}
+            resetFilters={defaultMonitoringFilters}
           />
-        )}
-
-        <ReportCard
-          icon={Users}
-          title="Girls Survey Report"
-          description="Completion status, enumerator productivity, and district-level summary for the Girls survey module."
-          status="coming-soon"
-          accentClass="bg-sky-500/10 text-sky-500"
-          footer="Formats: Word (.docx) & PDF · District-wise and all-district downloads"
-        >
-          <ComingSoonReportActions districts={districts} />
-        </ReportCard>
-
-        <ReportCard
-          icon={Home}
-          title="Household Survey Report"
-          description="Household completion rates, parent respondent coverage, and field progress by district."
-          status="coming-soon"
-          accentClass="bg-amber-500/10 text-amber-600 dark:text-amber-400"
-          footer="Formats: Word (.docx) & PDF · District-wise and all-district downloads"
-        >
-          <ComingSoonReportActions districts={districts} />
-        </ReportCard>
-      </div>
+          <div className="mt-6 space-y-4">
+            {reportMode === "progress" ? (
+              <TrackingProgressReportCard
+                allSubmissions={trackingQuery.data?.allSubmissions}
+                filters={trackingFilters}
+                districtOptions={trackingDistricts}
+                loading={isLoading}
+              />
+            ) : (
+              <TrackingStatusReportCard
+                allSubmissions={trackingQuery.data?.allSubmissions}
+                filters={trackingFilters}
+                districtOptions={trackingDistricts}
+                loading={isLoading}
+              />
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <HhGirlsFiltersPanel
+            filterOptions={hhQuery.data?.filterOptions}
+            filters={hhFilters}
+            onChange={setHhReportFilters}
+            showTodayToggle
+            resetFilters={defaultHhGirlsMonitoringFilters}
+          />
+          <HhGirlsActiveFilters
+            filters={hhFilters}
+            onChange={setHhReportFilters}
+            filterOptions={hhQuery.data?.filterOptions}
+            resetFilters={defaultHhGirlsMonitoringFilters}
+          />
+          <div className="mt-6 space-y-4">
+            {reportMode === "progress" ? (
+              <HhGirlsProgressReportCard
+                allHousehold={hhQuery.data?.allHousehold}
+                allGirls={hhQuery.data?.allGirls}
+                filters={hhFilters}
+                districtOptions={hhDistricts}
+                loading={isLoading}
+              />
+            ) : (
+              <HhGirlsStatusReportCard
+                allHousehold={hhQuery.data?.allHousehold}
+                allGirls={hhQuery.data?.allGirls}
+                filters={hhFilters}
+                districtOptions={hhDistricts}
+                loading={isLoading}
+              />
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
