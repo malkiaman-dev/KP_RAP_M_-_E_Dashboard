@@ -1,4 +1,7 @@
 import { isTrackedSubmission, type TrackingRow } from "./tracking-metrics";
+import { isCompletedHouseholdForGirl } from "./hh-girls-completion";
+import type { HhGirlsRow } from "./hh-girls-metrics";
+import { PROTOCOL } from "./protocol";
 
 export type SurveyType = "tracking" | "household" | "girls";
 
@@ -179,6 +182,31 @@ export function applyFilters(
   });
 }
 
+function countCompletedHouseholds(
+  household: SurveyRow[],
+  girls: SurveyRow[]
+): number {
+  const hhByGirl = new Map<string, SurveyRow[]>();
+  for (const row of household) {
+    if (!row.girl) continue;
+    if (!hhByGirl.has(row.girl)) hhByGirl.set(row.girl, []);
+    hhByGirl.get(row.girl)!.push(row);
+  }
+
+  const gsByGirl = new Map<string, SurveyRow>();
+  for (const row of girls) {
+    if (row.girl) gsByGirl.set(row.girl, row);
+  }
+
+  let completed = 0;
+  for (const girl of new Set([...hhByGirl.keys(), ...gsByGirl.keys()])) {
+    const hhSubs = (hhByGirl.get(girl) || []) as HhGirlsRow[];
+    const gsRow = gsByGirl.get(girl) as HhGirlsRow | undefined;
+    if (isCompletedHouseholdForGirl(hhSubs, gsRow)) completed += 1;
+  }
+  return completed;
+}
+
 export function computeMetrics(rows: SurveyRow[]) {
   const tracking = rows.filter((r) => r.survey_type === "tracking");
   const household = rows.filter((r) => r.survey_type === "household");
@@ -207,6 +235,11 @@ export function computeMetrics(rows: SurveyRow[]) {
     const respondents = new Set(subs.map((s) => s.respondent));
     return respondents.has("1") && respondents.has("2");
   });
+  const completedHouseholds = countCompletedHouseholds(household, girls);
+  const hhTargetProgress =
+    PROTOCOL.HH_SURVEY_TARGET > 0
+      ? (completedHouseholds / PROTOCOL.HH_SURVEY_TARGET) * 100
+      : 0;
 
   const hhCompletionRate =
     uniqueHHGirls.size > 0
@@ -292,6 +325,8 @@ export function computeMetrics(rows: SurveyRow[]) {
     trackingSuccessRate,
     hhCompletionRate,
     girlsCompletionRate,
+    completedHouseholds,
+    hhTargetProgress,
     totalRevisits: revisits,
     tracking: {
       total: tracking.length,
@@ -306,6 +341,7 @@ export function computeMetrics(rows: SurveyRow[]) {
       motherForms: motherForms.length,
       fatherForms: fatherForms.length,
       bothParent: bothParentGirls.length,
+      completedHouseholds,
       completionRate: hhCompletionRate,
     },
     girls: {
