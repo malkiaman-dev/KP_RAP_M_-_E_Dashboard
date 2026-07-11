@@ -22,6 +22,7 @@ import { cn, DISPLAY_DATE_PLACEHOLDER, formatDisplayDate, toIsoDateString } from
 import { Calendar, Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   DropdownPanel,
+  PortalDropdownPanel,
   useCloseOnNavigation,
   useDismissiblePanel,
 } from "@/components/ui/use-floating-panel";
@@ -287,7 +288,12 @@ export function FilterDate({
         />
       </button>
 
-      <DropdownPanel open={open} panelRef={panelRef} minWidth={280}>
+      <PortalDropdownPanel
+        open={open}
+        anchorRef={anchorRef}
+        panelRef={panelRef}
+        width={308}
+      >
         <div
           id={calendarId}
           className="rounded-xl border border-border/70 bg-card p-3 shadow-lg shadow-black/10 dark:shadow-black/30"
@@ -383,7 +389,7 @@ export function FilterDate({
             </button>
           </div>
         </div>
-      </DropdownPanel>
+      </PortalDropdownPanel>
     </div>
   );
 }
@@ -542,7 +548,12 @@ export function FilterDateRange({
         />
       </button>
 
-      <DropdownPanel open={open} panelRef={panelRef} minWidth={300}>
+      <PortalDropdownPanel
+        open={open}
+        anchorRef={anchorRef}
+        panelRef={panelRef}
+        width={308}
+      >
         <div
           id={calendarId}
           className="rounded-xl border border-border/70 bg-card p-3 shadow-lg shadow-black/10 dark:shadow-black/30"
@@ -661,7 +672,7 @@ export function FilterDateRange({
             </button>
           </div>
         </div>
-      </DropdownPanel>
+      </PortalDropdownPanel>
     </div>
   );
 }
