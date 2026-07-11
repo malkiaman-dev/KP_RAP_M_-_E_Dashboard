@@ -1,5 +1,8 @@
 import { PROTOCOL } from "./protocol";
-import { isCompletedHouseholdForGirl } from "./hh-girls-completion";
+import {
+  isCompletedHouseholdForGirl,
+  isParentMarkedUnavailable,
+} from "./hh-girls-completion";
 import { computeHhGirlsCoreKpiLists } from "./hh-girls-core-kpi-lists";
 import { computeHhGirlsDuplicateDetail } from "./hh-girls-duplicates";
 import { computeHhGirlsRevisitDetail } from "./hh-girls-revisit";
@@ -23,7 +26,9 @@ export interface HhGirlsRow {
   agree_consent_father?: string;
   agree_consent_mother?: string;
   father_unavailable1?: string;
+  father_unavailable_other?: string;
   mother_unavailable1?: string;
+  mother_unavailable_other?: string;
   girl_available?: string;
   girl_available_reason?: string;
   parental_consent_agree?: string;
@@ -283,10 +288,8 @@ function analyzeUnifiedGirls(
     const hasMotherSurvey = hhSubs.some((s) => isMotherRespondent(s.respondent));
     const hasGirlSurvey = Boolean(gsRow);
 
-    const fatherNotAvailable =
-      hhSubs.length > 0 && !hasFatherSurvey;
-    const motherNotAvailable =
-      hhSubs.length > 0 && !hasMotherSurvey;
+    const fatherNotAvailable = isParentMarkedUnavailable(hhSubs, "father");
+    const motherNotAvailable = isParentMarkedUnavailable(hhSubs, "mother");
     const girlNotAvailable = hasGirlSurvey && gsRow?.girl_available === "0";
 
     const isCompletedHousehold = isCompletedHouseholdForGirl(hhSubs, gsRow);

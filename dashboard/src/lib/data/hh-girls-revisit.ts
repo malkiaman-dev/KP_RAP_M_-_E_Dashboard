@@ -4,6 +4,7 @@ import {
   isPermanentParentUnavailable,
   isTemporaryGirlUnavailable,
   isTemporaryParentUnavailable,
+  parentUnavailableLabel,
 } from "./hh-girls-completion";
 import { isFatherRespondent, isMotherRespondent } from "./hh-girls-metrics";
 
@@ -39,6 +40,9 @@ export interface HhGirlsExportRow {
   childConsent?: string;
   girlsSurveyKeyId?: string;
   girlsSurveyDate?: string;
+  unavailableCode?: string;
+  unavailableReason?: string;
+  unavailableOther?: string;
 }
 
 export type HhGirlsRevisitListKey =
@@ -161,21 +165,6 @@ function availabilityLabel(row: HhGirlsRow): string {
   return a;
 }
 
-const PARENT_UNAVAILABLE_LABELS: Record<string, string> = {
-  "1": "Gone for work within village",
-  "2": "Gone for work outside village",
-  "3": "Lives in another city",
-  "4": "Lives in another country",
-  "5": "Have passed away",
-  "6": "Other",
-};
-
-function parentUnavailableLabel(code?: string): string {
-  const c = (code || "").trim();
-  if (!c) return "";
-  return PARENT_UNAVAILABLE_LABELS[c] || `Code ${c}`;
-}
-
 function parentSlotStatusLabel(
   hhSubs: HhGirlsRow[],
   role: "father" | "mother"
@@ -187,20 +176,20 @@ function parentSlotStatusLabel(
   if (status.hasCompleteInterview) return "Interviewed (complete)";
 
   if (status.isPermanentlyUnavailable) {
-    const code = hhSubs
-      .map((s) => (s[field] || "").trim())
-      .find((c) => isPermanentParentUnavailable(c));
-    const reason = parentUnavailableLabel(code);
+    const reason =
+      status.unavailableLabel ||
+      parentUnavailableLabel(
+        hhSubs
+          .map((s) => (s[field] || "").trim())
+          .find((c) => isPermanentParentUnavailable(c))
+      );
     return reason
       ? `Permanently unavailable — ${reason}`
       : "Permanently unavailable";
   }
 
   if (status.hasPendingTemporaryUnavailable) {
-    const code = hhSubs
-      .map((s) => (s[field] || "").trim())
-      .find((c) => isTemporaryParentUnavailable(c));
-    const reason = parentUnavailableLabel(code);
+    const reason = status.unavailableLabel;
     return reason
       ? `Revisit pending — ${reason}`
       : "Revisit pending";

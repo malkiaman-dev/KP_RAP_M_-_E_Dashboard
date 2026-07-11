@@ -47,6 +47,11 @@ function toSheetRows(rows: HhGirlsExportRow[]) {
     if (includeReason) {
       base.Reason = row.exportReason || "";
     }
+    if (row.unavailableCode || row.unavailableReason) {
+      base["Unavailable Code"] = row.unavailableCode || "";
+      base["Unavailable Reason"] = row.unavailableReason || "";
+      base["Unavailable Other"] = row.unavailableOther || "";
+    }
 
     return base;
   });

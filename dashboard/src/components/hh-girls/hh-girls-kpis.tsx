@@ -71,7 +71,7 @@ const kpiConfig: {
     label: "Total Unavailable",
     icon: Ban,
     color: "text-amber-500",
-    hint: "Girls with father, mother, or girl unavailability on any visit",
+    hint: "Father, mother, or girl marked unavailable on any visit",
   },
   {
     key: "fatherNotAvailable",
@@ -79,7 +79,7 @@ const kpiConfig: {
     label: "Father Not Available",
     icon: UserX,
     color: "text-orange-500",
-    hint: "Tracked girls without a father household survey submission",
+    hint: "Father marked unavailable (father_unavailable1): codes 1–6",
   },
   {
     key: "motherNotAvailable",
@@ -87,7 +87,7 @@ const kpiConfig: {
     label: "Mother Not Available",
     icon: UserX,
     color: "text-red-500",
-    hint: "Tracked girls without a mother household survey submission",
+    hint: "Mother marked unavailable (mother_unavailable1): codes 1–6",
   },
   {
     key: "girlNotAvailable",

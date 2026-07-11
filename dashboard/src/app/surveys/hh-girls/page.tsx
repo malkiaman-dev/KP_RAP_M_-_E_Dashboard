@@ -135,9 +135,10 @@ export default function HhGirlsSurveyPage() {
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             Girl survey complete with both consents, plus each parent slot
-            complete or permanently unavailable (another city/country/deceased).
-            Temporary unavailability (e.g. away for work) blocks completion
-            until revisits are done or the case is closed.
+            complete or permanently unavailable (codes 3/4/5 — another
+            city/country/deceased). Temporary unavailability (codes 1/2/6 —
+            away for work or other) blocks completion until revisits are done
+            or the case is closed.
           </p>
         </div>
         <div className="rounded-2xl border border-teal/20 bg-teal/5 p-5">

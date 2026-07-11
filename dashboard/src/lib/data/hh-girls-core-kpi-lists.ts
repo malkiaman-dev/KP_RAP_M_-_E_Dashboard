@@ -1,6 +1,16 @@
-import { isCompletedHouseholdForGirl } from "./hh-girls-completion";
+import {
+  isCompletedHouseholdForGirl,
+  isParentMarkedUnavailable,
+  latestParentUnavailableCode,
+  latestParentUnavailableOther,
+  parentUnavailableLabel,
+} from "./hh-girls-completion";
 import type { HhGirlsRow } from "./hh-girls-metrics";
-import { toCompletedHouseholdExportRow, toHhGirlsExportRow, type HhGirlsExportRow } from "./hh-girls-revisit";
+import {
+  toCompletedHouseholdExportRow,
+  toHhGirlsExportRow,
+  type HhGirlsExportRow,
+} from "./hh-girls-revisit";
 
 export type HhGirlsCoreKpiKey =
   | "totalSubmissions"
@@ -140,10 +150,8 @@ export function computeHhGirlsCoreKpiLists(
 
     lists.uniqueGirls.push(toHhGirlsExportRow(rep, "Unique girl"));
 
-    const hasFather = hhSubs.some((s) => isFatherRespondent(s.respondent));
-    const hasMother = hhSubs.some((s) => isMotherRespondent(s.respondent));
-    const fatherNotAvailable = hhSubs.length > 0 && !hasFather;
-    const motherNotAvailable = hhSubs.length > 0 && !hasMother;
+    const fatherNotAvailable = isParentMarkedUnavailable(hhSubs, "father");
+    const motherNotAvailable = isParentMarkedUnavailable(hhSubs, "mother");
     const girlNotAvailable = Boolean(gsRow && gsRow.girl_available === "0");
     const unavailable =
       fatherNotAvailable || motherNotAvailable || girlNotAvailable;
@@ -154,14 +162,30 @@ export function computeHhGirlsCoreKpiLists(
       );
     }
     if (fatherNotAvailable) {
-      lists.fatherNotAvailable.push(
-        toHhGirlsExportRow(rep, "Father not available")
-      );
+      const code = latestParentUnavailableCode(hhSubs, "father");
+      const other = latestParentUnavailableOther(hhSubs, "father");
+      lists.fatherNotAvailable.push({
+        ...toHhGirlsExportRow(rep, "Father not available"),
+        unavailableCode: code,
+        unavailableReason: parentUnavailableLabel(code),
+        unavailableOther: other,
+        exportReason: other
+          ? `${parentUnavailableLabel(code)} — ${other}`
+          : parentUnavailableLabel(code),
+      });
     }
     if (motherNotAvailable) {
-      lists.motherNotAvailable.push(
-        toHhGirlsExportRow(rep, "Mother not available")
-      );
+      const code = latestParentUnavailableCode(hhSubs, "mother");
+      const other = latestParentUnavailableOther(hhSubs, "mother");
+      lists.motherNotAvailable.push({
+        ...toHhGirlsExportRow(rep, "Mother not available"),
+        unavailableCode: code,
+        unavailableReason: parentUnavailableLabel(code),
+        unavailableOther: other,
+        exportReason: other
+          ? `${parentUnavailableLabel(code)} — ${other}`
+          : parentUnavailableLabel(code),
+      });
     }
     if (isCompletedHouseholdForGirl(hhSubs, gsRow)) {
       const completedRow = toCompletedHouseholdExportRow(hhSubs, gsRow);
