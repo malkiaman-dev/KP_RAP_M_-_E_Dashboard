@@ -7,7 +7,6 @@ import {
   Target,
   CalendarDays,
   Gauge,
-  TrendingUp,
   UserCheck,
 } from "lucide-react";
 import { StatCard, StatCardSkeleton } from "@/components/ui/stat-card";
@@ -87,6 +86,16 @@ export function HhGirlsMonitoringKpis({
           : "text-red-600",
     },
     {
+      label: "Avg Forms / Enum / Day",
+      value: Math.round(metrics.avgSubmissionsPerEnumeratorPerDay),
+      hint: `Target ${metrics.dailyFormsTarget} forms/day (3M+3F+3G)`,
+      icon: ClipboardList,
+      color:
+        metrics.avgSubmissionsPerEnumeratorPerDay >= metrics.dailyFormsTarget
+          ? "text-teal"
+          : "text-red-600",
+    },
+    {
       label: "HH Target Achievement %",
       value: metrics.targetAchievement,
       hint: `${metrics.totalCompleted.toLocaleString()} of ${metrics.expectedCompleted.toLocaleString()} expected HH`,
@@ -97,16 +106,6 @@ export function HhGirlsMonitoringKpis({
           : metrics.targetAchievement >= 70
             ? "text-amber-500"
             : "text-red-600",
-      suffix: "%",
-      decimals: 1,
-    },
-    {
-      label: "Days Meeting Target %",
-      value: metrics.pctDaysMeetingTarget,
-      hint: `${metrics.enumeratorDaysMeetingTarget} of ${metrics.enumeratorDays} enum-days (≥${metrics.dailyHhTarget} HH)`,
-      icon: TrendingUp,
-      color:
-        metrics.pctDaysMeetingTarget >= 50 ? "text-teal" : "text-red-600",
       suffix: "%",
       decimals: 1,
     },
