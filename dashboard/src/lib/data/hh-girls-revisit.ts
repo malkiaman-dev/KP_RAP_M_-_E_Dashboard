@@ -38,6 +38,8 @@ export interface HhGirlsExportRow {
   enumeratorName: string;
   submissionDate: string;
   category: string;
+  /** Clear label for revisit exports: Father / Mother / Girl / Caretaker */
+  revisitFor?: string;
   duplicateType?: string;
   exportReason?: string;
   fatherSlotStatus?: string;
@@ -147,6 +149,29 @@ function slotLabel(slot: HhGirlsSurveySlot): string {
   if (slot === "mother") return "HH Mother";
   if (slot === "caretaker") return "HH Caretaker";
   return "Girls Survey";
+}
+
+/** Short label used in Excel "Revisit For" column. */
+function revisitForLabel(slot: HhGirlsSurveySlot): string {
+  if (slot === "father") return "Father";
+  if (slot === "mother") return "Mother";
+  if (slot === "caretaker") return "Caretaker";
+  return "Girl";
+}
+
+function toRevisitExportRow(
+  row: HhGirlsRow,
+  slot: HhGirlsSurveySlot,
+  category: string
+): HhGirlsExportRow {
+  const base = toHhGirlsExportRow(row, category);
+  const who = revisitForLabel(slot);
+  return {
+    ...base,
+    surveyType: slotLabel(slot),
+    revisitFor: who,
+    category: category.startsWith(who) ? category : `${who} revisit · ${category}`,
+  };
 }
 
 function consentLabel(row: HhGirlsRow): string {
@@ -543,32 +568,34 @@ export function computeHhGirlsRevisitDetail(
     const girl = subs[0]?.girl || "";
     const slot = key.split("|")[1] as HhGirlsSurveySlot;
     const pending = slotPendingRevisit(subs, slot);
-    const slotName = slotLabel(slot);
 
     if (pending === "2nd") {
       revisitsNeed2nd += 1;
       const row = subs[0]!;
-      const exportRow = toHhGirlsExportRow(
+      const exportRow = toRevisitExportRow(
         row,
-        `${slotName} · 2nd attempt still needed`
+        slot,
+        `2nd attempt still needed`
       );
       lists.revisitsNeed2nd.push(exportRow);
       lists.revisitsNeedToBeDone.push(exportRow);
     } else if (pending === "3rd") {
       revisitsNeed3rd += 1;
       const row = latestSubmissionForAttempt(subs, 2) || subs[subs.length - 1]!;
-      const exportRow = toHhGirlsExportRow(
+      const exportRow = toRevisitExportRow(
         row,
-        `${slotName} · 3rd attempt still needed`
+        slot,
+        `3rd attempt still needed`
       );
       lists.revisitsNeed3rd.push(exportRow);
       lists.revisitsNeedToBeDone.push(exportRow);
     } else if (pending === "4th") {
       revisitsNeed4th += 1;
       const row = latestSubmissionForAttempt(subs, 3) || subs[subs.length - 1]!;
-      const exportRow = toHhGirlsExportRow(
+      const exportRow = toRevisitExportRow(
         row,
-        `${slotName} · 4th attempt still needed`
+        slot,
+        `4th attempt still needed`
       );
       lists.revisitsNeed4th.push(exportRow);
       lists.revisitsNeedToBeDone.push(exportRow);
@@ -577,7 +604,7 @@ export function computeHhGirlsRevisitDetail(
     const second = latestSubmissionForAttempt(subs, 2);
     if (second) {
       girls2ndRevisited += 1;
-      const exportRow = toHhGirlsExportRow(second, `${slotName} · 2nd revisit`);
+      const exportRow = toRevisitExportRow(second, slot, `2nd revisit`);
       lists.girls2ndRevisited.push(exportRow);
       if (girl) revisitedGirls.set(girl, exportRow);
       if (isSlotComplete(second, slot)) {
@@ -592,7 +619,7 @@ export function computeHhGirlsRevisitDetail(
     const third = latestSubmissionForAttempt(subs, 3);
     if (third) {
       girls3rdRevisited += 1;
-      const exportRow = toHhGirlsExportRow(third, `${slotName} · 3rd revisit`);
+      const exportRow = toRevisitExportRow(third, slot, `3rd revisit`);
       lists.girls3rdRevisited.push(exportRow);
       if (girl) revisitedGirls.set(girl, exportRow);
       if (isSlotComplete(third, slot)) {
@@ -607,7 +634,7 @@ export function computeHhGirlsRevisitDetail(
     const fourth = latestSubmissionForAttempt(subs, 4);
     if (fourth) {
       girls4thRevisited += 1;
-      const exportRow = toHhGirlsExportRow(fourth, `${slotName} · 4th revisit`);
+      const exportRow = toRevisitExportRow(fourth, slot, `4th revisit`);
       lists.girls4thRevisited.push(exportRow);
       if (girl) revisitedGirls.set(girl, exportRow);
       if (isSlotComplete(fourth, slot)) {
