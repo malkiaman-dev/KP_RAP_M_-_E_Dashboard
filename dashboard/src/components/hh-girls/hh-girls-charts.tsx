@@ -116,7 +116,7 @@ export function HhGirlsCharts({
 
       <ChartCard
         title="Survey Forms by Enumerator"
-        subtitle="Father, mother, and girls stacked"
+        subtitle="Father, mother, caretaker, and girls stacked"
         index={4}
       >
         <ChartArea>
@@ -129,6 +129,7 @@ export function HhGirlsCharts({
             <Legend {...legendProps} />
             <Bar dataKey="father" name="Father" fill="url(#grad-gold-h)" stackId="a" />
             <Bar dataKey="mother" name="Mother" fill="url(#grad-teal-h)" stackId="a" />
+            <Bar dataKey="caretaker" name="Caretaker" fill="#A78BFA" stackId="a" />
             <Bar dataKey="girls" name="Girls" fill="#3B82F6" stackId="a" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ChartArea>

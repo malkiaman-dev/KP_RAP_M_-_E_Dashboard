@@ -25,6 +25,9 @@ export interface HhGirlsRow {
   available?: string;
   agree_consent_father?: string;
   agree_consent_mother?: string;
+  agree_consent_caregiver?: string;
+  available_caretaker?: string;
+  respondent_selection?: string;
   father_unavailable1?: string;
   father_unavailable_other?: string;
   mother_unavailable1?: string;
@@ -116,11 +119,21 @@ function enumeratorKey(row: HhGirlsRow): string {
 }
 
 export function isMotherRespondent(respondent?: string): boolean {
-  return respondent === "2" || respondent === "4";
+  return respondent === "2";
 }
 
 export function isFatherRespondent(respondent?: string): boolean {
-  return respondent === "1" || respondent === "3";
+  return respondent === "1";
+}
+
+/** Female caregiver — SurveyCTO `resp` choice 3 (or selection list code 5). */
+export function isCaretakerRespondent(row: {
+  respondent?: string;
+  respondent_selection?: string;
+}): boolean {
+  return (
+    row.respondent === "3" || row.respondent_selection === "5"
+  );
 }
 
 function isComplete(row: HhGirlsRow): boolean {
@@ -247,6 +260,9 @@ function isConsentRefused(row: HhGirlsRow): boolean {
     return (
       row.parental_consent_agree === "0" || row.child_consent_agree === "0"
     );
+  }
+  if (isCaretakerRespondent(row)) {
+    return row.agree_consent_caregiver === "0";
   }
   if (isMotherRespondent(row.respondent)) {
     return row.agree_consent_mother === "0";
@@ -656,6 +672,9 @@ export function computeHhGirlsMetrics(
   const motherSurveys = household.filter((r) =>
     isMotherRespondent(r.respondent)
   ).length;
+  const caretakerSurveys = household.filter((r) =>
+    isCaretakerRespondent(r)
+  ).length;
   const girlsSurveys = girls.length;
   const totalSubmissions = household.length + girls.length;
   const uniqueGirlsRollout = unifiedGirls.length;
@@ -715,6 +734,7 @@ export function computeHhGirlsMetrics(
   const surveyMix = [
     { name: "Father surveys", value: fatherSurveys, color: "#EDCA5C" },
     { name: "Mother surveys", value: motherSurveys, color: "#21A1AA" },
+    { name: "Caretaker surveys", value: caretakerSurveys, color: "#A78BFA" },
     { name: "Girls surveys", value: girlsSurveys, color: "#3B82F6" },
   ].filter((x) => x.value > 0);
 
@@ -757,23 +777,36 @@ export function computeHhGirlsMetrics(
 
   const surveysByEnumerator = new Map<
     string,
-    { label: string; father: number; mother: number; girls: number }
+    { label: string; father: number; mother: number; caretaker: number; girls: number }
   >();
   for (const r of household) {
     const key = enumeratorKey(r) || "Unknown";
     const label = cleanEnumeratorName(r.enumerator_name) || key;
     if (!surveysByEnumerator.has(key)) {
-      surveysByEnumerator.set(key, { label, father: 0, mother: 0, girls: 0 });
+      surveysByEnumerator.set(key, {
+        label,
+        father: 0,
+        mother: 0,
+        caretaker: 0,
+        girls: 0,
+      });
     }
     const entry = surveysByEnumerator.get(key)!;
     if (isFatherRespondent(r.respondent)) entry.father += 1;
-    if (isMotherRespondent(r.respondent)) entry.mother += 1;
+    else if (isMotherRespondent(r.respondent)) entry.mother += 1;
+    else if (isCaretakerRespondent(r)) entry.caretaker += 1;
   }
   for (const r of girls) {
     const key = enumeratorKey(r) || "Unknown";
     const label = cleanEnumeratorName(r.enumerator_name) || key;
     if (!surveysByEnumerator.has(key)) {
-      surveysByEnumerator.set(key, { label, father: 0, mother: 0, girls: 0 });
+      surveysByEnumerator.set(key, {
+        label,
+        father: 0,
+        mother: 0,
+        caretaker: 0,
+        girls: 0,
+      });
     }
     surveysByEnumerator.get(key)!.girls += 1;
   }
@@ -782,8 +815,9 @@ export function computeHhGirlsMetrics(
       name: e.label,
       father: e.father,
       mother: e.mother,
+      caretaker: e.caretaker,
       girls: e.girls,
-      total: e.father + e.mother + e.girls,
+      total: e.father + e.mother + e.caretaker + e.girls,
     }))
     .sort((a, b) => b.total - a.total)
     .slice(0, 12);
@@ -802,6 +836,7 @@ export function computeHhGirlsMetrics(
       uniqueGirls: uniqueGirlsRollout,
       fatherSurveys,
       motherSurveys,
+      caretakerSurveys,
       girlsSurveys,
       totalUnavailable,
       fatherNotAvailable,

@@ -1,14 +1,20 @@
 import type { HhGirlsRow } from "./hh-girls-metrics";
 import {
   analyzeParentSlot,
+  isCaretakerMarkedUnavailable,
+  isCaretakerSurveyComplete,
   isPermanentParentUnavailable,
   isTemporaryGirlUnavailable,
   isTemporaryParentUnavailable,
   parentUnavailableLabel,
 } from "./hh-girls-completion";
-import { isFatherRespondent, isMotherRespondent } from "./hh-girls-metrics";
+import {
+  isCaretakerRespondent,
+  isFatherRespondent,
+  isMotherRespondent,
+} from "./hh-girls-metrics";
 
-export type HhGirlsSurveySlot = "father" | "mother" | "girls";
+export type HhGirlsSurveySlot = "father" | "mother" | "caretaker" | "girls";
 
 export interface HhGirlsExportRow {
   keyId: string;
@@ -32,6 +38,7 @@ export interface HhGirlsExportRow {
   exportReason?: string;
   fatherSlotStatus?: string;
   motherSlotStatus?: string;
+  caretakerSlotStatus?: string;
   girlsSurveyDone?: string;
   girlsSurveyStatus?: string;
   girlsSurveyStatusLabel?: string;
@@ -113,6 +120,7 @@ function parseAttempt(row: HhGirlsRow): number {
 
 function surveySlot(row: HhGirlsRow): HhGirlsSurveySlot | null {
   if (row.survey_type === "girls") return "girls";
+  if (isCaretakerRespondent(row)) return "caretaker";
   if (isFatherRespondent(row.respondent)) return "father";
   if (isMotherRespondent(row.respondent)) return "mother";
   return null;
@@ -121,6 +129,7 @@ function surveySlot(row: HhGirlsRow): HhGirlsSurveySlot | null {
 function slotLabel(slot: HhGirlsSurveySlot): string {
   if (slot === "father") return "HH Father";
   if (slot === "mother") return "HH Mother";
+  if (slot === "caretaker") return "HH Caretaker";
   return "Girls Survey";
 }
 
@@ -133,6 +142,10 @@ function consentLabel(row: HhGirlsRow): string {
       return "Both consents";
     }
     return "";
+  }
+  if (isCaretakerRespondent(row)) {
+    if (row.agree_consent_caregiver === "1") return "Caretaker agreed";
+    if (row.agree_consent_caregiver === "0") return "Caretaker refused";
   }
   if (isMotherRespondent(row.respondent)) {
     if (row.agree_consent_mother === "1") return "Mother agreed";
@@ -163,6 +176,19 @@ function availabilityLabel(row: HhGirlsRow): string {
   if (a === "2" || a.startsWith("2 ")) return "Mother only";
   if (a === "1" || a.endsWith(" 1")) return "Father only";
   return a;
+}
+
+function caretakerSlotStatusLabel(hhSubs: HhGirlsRow[]): string {
+  if (isCaretakerSurveyComplete(hhSubs)) return "Interviewed (complete)";
+  if (isCaretakerMarkedUnavailable(hhSubs)) {
+    return "Not available — revisit pending";
+  }
+  const father = analyzeParentSlot(hhSubs, "father");
+  const mother = analyzeParentSlot(hhSubs, "mother");
+  if (father.isPermanentlyUnavailable && mother.isPermanentlyUnavailable) {
+    return "Required (both parents permanently unavailable)";
+  }
+  return "";
 }
 
 function parentSlotStatusLabel(
@@ -243,6 +269,7 @@ export function toCompletedHouseholdExportRow(
     category: "Completed household",
     fatherSlotStatus: parentSlotStatusLabel(hhSubs, "father"),
     motherSlotStatus: parentSlotStatusLabel(hhSubs, "mother"),
+    caretakerSlotStatus: caretakerSlotStatusLabel(hhSubs),
     girlsSurveyDone: girlsDone ? "Yes" : "No",
     girlsSurveyStatus: gsRow?.survey_status?.trim() || "",
     girlsSurveyStatusLabel: gsRow
@@ -282,9 +309,11 @@ export function toHhGirlsExportRow(
     consent:
       row.survey_type === "girls"
         ? `${row.parental_consent_agree || ""}/${row.child_consent_agree || ""}`
-        : isMotherRespondent(row.respondent)
-          ? row.agree_consent_mother || ""
-          : row.agree_consent_father || "",
+        : isCaretakerRespondent(row)
+          ? row.agree_consent_caregiver || ""
+          : isMotherRespondent(row.respondent)
+            ? row.agree_consent_mother || ""
+            : row.agree_consent_father || "",
     consentLabel: consentLabel(row),
     surveyStatus: row.survey_status?.trim() || "",
     surveyStatusLabel: surveyStatusLabel(row.survey_status),
@@ -311,6 +340,9 @@ function priorAttemptRequiresRevisit(
   if (slot === "mother") {
     return isTemporaryParentUnavailable(row.mother_unavailable1);
   }
+  if (slot === "caretaker") {
+    return (row.available_caretaker || "").trim() === "0";
+  }
   return false;
 }
 
@@ -331,6 +363,11 @@ function isSlotComplete(row: HhGirlsRow, slot: HhGirlsSurveySlot): boolean {
   if (slot === "father") {
     return (
       isFatherRespondent(row.respondent) && row.agree_consent_father === "1"
+    );
+  }
+  if (slot === "caretaker") {
+    return (
+      isCaretakerRespondent(row) && row.agree_consent_caregiver === "1"
     );
   }
   return false;
@@ -375,6 +412,30 @@ function groupSlotSubmissions(
     const motherSlot = motherRows.length > 0 ? motherRows : motherProxyRows;
     if (motherSlot.length > 0) {
       groups.set(slotKey(girl, "mother"), motherSlot);
+    }
+
+    const caretakerRows = hhRows.filter((r) => isCaretakerRespondent(r));
+    const fatherStatus = analyzeParentSlot(hhRows, "father");
+    const motherStatus = analyzeParentSlot(hhRows, "mother");
+    const bothParentsPermanent =
+      fatherStatus.isPermanentlyUnavailable &&
+      motherStatus.isPermanentlyUnavailable;
+    const caretakerProxyRows = hhRows.filter(
+      (r) => (r.available_caretaker || "").trim() === "0"
+    );
+    if (caretakerRows.length > 0) {
+      groups.set(slotKey(girl, "caretaker"), caretakerRows);
+    } else if (
+      bothParentsPermanent &&
+      !isCaretakerSurveyComplete(hhRows) &&
+      (caretakerProxyRows.length > 0 || hhRows.length > 0)
+    ) {
+      groups.set(
+        slotKey(girl, "caretaker"),
+        caretakerProxyRows.length > 0
+          ? caretakerProxyRows
+          : [hhRows[hhRows.length - 1]!]
+      );
     }
 
     if (gsRows.length > 0) {

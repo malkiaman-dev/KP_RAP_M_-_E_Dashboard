@@ -31,7 +31,7 @@ const kpiConfig: {
     label: "Total Submissions",
     icon: FileStack,
     color: "text-foreground",
-    hint: "All household (father + mother) and girls survey forms",
+    hint: "All household (father + mother + caretaker) and girls survey forms",
   },
   {
     key: "uniqueGirls",
@@ -56,6 +56,14 @@ const kpiConfig: {
     icon: UserCheck,
     color: "text-teal",
     hint: "Household survey submissions with mother respondent",
+  },
+  {
+    key: "caretakerSurveys",
+    exportLabel: "caretaker-surveys",
+    label: "Caretaker Surveys",
+    icon: UserCheck,
+    color: "text-violet-500",
+    hint: "Household surveys with female caretaker when both parents are permanently unavailable",
   },
   {
     key: "girlsSurveys",
@@ -111,7 +119,7 @@ const kpiConfig: {
     label: "Completed Households",
     icon: Home,
     color: "text-teal",
-    hint: "Girl survey + parent slots complete or permanently unavailable; temporary unavailability blocks until revisits",
+    hint: "Girl survey + parent slots complete/permanent, or caretaker + girl when both parents permanently unavailable",
     hoverDetail: (metrics) =>
       `${metrics.core.progressToTarget.toFixed(1)}% of ${metrics.core.hhTarget.toLocaleString()} target`,
   },
@@ -137,7 +145,7 @@ export function HhGirlsCoreKpis({
   if (loading || !metrics) {
     return (
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCardSkeleton count={11} />
+        <StatCardSkeleton count={12} />
       </div>
     );
   }

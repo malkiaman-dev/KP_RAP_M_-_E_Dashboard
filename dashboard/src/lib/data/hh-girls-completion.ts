@@ -1,5 +1,9 @@
 import type { HhGirlsRow } from "./hh-girls-metrics";
-import { isFatherRespondent, isMotherRespondent } from "./hh-girls-metrics";
+import {
+  isCaretakerRespondent,
+  isFatherRespondent,
+  isMotherRespondent,
+} from "./hh-girls-metrics";
 
 /**
  * Parent unavailable codes from HH survey `unavailable_reason` choices
@@ -153,6 +157,20 @@ export function analyzeParentSlot(
   };
 }
 
+export function isCaretakerSurveyComplete(hhSubs: HhGirlsRow[]): boolean {
+  return hhSubs.some(
+    (s) =>
+      isCaretakerRespondent(s) &&
+      s.survey_status === "1" &&
+      s.agree_consent_caregiver === "1"
+  );
+}
+
+/** Caretaker marked unavailable on any visit (available_caretaker = 0). */
+export function isCaretakerMarkedUnavailable(hhSubs: HhGirlsRow[]): boolean {
+  return hhSubs.some((s) => (s.available_caretaker || "").trim() === "0");
+}
+
 function isGirlSurveyComplete(gsRow: HhGirlsRow | undefined): boolean {
   if (!gsRow) return false;
   return (
@@ -174,11 +192,17 @@ function isGirlSlotPending(gsRow: HhGirlsRow | undefined): boolean {
 }
 
 /**
- * A household is completed when:
- * - Girls survey is complete with both consents and the girl was available
- * - Each parent slot is either interviewed (complete + consent) or permanently unavailable (3/4/5)
+ * A household is completed when the girls survey is complete with consents, and:
+ *
+ * Normal path:
+ * - Each parent is interviewed (complete + consent) or permanently unavailable (3/4/5)
  * - At least one parent was interviewed
- * - No parent has a pending temporary unavailability (1/2/6 — revisit still needed)
+ * - No pending temporary parent unavailability (1/2/6)
+ *
+ * Both-parents-permanent path:
+ * - Father and mother both permanently unavailable (3/4/5)
+ * - Caretaker survey is complete with caregiver consent
+ * - Girl survey alone is not enough if caretaker was not found / not interviewed
  */
 export function isCompletedHouseholdForGirl(
   hhSubs: HhGirlsRow[],
@@ -194,6 +218,17 @@ export function isCompletedHouseholdForGirl(
 
   if (father.hasPendingTemporaryUnavailable) return false;
   if (mother.hasPendingTemporaryUnavailable) return false;
+
+  const bothParentsPermanent =
+    father.isPermanentlyUnavailable && mother.isPermanentlyUnavailable;
+
+  if (bothParentsPermanent) {
+    // Girl survey + caretaker survey required; caretaker not found → incomplete
+    if (isCaretakerMarkedUnavailable(hhSubs) && !isCaretakerSurveyComplete(hhSubs)) {
+      return false;
+    }
+    return isCaretakerSurveyComplete(hhSubs);
+  }
 
   const fatherSatisfied =
     father.hasCompleteInterview || father.isPermanentlyUnavailable;

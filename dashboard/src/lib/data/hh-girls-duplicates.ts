@@ -1,13 +1,10 @@
-import type { HhGirlsRow } from "./hh-girls-metrics";
+import {
+  isCaretakerRespondent,
+  isFatherRespondent,
+  isMotherRespondent,
+  type HhGirlsRow,
+} from "./hh-girls-metrics";
 import { toHhGirlsExportRow, type HhGirlsExportRow } from "./hh-girls-revisit";
-
-function isMotherRespondent(respondent?: string): boolean {
-  return respondent === "2" || respondent === "4";
-}
-
-function isFatherRespondent(respondent?: string): boolean {
-  return respondent === "1" || respondent === "3";
-}
 
 export type HhGirlsDuplicateListKey =
   | "totalDuplicates"
@@ -89,6 +86,9 @@ function isSlotSuccessful(row: HhGirlsRow): boolean {
   if (row.survey_status !== "1") return false;
   if (row.survey_type === "girls") {
     return row.girl_available === "1";
+  }
+  if (isCaretakerRespondent(row)) {
+    return row.agree_consent_caregiver === "1";
   }
   if (isMotherRespondent(row.respondent)) {
     return row.agree_consent_mother === "1";

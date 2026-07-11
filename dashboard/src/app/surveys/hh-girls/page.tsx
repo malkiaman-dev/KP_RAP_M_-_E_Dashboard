@@ -135,10 +135,11 @@ export default function HhGirlsSurveyPage() {
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             Girl survey complete with both consents, plus each parent slot
-            complete or permanently unavailable (codes 3/4/5 — another
-            city/country/deceased). Temporary unavailability (codes 1/2/6 —
-            away for work or other) blocks completion until revisits are done
-            or the case is closed.
+            complete or permanently unavailable (codes 3/4/5). Temporary
+            unavailability (codes 1/2/6) blocks completion until revisits.
+            If both parents are permanently unavailable, a complete caretaker
+            survey is required with the girls survey — girl survey alone is
+            not enough if the caretaker was not found.
           </p>
         </div>
         <div className="rounded-2xl border border-teal/20 bg-teal/5 p-5">
@@ -147,8 +148,9 @@ export default function HhGirlsSurveyPage() {
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             Same girl with mother (respondent=2) and father (respondent=1)
-            forms is expected — not flagged as duplicate. Only same girl + same
-            respondent + same attempt is flagged.
+            forms is expected — not flagged as duplicate. Caretaker is
+            respondent=3. Only same girl + same respondent + same attempt is
+            flagged.
           </p>
         </div>
       </div>

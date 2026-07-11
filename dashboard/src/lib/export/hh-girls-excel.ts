@@ -32,6 +32,7 @@ function toSheetRows(rows: HhGirlsExportRow[]) {
     if (includeHouseholdSummary) {
       base["Father Slot"] = row.fatherSlotStatus || "";
       base["Mother Slot"] = row.motherSlotStatus || "";
+      base["Caretaker Slot"] = row.caretakerSlotStatus || "";
       base["Girls Survey Done"] = row.girlsSurveyDone || "";
       base["Girls Survey Status"] = row.girlsSurveyStatusLabel || "";
       base["Girl Available"] = row.girlAvailable || "";

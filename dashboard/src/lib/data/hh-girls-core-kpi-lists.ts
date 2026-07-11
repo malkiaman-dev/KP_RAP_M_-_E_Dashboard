@@ -5,7 +5,12 @@ import {
   latestParentUnavailableOther,
   parentUnavailableLabel,
 } from "./hh-girls-completion";
-import type { HhGirlsRow } from "./hh-girls-metrics";
+import {
+  isCaretakerRespondent,
+  isFatherRespondent,
+  isMotherRespondent,
+  type HhGirlsRow,
+} from "./hh-girls-metrics";
 import {
   toCompletedHouseholdExportRow,
   toHhGirlsExportRow,
@@ -17,6 +22,7 @@ export type HhGirlsCoreKpiKey =
   | "uniqueGirls"
   | "fatherSurveys"
   | "motherSurveys"
+  | "caretakerSurveys"
   | "girlsSurveys"
   | "totalUnavailable"
   | "fatherNotAvailable"
@@ -36,6 +42,7 @@ function emptyCoreKpiLists(): HhGirlsCoreKpiLists {
     uniqueGirls: [],
     fatherSurveys: [],
     motherSurveys: [],
+    caretakerSurveys: [],
     girlsSurveys: [],
     totalUnavailable: [],
     fatherNotAvailable: [],
@@ -49,19 +56,14 @@ function emptyCoreKpiLists(): HhGirlsCoreKpiLists {
   };
 }
 
-function isMotherRespondent(respondent?: string): boolean {
-  return respondent === "2" || respondent === "4";
-}
-
-function isFatherRespondent(respondent?: string): boolean {
-  return respondent === "1" || respondent === "3";
-}
-
 function isConsentRefused(row: HhGirlsRow): boolean {
   if (row.survey_type === "girls") {
     return (
       row.parental_consent_agree === "0" || row.child_consent_agree === "0"
     );
+  }
+  if (isCaretakerRespondent(row)) {
+    return row.agree_consent_caregiver === "0";
   }
   if (isMotherRespondent(row.respondent)) {
     return row.agree_consent_mother === "0";
@@ -121,6 +123,9 @@ export function computeHhGirlsCoreKpiLists(
     }
     if (isMotherRespondent(row.respondent)) {
       lists.motherSurveys.push(toHhGirlsExportRow(row, "Mother survey"));
+    }
+    if (isCaretakerRespondent(row)) {
+      lists.caretakerSurveys.push(toHhGirlsExportRow(row, "Caretaker survey"));
     }
     if (isConsentRefused(row)) {
       lists.consentRefused.push(toHhGirlsExportRow(row, "Consent refused"));

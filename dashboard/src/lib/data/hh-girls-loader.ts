@@ -72,7 +72,7 @@ export function loadHhGirlsSurveys() {
 
 export function loadHhGirlsMetrics() {
   const signature = filesSignature(hhGirlsFilePaths());
-  return getCached("hh-girls-metrics-v3", signature, () => {
+  return getCached("hh-girls-metrics-v4", signature, () => {
     const { household, girls } = readHhGirlsSurveys();
     return computeHhGirlsMetrics(household, girls);
   });

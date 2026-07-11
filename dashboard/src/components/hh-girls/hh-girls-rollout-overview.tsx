@@ -89,10 +89,10 @@ export function HhGirlsRolloutOverview({
 
       <ProgressBar value={c.completedHouseholds} max={metrics.targetN} />
       <p className="mt-2 text-[10px] text-muted-foreground">
-        Completed when the girl survey is done with consent, at least one parent
-        is interviewed, and the other parent is either interviewed or
-        permanently unavailable. Temporary unavailability requires revisits
-        first.
+        Completed when the girl survey is done with consent and parent slots
+        are interviewed or permanently unavailable. If both parents are
+        permanently unavailable, a complete caretaker interview is required.
+        Temporary unavailability requires revisits first.
       </p>
     </motion.div>
   );
