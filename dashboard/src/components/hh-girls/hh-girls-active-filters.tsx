@@ -20,18 +20,18 @@ export function HhGirlsActiveFilters({
 }) {
   const chips: { key: keyof HhGirlsFilters; label: string }[] = [];
 
-  if (filters.surveyType !== "all") {
-    chips.push({
-      key: "surveyType",
-      label: hhGirlsSurveyFilterLabel(filters.surveyType),
-    });
-  }
   if (filters.district !== "all") {
     chips.push({
       key: "district",
       label:
         filterOptions?.districts.find((d) => d.value === filters.district)?.label ||
         districtLabel(filters.district),
+    });
+  }
+  if (filters.surveyType !== "all") {
+    chips.push({
+      key: "surveyType",
+      label: hhGirlsSurveyFilterLabel(filters.surveyType),
     });
   }
   if (filters.enumerator !== "all") {
