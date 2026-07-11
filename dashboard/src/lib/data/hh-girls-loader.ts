@@ -67,12 +67,12 @@ function readHhGirlsSurveys(): { household: HhGirlsRow[]; girls: HhGirlsRow[] } 
 
 export function loadHhGirlsSurveys() {
   const signature = filesSignature(hhGirlsFilePaths());
-  return getCached("hh-girls-rows", signature, readHhGirlsSurveys);
+  return getCached("hh-girls-rows-v2", signature, readHhGirlsSurveys);
 }
 
 export function loadHhGirlsMetrics() {
   const signature = filesSignature(hhGirlsFilePaths());
-  return getCached("hh-girls-metrics", signature, () => {
+  return getCached("hh-girls-metrics-v2", signature, () => {
     const { household, girls } = readHhGirlsSurveys();
     return computeHhGirlsMetrics(household, girls);
   });

@@ -8,9 +8,6 @@ import {
   Ban,
   Home,
   Handshake,
-  Target,
-  Flag,
-  Percent,
 } from "lucide-react";
 import { StatCard, StatCardSkeleton } from "@/components/ui/stat-card";
 import type { HhGirlsCoreKpiKey } from "@/lib/data/hh-girls-core-kpi-lists";
@@ -109,15 +106,6 @@ const kpiConfig: {
     hint: "Parent or child consent explicitly refused across all survey forms",
   },
   {
-    key: "hhTarget",
-    exportLabel: "hh-target",
-    label: "HH Target",
-    icon: Target,
-    color: "text-slate-700 dark:text-slate-200",
-    hint: "Protocol target of 4,038 completed households",
-    hoverDetail: () => "Protocol completed-household target",
-  },
-  {
     key: "completedHouseholds",
     exportLabel: "completed-households",
     label: "Completed Households",
@@ -126,28 +114,6 @@ const kpiConfig: {
     hint: "Girl survey + parent slots complete or permanently unavailable; temporary unavailability blocks until revisits",
     hoverDetail: (metrics) =>
       `${metrics.core.progressToTarget.toFixed(1)}% of ${metrics.core.hhTarget.toLocaleString()} target`,
-  },
-  {
-    key: "remainingToTarget",
-    exportLabel: "remaining-to-target",
-    label: "Remaining to Target",
-    icon: Flag,
-    color: "text-red-600",
-    hint: "Completed households still needed to reach the 4,038 target",
-    hoverDetail: (metrics) =>
-      `${metrics.core.completedHouseholds.toLocaleString()} done · ${metrics.core.hhTarget.toLocaleString()} target`,
-  },
-  {
-    key: "progressToTarget",
-    exportLabel: "progress-to-target",
-    label: "Progress to Target",
-    icon: Percent,
-    color: "text-teal",
-    hint: "Completed households as a share of the 4,038 protocol target",
-    suffix: "%",
-    decimals: 1,
-    hoverDetail: (metrics) =>
-      `${metrics.core.completedHouseholds.toLocaleString()} / ${metrics.core.hhTarget.toLocaleString()} completed households`,
   },
 ];
 
@@ -171,7 +137,7 @@ export function HhGirlsCoreKpis({
   if (loading || !metrics) {
     return (
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCardSkeleton count={14} />
+        <StatCardSkeleton count={11} />
       </div>
     );
   }
@@ -180,6 +146,9 @@ export function HhGirlsCoreKpis({
 
   return (
     <div className="mb-6">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Operational metrics
+      </p>
       <p className="mb-3 text-[10px] text-muted-foreground">
         Click any card to download the underlying records as an Excel file.
       </p>
@@ -200,6 +169,7 @@ export function HhGirlsCoreKpis({
               hint={item.hint}
               suffix={item.suffix}
               decimals={item.decimals}
+              muted
               hoverDetail={
                 item.hoverDetail?.(metrics) ??
                 (hasExport ? `${rows.length} record(s)` : undefined)

@@ -656,6 +656,12 @@ export function computeHhGirlsMetrics(
   const girlsSurveys = girls.length;
   const totalSubmissions = household.length + girls.length;
   const uniqueGirlsRollout = unifiedGirls.length;
+  const totalVillages = new Set(
+    [...household, ...girls].map((r) => resolveVillage(r)).filter(Boolean)
+  ).size;
+  const totalEnumerators = new Set(
+    [...household, ...girls].map((r) => enumeratorKey(r)).filter(Boolean)
+  ).size;
   const fatherNotAvailable = unifiedGirls.filter(
     (g) => g.fatherNotAvailable
   ).length;
@@ -788,6 +794,8 @@ export function computeHhGirlsMetrics(
     targetN: hhTarget,
     core: {
       totalSubmissions,
+      totalVillages,
+      totalEnumerators,
       uniqueGirls: uniqueGirlsRollout,
       fatherSurveys,
       motherSurveys,

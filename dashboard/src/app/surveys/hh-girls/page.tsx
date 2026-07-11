@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { HhGirlsFiltersPanel } from "@/components/hh-girls/hh-girls-filters";
 import { HhGirlsActiveFilters } from "@/components/hh-girls/hh-girls-active-filters";
+import { HhGirlsMainKpis } from "@/components/hh-girls/hh-girls-main-kpis";
 import { HhGirlsCoreKpis } from "@/components/hh-girls/hh-girls-kpis";
 import { HhGirlsRolloutOverview } from "@/components/hh-girls/hh-girls-rollout-overview";
 import { HhGirlsCharts } from "@/components/hh-girls/hh-girls-charts";
@@ -116,6 +117,8 @@ export default function HhGirlsSurveyPage() {
       />
 
       <HhGirlsRolloutOverview metrics={display} loading={showLoading} />
+
+      <HhGirlsMainKpis metrics={display} loading={showLoading} />
 
       <HhGirlsCoreKpis metrics={display} loading={showLoading} />
 
