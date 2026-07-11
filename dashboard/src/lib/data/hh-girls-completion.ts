@@ -19,6 +19,24 @@ import {
 export const PERMANENT_PARENT_UNAVAILABLE_CODES = new Set(["3", "4", "5"]);
 export const TEMPORARY_PARENT_UNAVAILABLE_CODES = new Set(["1", "2", "6"]);
 
+/**
+ * Required revisits when temporarily unavailable (after the first visit).
+ * Father: 1 revisit (max attempt 2)
+ * Mother / girl / caretaker: 3 revisits (max attempt 4)
+ */
+export const REQUIRED_REVISITS_BY_SLOT = {
+  father: 1,
+  mother: 3,
+  girls: 3,
+  caretaker: 3,
+} as const;
+
+export type HhGirlsRevisitSlot = keyof typeof REQUIRED_REVISITS_BY_SLOT;
+
+export function maxAttemptForSlot(slot: HhGirlsRevisitSlot): number {
+  return 1 + REQUIRED_REVISITS_BY_SLOT[slot];
+}
+
 export const PARENT_UNAVAILABLE_LABELS: Record<string, string> = {
   "1": "Gone for work within the village",
   "2": "Gone for work outside the village",
@@ -96,6 +114,16 @@ export function isTemporaryGirlUnavailable(
   return !isPermanentGirlUnavailable(r);
 }
 
+function parseAttempt(row: HhGirlsRow): number {
+  const n = Number(row.attempt);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
+function maxAttemptAmong(rows: HhGirlsRow[]): number {
+  if (rows.length === 0) return 0;
+  return Math.max(...rows.map(parseAttempt));
+}
+
 function isParentSlotComplete(row: HhGirlsRow, role: "father" | "mother"): boolean {
   if (row.survey_status !== "1") return false;
   if (role === "mother" && isMotherRespondent(row.respondent)) {
@@ -110,7 +138,10 @@ function isParentSlotComplete(row: HhGirlsRow, role: "father" | "mother"): boole
 export interface ParentSlotStatus {
   hasCompleteInterview: boolean;
   isPermanentlyUnavailable: boolean;
+  /** Temporary unavailable and required revisits not yet exhausted. */
   hasPendingTemporaryUnavailable: boolean;
+  /** Temporary unavailable and all required revisits already filed (still not interviewed). */
+  temporaryRevisitsExhausted: boolean;
   unavailableCode: string;
   unavailableOther: string;
   unavailableLabel: string;
@@ -142,15 +173,26 @@ export function analyzeParentSlot(
   const unavailableOther = latestParentUnavailableOther(hhSubs, role);
   const unavailableLabel = parentUnavailableLabel(unavailableCode);
 
+  const attemptRows =
+    parentSubs.length > 0
+      ? parentSubs
+      : hhSubs.filter((s) => isTemporaryParentUnavailable(s[field]));
+  const attemptsUsed = maxAttemptAmong(attemptRows);
+  const revisitsExhausted =
+    attemptsUsed >= maxAttemptForSlot(role) && hasTemporaryUnavailable;
+
   const hasPendingTemporaryUnavailable =
     hasTemporaryUnavailable &&
     !hasCompleteInterview &&
-    !isPermanentlyUnavailable;
+    !isPermanentlyUnavailable &&
+    !revisitsExhausted;
 
   return {
     hasCompleteInterview,
     isPermanentlyUnavailable,
     hasPendingTemporaryUnavailable,
+    temporaryRevisitsExhausted:
+      revisitsExhausted && !hasCompleteInterview && !isPermanentlyUnavailable,
     unavailableCode,
     unavailableOther,
     unavailableLabel,
@@ -181,41 +223,35 @@ function isGirlSurveyComplete(gsRow: HhGirlsRow | undefined): boolean {
   );
 }
 
-function isGirlSlotPending(gsRow: HhGirlsRow | undefined): boolean {
-  if (!gsRow) return true;
-  if (isGirlSurveyComplete(gsRow)) return false;
-  if (gsRow.girl_available !== "0") return false;
-  return isTemporaryGirlUnavailable(
-    gsRow.girl_available,
-    gsRow.girl_available_reason
-  );
-}
-
 /**
- * A household is completed when the girls survey is complete with consents, and:
+ * A household is completed when the girls survey is complete with consents, and
+ * one of these HH respondent paths is satisfied:
  *
- * Normal path:
- * - Each parent is interviewed (complete + consent) or permanently unavailable (3/4/5)
- * - At least one parent was interviewed
- * - No pending temporary parent unavailability (1/2/6)
+ * - Mother permanently unavailable (3/4/5) → father interview + girl survey
+ * - Father permanently unavailable (3/4/5) → mother interview + girl survey
+ * - Both permanently unavailable → caretaker interview + girl survey
+ * - Both parents interviewed → + girl survey
  *
- * Both-parents-permanent path:
- * - Father and mother both permanently unavailable (3/4/5)
- * - Caretaker survey is complete with caregiver consent
- * - Girl survey alone is not enough if caretaker was not found / not interviewed
+ * Temporary unavailability (father/mother 1/2/6, or girl temporary) blocks
+ * completion until the required revisits are done AND the slot is successfully
+ * interviewed (or coded permanent). Exhausted revisits without an interview
+ * still leave the household incomplete.
  */
 export function isCompletedHouseholdForGirl(
   hhSubs: HhGirlsRow[],
   gsRow: HhGirlsRow | undefined
 ): boolean {
+  if (!gsRow) return false;
+
+  // Girl must be successfully surveyed — missing or temp-unavailable girl = incomplete
   if (!isGirlSurveyComplete(gsRow)) {
-    if (isGirlSlotPending(gsRow)) return false;
     return false;
   }
 
   const father = analyzeParentSlot(hhSubs, "father");
   const mother = analyzeParentSlot(hhSubs, "mother");
 
+  // Required revisits still outstanding for a temporary parent → incomplete
   if (father.hasPendingTemporaryUnavailable) return false;
   if (mother.hasPendingTemporaryUnavailable) return false;
 
@@ -223,13 +259,14 @@ export function isCompletedHouseholdForGirl(
     father.isPermanentlyUnavailable && mother.isPermanentlyUnavailable;
 
   if (bothParentsPermanent) {
-    // Girl survey + caretaker survey required; caretaker not found → incomplete
     if (isCaretakerMarkedUnavailable(hhSubs) && !isCaretakerSurveyComplete(hhSubs)) {
       return false;
     }
     return isCaretakerSurveyComplete(hhSubs);
   }
 
+  // Mother permanent → father + girl; father permanent → mother + girl;
+  // otherwise both parent slots must be interviewed or permanent, with ≥1 interview.
   const fatherSatisfied =
     father.hasCompleteInterview || father.isPermanentlyUnavailable;
   const motherSatisfied =

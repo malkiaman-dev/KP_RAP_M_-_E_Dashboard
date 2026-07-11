@@ -134,12 +134,12 @@ export default function HhGirlsSurveyPage() {
             Completed household definition
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Girl survey complete with both consents, plus each parent slot
-            complete or permanently unavailable (codes 3/4/5). Temporary
-            unavailability (codes 1/2/6) blocks completion until revisits.
-            If both parents are permanently unavailable, a complete caretaker
-            survey is required with the girls survey — girl survey alone is
-            not enough if the caretaker was not found.
+            Girl survey complete with both consents is always required.
+            Mother permanently unavailable (3/4/5) → father + girl. Father
+            permanently unavailable → mother + girl. Both permanently
+            unavailable → caretaker + girl. Temporary unavailability blocks
+            completion until required revisits are done (father: 1, mother/girl:
+            3) and the interview succeeds.
           </p>
         </div>
         <div className="rounded-2xl border border-teal/20 bg-teal/5 p-5">

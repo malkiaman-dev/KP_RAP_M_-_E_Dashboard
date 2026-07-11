@@ -31,7 +31,7 @@ const cards: {
   exportLabel: string;
   icon: typeof RefreshCw;
   color: string;
-  group: "general" | "2nd" | "3rd";
+  group: "general" | "2nd" | "3rd" | "4th";
   value: (d: Detail) => number;
   listKey?: ListKey;
   getList?: (d: Detail) => HhGirlsExportRow[];
@@ -47,7 +47,7 @@ const cards: {
     value: (d) => d.revisitsNeedToBeDone,
     getList: (d) => d.lists.revisitsNeedToBeDone,
     hoverDetail: (d) =>
-      `2nd attempt still needed: ${d.revisitsNeed2nd} · 3rd attempt still needed: ${d.revisitsNeed3rd}`,
+      `2nd: ${d.revisitsNeed2nd} · 3rd: ${d.revisitsNeed3rd} · 4th: ${d.revisitsNeed4th}`,
   },
   {
     label: "Total Remaining Revisits",
@@ -62,7 +62,7 @@ const cards: {
   {
     label: "Total Revisited Girls",
     exportLabel: "total-revisited-girls",
-    hint: "Unique girls with at least one 2nd or 3rd follow-up submission",
+    hint: "Unique girls with at least one follow-up submission (attempt > 1)",
     icon: RefreshCw,
     color: "text-teal",
     group: "general",
@@ -72,18 +72,22 @@ const cards: {
   {
     label: "Completed via Revisit",
     exportLabel: "completed-via-revisit",
-    hint: "Survey slots completed on a 2nd or 3rd attempt",
+    hint: "Survey slots completed on a 2nd, 3rd, or 4th attempt",
     icon: CheckCircle2,
     color: "text-green-600",
     group: "general",
-    value: (d) => d.slotsCompletedOn2ndRevisit + d.slotsCompletedOn3rdRevisit,
+    value: (d) =>
+      d.slotsCompletedOn2ndRevisit +
+      d.slotsCompletedOn3rdRevisit +
+      d.slotsCompletedOn4thRevisit,
     getList: (d) =>
       dedupeGirls([
         ...d.lists.slotsCompletedOn2ndRevisit,
         ...d.lists.slotsCompletedOn3rdRevisit,
+        ...d.lists.slotsCompletedOn4thRevisit,
       ]),
     hoverDetail: (d) =>
-      `Completed on 2nd: ${d.slotsCompletedOn2ndRevisit} · Completed on 3rd: ${d.slotsCompletedOn3rdRevisit}`,
+      `2nd: ${d.slotsCompletedOn2ndRevisit} · 3rd: ${d.slotsCompletedOn3rdRevisit} · 4th: ${d.slotsCompletedOn4thRevisit}`,
   },
   {
     label: "Revisit Submissions",
@@ -93,12 +97,16 @@ const cards: {
     color: "text-sky-600",
     group: "general",
     value: (d) => d.revisitSubmissions,
-    getList: (d) => [...d.lists.girls2ndRevisited, ...d.lists.girls3rdRevisited],
+    getList: (d) => [
+      ...d.lists.girls2ndRevisited,
+      ...d.lists.girls3rdRevisited,
+      ...d.lists.girls4thRevisited,
+    ],
   },
   {
     label: "2nd Attempt Still Needed",
     exportLabel: "2nd-attempt-still-needed",
-    hint: "Father, mother, or girl slot awaiting a 2nd visit",
+    hint: "Father (1 revisit max), mother, or girl slot awaiting a 2nd visit",
     icon: Target,
     color: "text-amber-500",
     group: "2nd",
@@ -138,7 +146,7 @@ const cards: {
   {
     label: "3rd Attempt Still Needed",
     exportLabel: "3rd-attempt-still-needed",
-    hint: "Slot still awaiting a 3rd follow-up visit",
+    hint: "Mother/girl/caretaker slot awaiting a 3rd visit (father max is 1 revisit)",
     icon: Target,
     color: "text-orange-600",
     group: "3rd",
@@ -175,12 +183,53 @@ const cards: {
     value: (d) => d.slotsNotCompletedOn3rdRevisit,
     getList: (d) => d.lists.slotsNotCompletedOn3rdRevisit,
   },
+  {
+    label: "4th Attempt Still Needed",
+    exportLabel: "4th-attempt-still-needed",
+    hint: "Mother/girl/caretaker slot awaiting a 4th visit (3 revisits required)",
+    icon: Target,
+    color: "text-rose-600",
+    group: "4th",
+    value: (d) => d.revisitsNeed4th,
+    getList: (d) => d.lists.revisitsNeed4th,
+  },
+  {
+    label: "4th Revisit Slots",
+    exportLabel: "4th-revisit-slots",
+    hint: "Survey slots with an actual 4th follow-up submission",
+    icon: Users,
+    color: "text-violet-600",
+    group: "4th",
+    value: (d) => d.girls4thRevisited,
+    getList: (d) => d.lists.girls4thRevisited,
+  },
+  {
+    label: "Completed on 4th Revisit",
+    exportLabel: "completed-on-4th-revisit",
+    hint: "Slots completed on the 4th follow-up attempt",
+    icon: CheckCircle2,
+    color: "text-teal",
+    group: "4th",
+    value: (d) => d.slotsCompletedOn4thRevisit,
+    getList: (d) => d.lists.slotsCompletedOn4thRevisit,
+  },
+  {
+    label: "Not Completed on 4th",
+    exportLabel: "not-completed-on-4th-revisit",
+    hint: "4th follow-up filed but slot still not complete",
+    icon: UserX,
+    color: "text-red-600",
+    group: "4th",
+    value: (d) => d.slotsNotCompletedOn4thRevisit,
+    getList: (d) => d.lists.slotsNotCompletedOn4thRevisit,
+  },
 ];
 
-const columns: { group: "general" | "2nd" | "3rd"; heading: string }[] = [
+const columns: { group: "general" | "2nd" | "3rd" | "4th"; heading: string }[] = [
   { group: "general", heading: "Overall" },
   { group: "2nd", heading: "2nd attempt" },
   { group: "3rd", heading: "3rd attempt" },
+  { group: "4th", heading: "4th attempt" },
 ];
 
 function downloadCardList(rows: HhGirlsExportRow[], exportLabel: string) {
@@ -216,8 +265,8 @@ export function HhGirlsRevisitSection({
           </div>
           {expanded && (
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Revisits for temporarily unavailable father, mother, or girl · click
-              any card to download an Excel list
+              Revisits when temporarily unavailable: father 1 · mother/girl 3 ·
+              click any card to download an Excel list
             </p>
           )}
         </div>
@@ -247,7 +296,7 @@ export function HhGirlsRevisitSection({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
+            <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
               {loading
                 ? columns.map((col) => (
                     <div key={col.group} className="flex flex-col gap-3">
