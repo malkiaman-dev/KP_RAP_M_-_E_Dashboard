@@ -139,13 +139,13 @@ export default function HhGirlsSurveyPage() {
           <p className="mt-1 text-xs text-muted-foreground">
             Girl survey must be complete with girl available and both parental
             and child consents agreed (either consent refused → incomplete).
-            Girl unavailable codes 1/4 (school/other) need revisits up to 3
-            attempts; codes 2/3 (another city/country) → incomplete, no revisit.
-            Mother permanently unavailable (3/4/5) → father + girl. Father
-            permanently unavailable → mother + girl. Both permanently
+            Girl unavailable codes 1/4 (school/other) need revisits through
+            attempt 3; codes 2/3 (another city/country) → incomplete, no
+            revisit. Mother permanently unavailable (3/4/5) → father + girl.
+            Father permanently unavailable → mother + girl. Both permanently
             unavailable → caretaker + girl. Parent temporary unavailability
-            blocks until required revisits succeed (father: 1 revisit / 2
-            attempts; mother: 3 revisits / 4 attempts).
+            blocks until required revisits succeed (father: attempt 2;
+            mother/caretaker/girl: attempts 2–3).
           </p>
         </div>
         <div className="rounded-2xl border border-teal/20 bg-teal/5 p-5">

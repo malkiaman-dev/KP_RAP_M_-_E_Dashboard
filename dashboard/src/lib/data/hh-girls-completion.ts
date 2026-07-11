@@ -20,24 +20,25 @@ export const PERMANENT_PARENT_UNAVAILABLE_CODES = new Set(["3", "4", "5"]);
 export const TEMPORARY_PARENT_UNAVAILABLE_CODES = new Set(["1", "2", "6"]);
 
 /**
- * Max attempts when temporarily unavailable (to close revisit cases).
- * Father: 2 attempts (1 revisit)
- * Mother / caretaker: 4 attempts (3 revisits)
- * Girl: 3 attempts (close after 3rd attempt)
+ * SurveyCTO `attempt` values are 1, 2, 3 only.
+ * Attempt 1 = first visit · Attempt 2 = 1st revisit · Attempt 3 = 2nd revisit.
+ *
+ * Father: 1 revisit → max attempt 2
+ * Mother / caretaker / girl: up to 2 revisits → max attempt 3
  */
 export const MAX_ATTEMPTS_BY_SLOT = {
   father: 2,
-  mother: 4,
+  mother: 3,
   girls: 3,
-  caretaker: 4,
+  caretaker: 3,
 } as const;
 
-/** @deprecated Prefer MAX_ATTEMPTS_BY_SLOT — kept as revisits-after-first-visit. */
+/** Revisits after the first visit (attempt − 1). */
 export const REQUIRED_REVISITS_BY_SLOT = {
   father: 1,
-  mother: 3,
+  mother: 2,
   girls: 2,
-  caretaker: 3,
+  caretaker: 2,
 } as const;
 
 export type HhGirlsRevisitSlot = keyof typeof MAX_ATTEMPTS_BY_SLOT;
@@ -60,10 +61,10 @@ export const PARENT_UNAVAILABLE_LABELS: Record<string, string> = {
  * (fields: girl_available_reason / girl_available_reason_other).
  *
  * girl_available: 1 = yes at home, 0 = no
- * 1 – Gone to school              → temporary, revisit (up to 3 attempts)
+ * 1 – Gone to school              → temporary, revisit (attempts 2–3)
  * 2 – Lives in another city       → permanent, incomplete, no revisit
  * 3 – Lives in another country    → permanent, incomplete, no revisit
- * 4 – Other                       → temporary, revisit (up to 3 attempts)
+ * 4 – Other                       → temporary, revisit (attempts 2–3)
  */
 export const PERMANENT_GIRL_UNAVAILABLE_CODES = new Set(["2", "3"]);
 export const TEMPORARY_GIRL_UNAVAILABLE_CODES = new Set(["1", "4"]);
@@ -278,8 +279,8 @@ function isGirlSurveyComplete(gsRow: HhGirlsRow | undefined): boolean {
  * - Both parents interviewed → + girl survey
  *
  * Temporary girl unavailability (gone to school / other — codes 1, 4) requires
- * revisits for up to 3 attempts. Permanent girl unavailability (another
- * city/country — codes 2, 3) leaves the HH incomplete with no revisit.
+ * revisits through attempt 3 (2nd revisit). Permanent girl unavailability
+ * (another city/country — codes 2, 3) leaves the HH incomplete with no revisit.
  * Parental or child consent refused also leaves the girl survey incomplete.
  */
 export function isCompletedHouseholdForGirl(

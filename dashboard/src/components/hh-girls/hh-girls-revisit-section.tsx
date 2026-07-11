@@ -31,7 +31,7 @@ const cards: {
   exportLabel: string;
   icon: typeof RefreshCw;
   color: string;
-  group: "general" | "2nd" | "3rd" | "4th";
+  group: "general" | "2nd" | "3rd";
   value: (d: Detail) => number;
   listKey?: ListKey;
   getList?: (d: Detail) => HhGirlsExportRow[];
@@ -40,19 +40,19 @@ const cards: {
   {
     label: "Revisits Still Needed",
     exportLabel: "revisits-still-needed",
-    hint: "Survey slots (father, mother, or girl) still needing a follow-up",
+    hint: "Survey slots still needing attempt 2 or 3 (SurveyCTO revisits)",
     icon: Target,
     color: "text-amber-600",
     group: "general",
     value: (d) => d.revisitsNeedToBeDone,
     getList: (d) => d.lists.revisitsNeedToBeDone,
     hoverDetail: (d) =>
-      `2nd: ${d.revisitsNeed2nd} · 3rd: ${d.revisitsNeed3rd} · 4th: ${d.revisitsNeed4th}`,
+      `2nd attempt: ${d.revisitsNeed2nd} · 3rd attempt: ${d.revisitsNeed3rd}`,
   },
   {
     label: "Total Remaining Revisits",
     exportLabel: "total-remaining-revisits",
-    hint: "Follow-ups still needed minus slots concluded on a revisit",
+    hint: "Follow-ups still needed minus slots completed on a revisit",
     icon: RefreshCw,
     color: "text-amber-700",
     group: "general",
@@ -62,7 +62,7 @@ const cards: {
   {
     label: "Total Revisited Girls",
     exportLabel: "total-revisited-girls",
-    hint: "Unique girls with at least one follow-up submission (attempt > 1)",
+    hint: "Unique girls with at least one follow-up submission (attempt 2 or 3)",
     icon: RefreshCw,
     color: "text-teal",
     group: "general",
@@ -72,27 +72,24 @@ const cards: {
   {
     label: "Completed via Revisit",
     exportLabel: "completed-via-revisit",
-    hint: "Survey slots completed on a 2nd, 3rd, or 4th attempt",
+    hint: "Survey slots completed on attempt 2 or 3",
     icon: CheckCircle2,
     color: "text-green-600",
     group: "general",
     value: (d) =>
-      d.slotsCompletedOn2ndRevisit +
-      d.slotsCompletedOn3rdRevisit +
-      d.slotsCompletedOn4thRevisit,
+      d.slotsCompletedOn2ndRevisit + d.slotsCompletedOn3rdRevisit,
     getList: (d) =>
       dedupeGirls([
         ...d.lists.slotsCompletedOn2ndRevisit,
         ...d.lists.slotsCompletedOn3rdRevisit,
-        ...d.lists.slotsCompletedOn4thRevisit,
       ]),
     hoverDetail: (d) =>
-      `2nd: ${d.slotsCompletedOn2ndRevisit} · 3rd: ${d.slotsCompletedOn3rdRevisit} · 4th: ${d.slotsCompletedOn4thRevisit}`,
+      `2nd: ${d.slotsCompletedOn2ndRevisit} · 3rd: ${d.slotsCompletedOn3rdRevisit}`,
   },
   {
     label: "Revisit Submissions",
     exportLabel: "revisit-submissions",
-    hint: "All household and girls forms with attempt > 1",
+    hint: "All household and girls forms with attempt 2 or 3",
     icon: RefreshCw,
     color: "text-sky-600",
     group: "general",
@@ -100,13 +97,12 @@ const cards: {
     getList: (d) => [
       ...d.lists.girls2ndRevisited,
       ...d.lists.girls3rdRevisited,
-      ...d.lists.girls4thRevisited,
     ],
   },
   {
     label: "2nd Attempt Still Needed",
     exportLabel: "2nd-attempt-still-needed",
-    hint: "Father (1 revisit max), mother, or girl slot awaiting a 2nd visit",
+    hint: "1st revisit still due (father max stops here if not found)",
     icon: Target,
     color: "text-amber-500",
     group: "2nd",
@@ -114,9 +110,9 @@ const cards: {
     getList: (d) => d.lists.revisitsNeed2nd,
   },
   {
-    label: "2nd Revisit Slots",
-    exportLabel: "2nd-revisit-slots",
-    hint: "Survey slots with an actual 2nd follow-up submission",
+    label: "2nd Attempt Slots",
+    exportLabel: "2nd-attempt-slots",
+    hint: "Slots with an actual attempt-2 (1st revisit) submission",
     icon: Users,
     color: "text-sky-600",
     group: "2nd",
@@ -124,9 +120,9 @@ const cards: {
     getList: (d) => d.lists.girls2ndRevisited,
   },
   {
-    label: "Completed on 2nd Revisit",
-    exportLabel: "completed-on-2nd-revisit",
-    hint: "Slots completed on the 2nd follow-up attempt",
+    label: "Completed on 2nd Attempt",
+    exportLabel: "completed-on-2nd-attempt",
+    hint: "Slots completed on attempt 2 (1st revisit)",
     icon: CheckCircle2,
     color: "text-teal",
     group: "2nd",
@@ -135,8 +131,8 @@ const cards: {
   },
   {
     label: "Not Completed on 2nd",
-    exportLabel: "not-completed-on-2nd-revisit",
-    hint: "2nd follow-up filed but slot still not complete",
+    exportLabel: "not-completed-on-2nd-attempt",
+    hint: "Attempt 2 filed but slot still not complete",
     icon: UserX,
     color: "text-orange-600",
     group: "2nd",
@@ -146,7 +142,7 @@ const cards: {
   {
     label: "3rd Attempt Still Needed",
     exportLabel: "3rd-attempt-still-needed",
-    hint: "Mother/girl/caretaker slot awaiting a 3rd visit (father max is 1 revisit)",
+    hint: "2nd revisit still due (mother / girl / caretaker; not father)",
     icon: Target,
     color: "text-orange-600",
     group: "3rd",
@@ -154,9 +150,9 @@ const cards: {
     getList: (d) => d.lists.revisitsNeed3rd,
   },
   {
-    label: "3rd Revisit Slots",
-    exportLabel: "3rd-revisit-slots",
-    hint: "Survey slots with an actual 3rd follow-up submission",
+    label: "3rd Attempt Slots",
+    exportLabel: "3rd-attempt-slots",
+    hint: "Slots with an actual attempt-3 (2nd revisit) submission",
     icon: Users,
     color: "text-indigo-600",
     group: "3rd",
@@ -164,9 +160,9 @@ const cards: {
     getList: (d) => d.lists.girls3rdRevisited,
   },
   {
-    label: "Completed on 3rd Revisit",
-    exportLabel: "completed-on-3rd-revisit",
-    hint: "Slots completed on the 3rd follow-up attempt",
+    label: "Completed on 3rd Attempt",
+    exportLabel: "completed-on-3rd-attempt",
+    hint: "Slots completed on attempt 3 (2nd revisit)",
     icon: CheckCircle2,
     color: "text-deep-teal",
     group: "3rd",
@@ -175,61 +171,20 @@ const cards: {
   },
   {
     label: "Not Completed on 3rd",
-    exportLabel: "not-completed-on-3rd-revisit",
-    hint: "3rd follow-up filed but slot still not complete",
+    exportLabel: "not-completed-on-3rd-attempt",
+    hint: "Attempt 3 filed but slot still not complete",
     icon: UserX,
     color: "text-red-500",
     group: "3rd",
     value: (d) => d.slotsNotCompletedOn3rdRevisit,
     getList: (d) => d.lists.slotsNotCompletedOn3rdRevisit,
   },
-  {
-    label: "4th Attempt Still Needed",
-    exportLabel: "4th-attempt-still-needed",
-    hint: "Mother/girl/caretaker slot awaiting a 4th visit (3 revisits required)",
-    icon: Target,
-    color: "text-rose-600",
-    group: "4th",
-    value: (d) => d.revisitsNeed4th,
-    getList: (d) => d.lists.revisitsNeed4th,
-  },
-  {
-    label: "4th Revisit Slots",
-    exportLabel: "4th-revisit-slots",
-    hint: "Survey slots with an actual 4th follow-up submission",
-    icon: Users,
-    color: "text-violet-600",
-    group: "4th",
-    value: (d) => d.girls4thRevisited,
-    getList: (d) => d.lists.girls4thRevisited,
-  },
-  {
-    label: "Completed on 4th Revisit",
-    exportLabel: "completed-on-4th-revisit",
-    hint: "Slots completed on the 4th follow-up attempt",
-    icon: CheckCircle2,
-    color: "text-teal",
-    group: "4th",
-    value: (d) => d.slotsCompletedOn4thRevisit,
-    getList: (d) => d.lists.slotsCompletedOn4thRevisit,
-  },
-  {
-    label: "Not Completed on 4th",
-    exportLabel: "not-completed-on-4th-revisit",
-    hint: "4th follow-up filed but slot still not complete",
-    icon: UserX,
-    color: "text-red-600",
-    group: "4th",
-    value: (d) => d.slotsNotCompletedOn4thRevisit,
-    getList: (d) => d.lists.slotsNotCompletedOn4thRevisit,
-  },
 ];
 
-const columns: { group: "general" | "2nd" | "3rd" | "4th"; heading: string }[] = [
+const columns: { group: "general" | "2nd" | "3rd"; heading: string }[] = [
   { group: "general", heading: "Overall" },
-  { group: "2nd", heading: "2nd attempt" },
-  { group: "3rd", heading: "3rd attempt" },
-  { group: "4th", heading: "4th attempt" },
+  { group: "2nd", heading: "2nd attempt (1st revisit)" },
+  { group: "3rd", heading: "3rd attempt (2nd revisit)" },
 ];
 
 function downloadCardList(rows: HhGirlsExportRow[], exportLabel: string) {
@@ -265,9 +220,10 @@ export function HhGirlsRevisitSection({
           </div>
           {expanded && (
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Revisits when temporarily unavailable: father 1 revisit (2
-              attempts) · mother/caretaker 3 revisits (4 attempts) · girl codes
-              1/4 only, 3 attempts to close · click any card to download Excel
+              SurveyCTO attempt 1 = first visit · attempt 2 = 1st revisit ·
+              attempt 3 = 2nd revisit. Father: 1 revisit (attempt 2) ·
+              mother/caretaker/girl: up to 2 revisits (attempts 2–3). Girl
+              codes 1/4 only for revisits. Click any card to download Excel.
             </p>
           )}
         </div>

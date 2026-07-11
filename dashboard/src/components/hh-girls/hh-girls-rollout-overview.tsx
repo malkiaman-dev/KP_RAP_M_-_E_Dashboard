@@ -92,8 +92,9 @@ export function HhGirlsRolloutOverview({
         Completed when the girl survey succeeds (available + both consents) and:
         father+girl (mother permanent), mother+girl (father permanent),
         caretaker+girl (both permanent), or both parents interviewed. Girl
-        unavailable 1/4 needs up to 3 attempts; 2/3 = incomplete with no
-        revisit. Consent refused = incomplete.
+        unavailable 1/4 needs attempts 2–3; 2/3 = incomplete with no
+        revisit. Consent refused = incomplete. Father: 1 revisit (attempt 2);
+        mother/caretaker/girl: up to 2 revisits (attempts 2–3).
       </p>
     </motion.div>
   );

@@ -19,7 +19,8 @@ import {
 
 export type HhGirlsSurveySlot = "father" | "mother" | "caretaker" | "girls";
 
-export type HhGirlsPendingRevisit = "2nd" | "3rd" | "4th";
+/** Pending follow-up: SurveyCTO attempt 2 (1st revisit) or attempt 3 (2nd revisit). */
+export type HhGirlsPendingRevisit = "2nd" | "3rd";
 
 export interface HhGirlsExportRow {
   keyId: string;
@@ -63,33 +64,25 @@ export type HhGirlsRevisitListKey =
   | "revisitsNeedToBeDone"
   | "revisitsNeed2nd"
   | "revisitsNeed3rd"
-  | "revisitsNeed4th"
   | "girls2ndRevisited"
   | "girls3rdRevisited"
-  | "girls4thRevisited"
   | "slotsCompletedOn2ndRevisit"
   | "slotsCompletedOn3rdRevisit"
-  | "slotsCompletedOn4thRevisit"
   | "slotsNotCompletedOn2ndRevisit"
   | "slotsNotCompletedOn3rdRevisit"
-  | "slotsNotCompletedOn4thRevisit"
   | "totalRevisitedGirls";
 
 export interface HhGirlsRevisitDetailMetrics {
   revisitsNeedToBeDone: number;
   revisitsNeed2nd: number;
   revisitsNeed3rd: number;
-  revisitsNeed4th: number;
   totalRemainingRevisits: number;
   girls2ndRevisited: number;
   girls3rdRevisited: number;
-  girls4thRevisited: number;
   slotsCompletedOn2ndRevisit: number;
   slotsCompletedOn3rdRevisit: number;
-  slotsCompletedOn4thRevisit: number;
   slotsNotCompletedOn2ndRevisit: number;
   slotsNotCompletedOn3rdRevisit: number;
-  slotsNotCompletedOn4thRevisit: number;
   totalRevisitedGirls: number;
   revisitSubmissions: number;
 }
@@ -113,16 +106,12 @@ function emptyRevisitLists(): Record<HhGirlsRevisitListKey, HhGirlsExportRow[]> 
     revisitsNeedToBeDone: [],
     revisitsNeed2nd: [],
     revisitsNeed3rd: [],
-    revisitsNeed4th: [],
     girls2ndRevisited: [],
     girls3rdRevisited: [],
-    girls4thRevisited: [],
     slotsCompletedOn2ndRevisit: [],
     slotsCompletedOn3rdRevisit: [],
-    slotsCompletedOn4thRevisit: [],
     slotsNotCompletedOn2ndRevisit: [],
     slotsNotCompletedOn3rdRevisit: [],
-    slotsNotCompletedOn4thRevisit: [],
     totalRevisitedGirls: [],
   };
 }
@@ -546,7 +535,6 @@ function slotPendingRevisit(
 
   if (maxAttempt === 1) return "2nd";
   if (maxAttempt === 2) return "3rd";
-  if (maxAttempt === 3) return "4th";
   return null;
 }
 
@@ -560,16 +548,12 @@ export function computeHhGirlsRevisitDetail(
 
   let revisitsNeed2nd = 0;
   let revisitsNeed3rd = 0;
-  let revisitsNeed4th = 0;
   let girls2ndRevisited = 0;
   let girls3rdRevisited = 0;
-  let girls4thRevisited = 0;
   let slotsCompletedOn2ndRevisit = 0;
   let slotsCompletedOn3rdRevisit = 0;
-  let slotsCompletedOn4thRevisit = 0;
   let slotsNotCompletedOn2ndRevisit = 0;
   let slotsNotCompletedOn3rdRevisit = 0;
-  let slotsNotCompletedOn4thRevisit = 0;
 
   const revisitSubmissions = [...household, ...girls].filter(
     (r) => parseAttempt(r) > 1
@@ -586,7 +570,7 @@ export function computeHhGirlsRevisitDetail(
       const exportRow = toRevisitExportRow(
         row,
         slot,
-        `2nd attempt still needed`
+        `2nd attempt (1st revisit) still needed`
       );
       lists.revisitsNeed2nd.push(exportRow);
       lists.revisitsNeedToBeDone.push(exportRow);
@@ -596,26 +580,20 @@ export function computeHhGirlsRevisitDetail(
       const exportRow = toRevisitExportRow(
         row,
         slot,
-        `3rd attempt still needed`
+        `3rd attempt (2nd revisit) still needed`
       );
       lists.revisitsNeed3rd.push(exportRow);
-      lists.revisitsNeedToBeDone.push(exportRow);
-    } else if (pending === "4th") {
-      revisitsNeed4th += 1;
-      const row = latestSubmissionForAttempt(subs, 3) || subs[subs.length - 1]!;
-      const exportRow = toRevisitExportRow(
-        row,
-        slot,
-        `4th attempt still needed`
-      );
-      lists.revisitsNeed4th.push(exportRow);
       lists.revisitsNeedToBeDone.push(exportRow);
     }
 
     const second = latestSubmissionForAttempt(subs, 2);
     if (second) {
       girls2ndRevisited += 1;
-      const exportRow = toRevisitExportRow(second, slot, `2nd revisit`);
+      const exportRow = toRevisitExportRow(
+        second,
+        slot,
+        `2nd attempt (1st revisit)`
+      );
       lists.girls2ndRevisited.push(exportRow);
       if (girl) revisitedGirls.set(girl, exportRow);
       if (isSlotComplete(second, slot)) {
@@ -630,7 +608,11 @@ export function computeHhGirlsRevisitDetail(
     const third = latestSubmissionForAttempt(subs, 3);
     if (third) {
       girls3rdRevisited += 1;
-      const exportRow = toRevisitExportRow(third, slot, `3rd revisit`);
+      const exportRow = toRevisitExportRow(
+        third,
+        slot,
+        `3rd attempt (2nd revisit)`
+      );
       lists.girls3rdRevisited.push(exportRow);
       if (girl) revisitedGirls.set(girl, exportRow);
       if (isSlotComplete(third, slot)) {
@@ -641,48 +623,25 @@ export function computeHhGirlsRevisitDetail(
         lists.slotsNotCompletedOn3rdRevisit.push(exportRow);
       }
     }
-
-    const fourth = latestSubmissionForAttempt(subs, 4);
-    if (fourth) {
-      girls4thRevisited += 1;
-      const exportRow = toRevisitExportRow(fourth, slot, `4th revisit`);
-      lists.girls4thRevisited.push(exportRow);
-      if (girl) revisitedGirls.set(girl, exportRow);
-      if (isSlotComplete(fourth, slot)) {
-        slotsCompletedOn4thRevisit += 1;
-        lists.slotsCompletedOn4thRevisit.push(exportRow);
-      } else {
-        slotsNotCompletedOn4thRevisit += 1;
-        lists.slotsNotCompletedOn4thRevisit.push(exportRow);
-      }
-    }
   }
 
   lists.totalRevisitedGirls = [...revisitedGirls.values()];
 
-  const revisitsNeedToBeDone =
-    revisitsNeed2nd + revisitsNeed3rd + revisitsNeed4th;
+  const revisitsNeedToBeDone = revisitsNeed2nd + revisitsNeed3rd;
   const concludedViaRevisit =
-    slotsCompletedOn2ndRevisit +
-    slotsCompletedOn3rdRevisit +
-    slotsCompletedOn4thRevisit +
-    slotsNotCompletedOn4thRevisit;
+    slotsCompletedOn2ndRevisit + slotsCompletedOn3rdRevisit;
 
   return {
     revisitsNeedToBeDone,
     revisitsNeed2nd,
     revisitsNeed3rd,
-    revisitsNeed4th,
     totalRemainingRevisits: Math.max(0, revisitsNeedToBeDone - concludedViaRevisit),
     girls2ndRevisited,
     girls3rdRevisited,
-    girls4thRevisited,
     slotsCompletedOn2ndRevisit,
     slotsCompletedOn3rdRevisit,
-    slotsCompletedOn4thRevisit,
     slotsNotCompletedOn2ndRevisit,
     slotsNotCompletedOn3rdRevisit,
-    slotsNotCompletedOn4thRevisit,
     totalRevisitedGirls: revisitedGirls.size,
     revisitSubmissions,
     lists,
