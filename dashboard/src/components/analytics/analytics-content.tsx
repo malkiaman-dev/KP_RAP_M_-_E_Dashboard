@@ -12,9 +12,16 @@ import {
   FiltersPanel,
 } from "@/components/dashboard/filters-panel";
 import {
+  buildHhCompletionTrend,
   computePaceInsight,
   computeProtocolProgress,
 } from "@/lib/data/analytics-insights";
+import {
+  applyHhGirlsDataFilters,
+  computeHhGirlsMetrics,
+  defaultHhGirlsFilters,
+  type HhGirlsFilters,
+} from "@/lib/data/hh-girls-metrics";
 import { PROTOCOL } from "@/lib/data/protocol";
 import {
   applyFilters,
@@ -30,7 +37,9 @@ import {
 import {
   DASHBOARD_METRICS_QUERY_KEY,
   fetchDashboardMetrics,
+  fetchHhGirlsMetrics,
   fetchTrackingMetrics,
+  HH_GIRLS_METRICS_QUERY_KEY,
   QUERY_STALE_MS,
   TRACKING_METRICS_QUERY_KEY,
 } from "@/lib/queries/app-data";
@@ -38,6 +47,16 @@ import {
 function toTrackingFilters(filters: DashboardFilters): TrackingFilters {
   return {
     ...defaultTrackingFilters,
+    district: filters.district,
+    enumerator: filters.enumerator,
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
+  };
+}
+
+function toHhGirlsFilters(filters: DashboardFilters): HhGirlsFilters {
+  return {
+    ...defaultHhGirlsFilters,
     district: filters.district,
     enumerator: filters.enumerator,
     dateFrom: filters.dateFrom,
@@ -58,6 +77,12 @@ export function AnalyticsContent() {
   const trackingQuery = useQuery({
     queryKey: [...TRACKING_METRICS_QUERY_KEY],
     queryFn: fetchTrackingMetrics,
+    staleTime: QUERY_STALE_MS,
+  });
+
+  const hhQuery = useQuery({
+    queryKey: [...HH_GIRLS_METRICS_QUERY_KEY],
+    queryFn: fetchHhGirlsMetrics,
     staleTime: QUERY_STALE_MS,
   });
 
@@ -91,12 +116,22 @@ export function AnalyticsContent() {
     );
   }, [trackingQuery.data, deferredFilters]);
 
+  const hhGirls = useMemo(() => {
+    if (!hhQuery.data?.allHousehold || !hhQuery.data?.allGirls) return undefined;
+    const { household, girls } = applyHhGirlsDataFilters(
+      hhQuery.data.allHousehold,
+      hhQuery.data.allGirls,
+      toHhGirlsFilters(deferredFilters)
+    );
+    return computeHhGirlsMetrics(household, girls);
+  }, [hhQuery.data, deferredFilters]);
+
   const progress = useMemo(() => {
     if (!protocolDashboard || !tracking) return undefined;
-    return computeProtocolProgress(protocolDashboard, tracking);
-  }, [protocolDashboard, tracking]);
+    return computeProtocolProgress(protocolDashboard, tracking, hhGirls?.core);
+  }, [protocolDashboard, tracking, hhGirls]);
 
-  const pace = useMemo(() => {
+  const trackingPace = useMemo(() => {
     if (!tracking) return undefined;
     return computePaceInsight(
       tracking.trackingTrend,
@@ -104,10 +139,21 @@ export function AnalyticsContent() {
     );
   }, [tracking]);
 
-  const isError = dashboardQuery.isError || trackingQuery.isError;
+  const hhPace = useMemo(() => {
+    if (!hhGirls) return undefined;
+    const trend = buildHhCompletionTrend(
+      hhGirls.allHousehold,
+      hhGirls.allGirls
+    );
+    return computePaceInsight(trend, hhGirls.core.remainingToTarget);
+  }, [hhGirls]);
+
+  const isError =
+    dashboardQuery.isError || trackingQuery.isError || hhQuery.isError;
   const isLoading =
     (dashboardQuery.isLoading && !dashboard) ||
-    (trackingQuery.isLoading && !tracking);
+    (trackingQuery.isLoading && !tracking) ||
+    (hhQuery.isLoading && !hhGirls);
   const filtering =
     filters.district !== deferredFilters.district ||
     filters.surveyType !== deferredFilters.surveyType ||
@@ -163,8 +209,8 @@ export function AnalyticsContent() {
 
       <AnalyticsKpis
         progress={progress}
-        pace={pace}
-        tracking={tracking}
+        trackingPace={trackingPace}
+        hhPace={hhPace}
         loading={isLoading}
       />
       <AnalyticsProtocol

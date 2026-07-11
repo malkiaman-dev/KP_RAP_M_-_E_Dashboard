@@ -11,7 +11,7 @@ export const NAV_TABS: NavTab[] = [
     href: "/analytics",
     label: "Analytics",
     section: "Overview",
-    apis: ["/api/metrics", "/api/tracking"],
+    apis: ["/api/metrics", "/api/tracking", "/api/hh-girls"],
   },
   { href: "/reports", label: "Reports", section: "Overview", apis: ["/api/tracking"] },
   { href: "/surveys", label: "All Surveys", section: "Surveys", apis: ["/api/metrics", "/api/errors"] },

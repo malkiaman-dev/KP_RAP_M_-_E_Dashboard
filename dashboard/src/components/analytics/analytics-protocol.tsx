@@ -223,7 +223,7 @@ export function AnalyticsProtocol({
         />
         <ProtocolCard
           title="Household Completion"
-          subtitle={`${progress.hhTarget.toLocaleString()} both-parent households`}
+          subtitle={`${progress.hhTarget.toLocaleString()} completed households (HH + Girls)`}
           value={progress.hhCompleted}
           target={progress.hhTarget}
           remaining={progress.hhRemaining}

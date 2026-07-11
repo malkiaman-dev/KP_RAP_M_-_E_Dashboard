@@ -1,31 +1,23 @@
 "use client";
 
-import {
-  Activity,
-  ClipboardCheck,
-  Home,
-  Target,
-  Timer,
-  Users,
-} from "lucide-react";
+import { Activity, Home, Target, Timer } from "lucide-react";
 import { StatCard, StatCardSkeleton } from "@/components/ui/stat-card";
 import type { PaceInsight, ProtocolProgress } from "@/lib/data/analytics-insights";
-import type { TrackingMetrics } from "@/lib/data/tracking-metrics";
 
 interface AnalyticsKpisProps {
   progress?: ProtocolProgress;
-  pace?: PaceInsight;
-  tracking?: TrackingMetrics;
+  trackingPace?: PaceInsight;
+  hhPace?: PaceInsight;
   loading?: boolean;
 }
 
 export function AnalyticsKpis({
   progress,
-  pace,
-  tracking,
+  trackingPace,
+  hhPace,
   loading,
 }: AnalyticsKpisProps) {
-  if (loading || !progress || !pace || !tracking) {
+  if (loading || !progress || !trackingPace || !hhPace) {
     return (
       <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCardSkeleton count={6} />
@@ -49,46 +41,52 @@ export function AnalyticsKpis({
       icon: Timer,
       color: "text-amber-600 dark:text-gold",
       hint:
-        pace.daysToTarget == null
+        trackingPace.daysToTarget == null
           ? "Insufficient recent pace"
-          : pace.daysToTarget === 0
+          : trackingPace.daysToTarget === 0
             ? "Target reached"
-            : `~${pace.daysToTarget} days at current pace`,
+            : `~${trackingPace.daysToTarget} days at current pace`,
     },
     {
       label: "7-Day Pace",
-      value: pace.dailyRate,
+      value: trackingPace.dailyRate,
       decimals: 1,
       icon: Activity,
-      color: pace.onTrack ? "text-teal" : "text-amber-600 dark:text-gold",
-      hint: `+${pace.recentGain.toLocaleString()} girls in ${pace.windowDays} days`,
+      color: trackingPace.onTrack
+        ? "text-teal"
+        : "text-amber-600 dark:text-gold",
+      hint: `+${trackingPace.recentGain.toLocaleString()} girls in ${trackingPace.windowDays} days`,
     },
     {
-      label: "HH Both Parents",
+      label: "HH Completed vs Target",
       value: progress.hhPct,
       suffix: "%",
       decimals: 1,
       icon: Home,
       color: "text-deep-teal",
-      hint: `${progress.hhCompleted.toLocaleString()} of ${progress.hhTarget.toLocaleString()} target`,
+      hint: `${progress.hhCompleted.toLocaleString()} of ${progress.hhTarget.toLocaleString()}`,
     },
     {
-      label: "Pool Coverage",
-      value: progress.coveragePct,
-      suffix: "%",
-      decimals: 1,
-      icon: Users,
-      color: "text-deep-teal",
-      hint: `${progress.uniqueGirlsInData.toLocaleString()} of ${progress.assignmentPool.toLocaleString()} assigned`,
+      label: "HH Remaining to Target",
+      value: progress.hhRemaining,
+      icon: Timer,
+      color: "text-amber-600 dark:text-gold",
+      hint:
+        hhPace.daysToTarget == null
+          ? "Insufficient recent pace"
+          : hhPace.daysToTarget === 0
+            ? "Target reached"
+            : `~${hhPace.daysToTarget} days at current pace`,
     },
     {
-      label: "Survey Completion",
-      value: tracking.secondaryKpis.completionRate,
-      suffix: "%",
+      label: "HH 7-Day Pace",
+      value: hhPace.dailyRate,
       decimals: 1,
-      icon: ClipboardCheck,
-      color: "text-teal",
-      hint: `${tracking.totalSubmissions.toLocaleString()} tracking submissions`,
+      icon: Activity,
+      color: hhPace.onTrack
+        ? "text-deep-teal"
+        : "text-amber-600 dark:text-gold",
+      hint: `+${hhPace.recentGain.toLocaleString()} households in ${hhPace.windowDays} days`,
     },
   ];
 

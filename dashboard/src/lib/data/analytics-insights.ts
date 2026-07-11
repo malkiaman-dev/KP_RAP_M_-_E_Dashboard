@@ -1,15 +1,17 @@
 import { PROTOCOL } from "@/lib/data/protocol";
+import { isCompletedHouseholdForGirl } from "@/lib/data/hh-girls-completion";
+import type { HhGirlsMetrics, HhGirlsRow } from "@/lib/data/hh-girls-metrics";
 import type { DashboardMetrics } from "@/lib/data/survey-metrics";
 import type { TrackingMetrics } from "@/lib/data/tracking-metrics";
 
 export interface PaceInsight {
-  /** Girls tracked in the trailing window. */
+  /** Units gained in the trailing window. */
   recentGain: number;
   /** Window length in calendar days used for the rate. */
   windowDays: number;
-  /** Average girls tracked per day over the window. */
+  /** Average units gained per day over the window. */
   dailyRate: number;
-  /** Estimated calendar days to hit the success target at the current rate. */
+  /** Estimated calendar days to hit the target at the current rate. */
   daysToTarget: number | null;
   /** Whether pace is enough to hit target within a reasonable field season (~90 days). */
   onTrack: boolean;
@@ -39,13 +41,23 @@ export interface ModuleHealthRow {
   rateLabel: string;
 }
 
-/** Derive trailing-window tracking pace from the cumulative tracked trend. */
+function toIsoDate(raw: string): string | null {
+  if (!raw) return null;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    const fallback = raw.split(" ")[0];
+    return fallback || null;
+  }
+  return parsed.toISOString().slice(0, 10);
+}
+
+/** Derive trailing-window pace from a cumulative trend series. */
 export function computePaceInsight(
-  trackingTrend: { date: string; count: number }[],
+  trend: { date: string; count: number }[],
   remainingToTarget: number,
   windowDays = 7
 ): PaceInsight {
-  if (trackingTrend.length < 2) {
+  if (trend.length < 2) {
     return {
       recentGain: 0,
       windowDays,
@@ -55,14 +67,14 @@ export function computePaceInsight(
     };
   }
 
-  const latest = trackingTrend[trackingTrend.length - 1];
+  const latest = trend[trend.length - 1];
   const latestDate = new Date(`${latest.date}T00:00:00`);
   const windowStart = new Date(latestDate);
   windowStart.setDate(windowStart.getDate() - (windowDays - 1));
   const startKey = windowStart.toISOString().slice(0, 10);
 
-  let baseline = trackingTrend[0];
-  for (const point of trackingTrend) {
+  let baseline = trend[0];
+  for (const point of trend) {
     if (point.date <= startKey) baseline = point;
     else break;
   }
@@ -87,15 +99,81 @@ export function computePaceInsight(
   };
 }
 
+/**
+ * Cumulative completed-household trend for HH/Girls pace.
+ * Completion date = latest submission date among forms for that girl.
+ */
+export function buildHhCompletionTrend(
+  household: HhGirlsRow[],
+  girls: HhGirlsRow[]
+): { date: string; count: number }[] {
+  const hhByGirl = new Map<string, HhGirlsRow[]>();
+  for (const row of household) {
+    if (!row.girl) continue;
+    if (!hhByGirl.has(row.girl)) hhByGirl.set(row.girl, []);
+    hhByGirl.get(row.girl)!.push(row);
+  }
+
+  const gsByGirl = new Map<string, HhGirlsRow>();
+  for (const row of girls) {
+    if (row.girl) gsByGirl.set(row.girl, row);
+  }
+
+  const girlIds = new Set([...hhByGirl.keys(), ...gsByGirl.keys()]);
+  const completionDates: string[] = [];
+
+  for (const girl of girlIds) {
+    const hhSubs = hhByGirl.get(girl) || [];
+    const gsRow = gsByGirl.get(girl);
+    if (!isCompletedHouseholdForGirl(hhSubs, gsRow)) continue;
+
+    let latest: string | null = null;
+    for (const row of [...hhSubs, ...(gsRow ? [gsRow] : [])]) {
+      const date = toIsoDate(row.SubmissionDate || "");
+      if (date && (!latest || date > latest)) latest = date;
+    }
+    if (latest) completionDates.push(latest);
+  }
+
+  completionDates.sort((a, b) => a.localeCompare(b));
+
+  const trend: { date: string; count: number }[] = [];
+  let cumulative = 0;
+  for (const date of completionDates) {
+    cumulative += 1;
+    const last = trend[trend.length - 1];
+    if (last && last.date === date) {
+      last.count = cumulative;
+    } else {
+      trend.push({ date, count: cumulative });
+    }
+  }
+
+  return trend;
+}
+
 /** Protocol progress across tracking + HH modules. */
 export function computeProtocolProgress(
   dashboard: DashboardMetrics,
-  tracking: TrackingMetrics
+  tracking: TrackingMetrics,
+  hhGirls?: Pick<
+    HhGirlsMetrics["core"],
+    | "completedHouseholds"
+    | "hhTarget"
+    | "remainingToTarget"
+    | "progressToTarget"
+  >
 ): ProtocolProgress {
   const trackingTracked = tracking.totalTrackedGirls;
   const trackingTarget = tracking.successTarget;
-  const hhCompleted = dashboard.household.bothParent;
-  const hhTarget = PROTOCOL.HH_SURVEY_TARGET;
+  const hhCompleted =
+    hhGirls?.completedHouseholds ?? dashboard.household.bothParent;
+  const hhTarget = hhGirls?.hhTarget ?? PROTOCOL.HH_SURVEY_TARGET;
+  const hhRemaining =
+    hhGirls?.remainingToTarget ?? Math.max(0, hhTarget - hhCompleted);
+  const hhPct =
+    hhGirls?.progressToTarget ??
+    (hhTarget > 0 ? (hhCompleted / hhTarget) * 100 : 0);
   const girlsComplete = dashboard.girls.complete;
   const girlsTotal = dashboard.girls.total;
   const assignmentPool = tracking.assignmentPool;
@@ -109,8 +187,8 @@ export function computeProtocolProgress(
     trackingRemaining: Math.max(0, trackingTarget - trackingTracked),
     hhCompleted,
     hhTarget,
-    hhPct: hhTarget > 0 ? (hhCompleted / hhTarget) * 100 : 0,
-    hhRemaining: Math.max(0, hhTarget - hhCompleted),
+    hhPct,
+    hhRemaining,
     girlsComplete,
     girlsTotal,
     girlsPct: girlsTotal > 0 ? (girlsComplete / girlsTotal) * 100 : 0,
