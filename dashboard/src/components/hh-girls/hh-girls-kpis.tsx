@@ -136,7 +136,7 @@ export function HhGirlsCoreKpis({
 }) {
   if (loading || !metrics) {
     return (
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCardSkeleton count={11} />
       </div>
     );
@@ -152,7 +152,7 @@ export function HhGirlsCoreKpis({
       <p className="mb-3 text-[10px] text-muted-foreground">
         Click any card to download the underlying records as an Excel file.
       </p>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {kpiConfig.map((item, i) => {
           const rows = metrics.coreKpiLists[item.key];
           const hasExport = rows.length > 0;
