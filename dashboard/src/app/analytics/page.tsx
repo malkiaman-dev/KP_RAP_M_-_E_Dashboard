@@ -1,10 +1,5 @@
-import { PlaceholderPage } from "@/components/placeholder-page";
+import { AnalyticsContent } from "@/components/analytics/analytics-content";
 
 export default function AnalyticsPage() {
-  return (
-    <PlaceholderPage
-      title="Analytics"
-      description="Advanced analytics, cohort analysis, and predictive insights across all survey modules."
-    />
-  );
+  return <AnalyticsContent />;
 }
