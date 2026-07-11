@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useCollapsedOnMobile } from "@/lib/hooks/use-collapsed-on-mobile";
 import { Filter, Calendar, MapPin, Users, ChevronDown, X, ClipboardList } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, toIsoDateString } from "@/lib/utils";
 import { FilterDateRange, FilterSelect } from "@/components/ui/filter-select";
 import {
   defaultHhGirlsFilters,
@@ -11,15 +11,20 @@ import {
   type HhGirlsFilters,
   type HhGirlsMetrics,
 } from "@/lib/data/hh-girls-metrics";
+import type { HhGirlsMonitoringFilters } from "@/lib/data/hh-girls-monitoring";
 
 export function HhGirlsFiltersPanel({
   filterOptions,
   filters,
   onChange,
+  showTodayToggle = false,
+  resetFilters,
 }: {
   filterOptions?: HhGirlsMetrics["filterOptions"];
-  filters: HhGirlsFilters;
-  onChange: (filters: HhGirlsFilters) => void;
+  filters: HhGirlsFilters | HhGirlsMonitoringFilters;
+  onChange: (filters: HhGirlsFilters | HhGirlsMonitoringFilters) => void;
+  showTodayToggle?: boolean;
+  resetFilters?: () => HhGirlsFilters | HhGirlsMonitoringFilters;
 }) {
   const [expanded, setExpanded] = useCollapsedOnMobile();
 
@@ -50,13 +55,21 @@ export function HhGirlsFiltersPanel({
     },
   ];
 
+  const todayOnly =
+    "todayOnly" in filters ? filters.todayOnly === true : false;
+
   const hasActive =
     filters.surveyType !== "all" ||
     filters.district !== "all" ||
     filters.enumerator !== "all" ||
     filters.village !== "all" ||
     filters.dateFrom !== "" ||
-    filters.dateTo !== "";
+    filters.dateTo !== "" ||
+    todayOnly;
+
+  const handleReset = () => {
+    onChange(resetFilters ? resetFilters() : defaultHhGirlsFilters);
+  };
 
   return (
     <div className="mb-6 overflow-visible rounded-2xl border border-border/60 bg-card shadow-sm">
@@ -75,7 +88,7 @@ export function HhGirlsFiltersPanel({
         {hasActive && (
           <button
             type="button"
-            onClick={() => onChange(defaultHhGirlsFilters)}
+            onClick={handleReset}
             className="ml-3 hidden items-center gap-1 text-xs text-muted-foreground hover:text-foreground lg:flex"
           >
             <X className="h-3 w-3" />
@@ -123,12 +136,55 @@ export function HhGirlsFiltersPanel({
                   onChange={(range) =>
                     onChange({
                       ...filters,
+                      todayOnly: false,
                       dateFrom: range.dateFrom,
                       dateTo: range.dateTo,
                     })
                   }
                 />
               </div>
+              {showTodayToggle && (
+                <div className="flex flex-col justify-end">
+                  <label className="mb-1.5 text-xs font-medium text-muted-foreground">
+                    Today
+                  </label>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={todayOnly}
+                    aria-label="Filter to today only"
+                    onClick={() => {
+                      if (todayOnly) {
+                        onChange({
+                          ...filters,
+                          todayOnly: false,
+                          dateFrom: "",
+                          dateTo: "",
+                        });
+                      } else {
+                        const today = toIsoDateString(new Date());
+                        onChange({
+                          ...filters,
+                          todayOnly: true,
+                          dateFrom: today,
+                          dateTo: today,
+                        });
+                      }
+                    }}
+                    className={cn(
+                      "relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200",
+                      todayOnly ? "bg-green-500" : "bg-muted"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform duration-200",
+                        todayOnly && "translate-x-5"
+                      )}
+                    />
+                  </button>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

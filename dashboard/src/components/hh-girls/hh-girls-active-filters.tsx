@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import type { HhGirlsMonitoringFilters } from "@/lib/data/hh-girls-monitoring";
 import {
   defaultHhGirlsFilters,
   districtLabel,
@@ -13,19 +14,23 @@ export function HhGirlsActiveFilters({
   filters,
   onChange,
   filterOptions,
+  resetFilters,
 }: {
-  filters: HhGirlsFilters;
-  onChange: (filters: HhGirlsFilters) => void;
+  filters: HhGirlsFilters | HhGirlsMonitoringFilters;
+  onChange: (filters: HhGirlsFilters | HhGirlsMonitoringFilters) => void;
   filterOptions?: HhGirlsMetrics["filterOptions"];
+  resetFilters?: () => HhGirlsFilters | HhGirlsMonitoringFilters;
 }) {
-  const chips: { key: keyof HhGirlsFilters; label: string }[] = [];
+  const chips: { key: string; label: string }[] = [];
+  const todayOnly =
+    "todayOnly" in filters ? filters.todayOnly === true : false;
 
   if (filters.district !== "all") {
     chips.push({
       key: "district",
       label:
-        filterOptions?.districts.find((d) => d.value === filters.district)?.label ||
-        districtLabel(filters.district),
+        filterOptions?.districts.find((d) => d.value === filters.district)
+          ?.label || districtLabel(filters.district),
     });
   }
   if (filters.surveyType !== "all") {
@@ -38,14 +43,16 @@ export function HhGirlsActiveFilters({
     chips.push({
       key: "enumerator",
       label:
-        filterOptions?.enumerators.find((e) => e.value === filters.enumerator)?.label ||
-        filters.enumerator,
+        filterOptions?.enumerators.find((e) => e.value === filters.enumerator)
+          ?.label || filters.enumerator,
     });
   }
   if (filters.village !== "all") {
     chips.push({ key: "village", label: filters.village });
   }
-  if (filters.dateFrom || filters.dateTo) {
+  if (todayOnly) {
+    chips.push({ key: "todayOnly", label: "Today" });
+  } else if (filters.dateFrom || filters.dateTo) {
     chips.push({
       key: "dateFrom",
       label: `${filters.dateFrom || "…"} → ${filters.dateTo || "…"}`,
@@ -61,8 +68,13 @@ export function HhGirlsActiveFilters({
           key={chip.key}
           type="button"
           onClick={() => {
-            if (chip.key === "dateFrom") {
-              onChange({ ...filters, dateFrom: "", dateTo: "" });
+            if (chip.key === "dateFrom" || chip.key === "todayOnly") {
+              onChange({
+                ...filters,
+                ...("todayOnly" in filters ? { todayOnly: false } : {}),
+                dateFrom: "",
+                dateTo: "",
+              });
             } else if (chip.key === "surveyType") {
               onChange({ ...filters, surveyType: "all" });
             } else {
@@ -77,7 +89,9 @@ export function HhGirlsActiveFilters({
       ))}
       <button
         type="button"
-        onClick={() => onChange(defaultHhGirlsFilters)}
+        onClick={() =>
+          onChange(resetFilters ? resetFilters() : defaultHhGirlsFilters)
+        }
         className="text-xs text-muted-foreground hover:text-foreground"
       >
         Clear all
