@@ -87,19 +87,6 @@ const cards: {
       `2nd: ${d.slotsCompletedOn2ndRevisit} · 3rd: ${d.slotsCompletedOn3rdRevisit}`,
   },
   {
-    label: "Revisit Submissions",
-    exportLabel: "revisit-submissions",
-    hint: "All household and girls forms with attempt 2 or 3",
-    icon: RefreshCw,
-    color: "text-sky-600",
-    group: "general",
-    value: (d) => d.revisitSubmissions,
-    getList: (d) => [
-      ...d.lists.girls2ndRevisited,
-      ...d.lists.girls3rdRevisited,
-    ],
-  },
-  {
     label: "2nd Attempt Still Needed",
     exportLabel: "2nd-attempt-still-needed",
     hint: "1st revisit still due (father max stops here if not found)",
@@ -253,7 +240,7 @@ export function HhGirlsRevisitSection({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
+            <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
               {loading
                 ? columns.map((col) => (
                     <div key={col.group} className="flex flex-col gap-3">
