@@ -19,7 +19,8 @@ function toSheetRows(rows: HhGirlsExportRow[]) {
     };
 
     if (includeRevisitFor) {
-      base["Revisit For"] = row.revisitFor || "";
+      const isMissing = (row.category || "").toLowerCase().includes("missing");
+      base[isMissing ? "Missing Survey" : "Revisit For"] = row.revisitFor || "";
     }
 
     base["Survey Type"] = row.surveyType;

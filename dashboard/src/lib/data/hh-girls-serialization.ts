@@ -8,6 +8,13 @@ export function stripHhGirlsExportLists(metrics: HhGirlsMetrics): HhGirlsMetrics
     revisitLists[key] = [];
   }
 
+  const missingLists = { ...metrics.missingDetail.lists };
+  for (const key of Object.keys(missingLists) as Array<
+    keyof HhGirlsMetrics["missingDetail"]["lists"]
+  >) {
+    missingLists[key] = [];
+  }
+
   const duplicateLists = { ...metrics.duplicateDetail.lists };
   for (const key of Object.keys(duplicateLists) as Array<
     keyof HhGirlsMetrics["duplicateDetail"]["lists"]
@@ -28,6 +35,10 @@ export function stripHhGirlsExportLists(metrics: HhGirlsMetrics): HhGirlsMetrics
       ...metrics.revisitDetail,
       lists: revisitLists,
     },
+    missingDetail: {
+      ...metrics.missingDetail,
+      lists: missingLists,
+    },
     duplicateDetail: {
       ...metrics.duplicateDetail,
       lists: duplicateLists,
@@ -40,6 +51,7 @@ export function mergeHhGirlsExportLists(
   metrics: HhGirlsMetrics,
   exports: {
     revisitLists: HhGirlsMetrics["revisitDetail"]["lists"];
+    missingLists: HhGirlsMetrics["missingDetail"]["lists"];
     duplicateLists: HhGirlsMetrics["duplicateDetail"]["lists"];
     coreKpiLists: HhGirlsMetrics["coreKpiLists"];
   }
@@ -49,6 +61,10 @@ export function mergeHhGirlsExportLists(
     revisitDetail: {
       ...metrics.revisitDetail,
       lists: exports.revisitLists,
+    },
+    missingDetail: {
+      ...metrics.missingDetail,
+      lists: exports.missingLists,
     },
     duplicateDetail: {
       ...metrics.duplicateDetail,

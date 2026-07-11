@@ -10,6 +10,7 @@ import { HhGirlsCoreKpis } from "@/components/hh-girls/hh-girls-kpis";
 import { HhGirlsRolloutOverview } from "@/components/hh-girls/hh-girls-rollout-overview";
 import { HhGirlsCharts } from "@/components/hh-girls/hh-girls-charts";
 import { HhGirlsDuplicateSection } from "@/components/hh-girls/hh-girls-duplicate-section";
+import { HhGirlsMissingSection } from "@/components/hh-girls/hh-girls-missing-section";
 import { HhGirlsRevisitSection } from "@/components/hh-girls/hh-girls-revisit-section";
 import {
   applyHhGirlsDataFilters,
@@ -123,6 +124,8 @@ export default function HhGirlsSurveyPage() {
       <HhGirlsCoreKpis metrics={display} loading={showLoading} />
 
       <HhGirlsRevisitSection metrics={display} loading={showLoading} />
+
+      <HhGirlsMissingSection metrics={display} loading={showLoading} />
 
       <HhGirlsDuplicateSection metrics={display} loading={showLoading} />
 

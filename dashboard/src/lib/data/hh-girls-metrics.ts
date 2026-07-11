@@ -5,6 +5,7 @@ import {
 } from "./hh-girls-completion";
 import { computeHhGirlsCoreKpiLists } from "./hh-girls-core-kpi-lists";
 import { computeHhGirlsDuplicateDetail } from "./hh-girls-duplicates";
+import { computeHhGirlsMissingDetail } from "./hh-girls-missing";
 import { computeHhGirlsRevisitDetail } from "./hh-girls-revisit";
 
 export type HhGirlsSurveyType = "household" | "girls";
@@ -824,6 +825,7 @@ export function computeHhGirlsMetrics(
 
   const filterOptions = getHhGirlsFilterOptions(household, girls);
   const revisitDetail = computeHhGirlsRevisitDetail(household, girls);
+  const missingDetail = computeHhGirlsMissingDetail(household, girls);
   const duplicateDetail = computeHhGirlsDuplicateDetail(household, girls);
   const coreKpiLists = computeHhGirlsCoreKpiLists(household, girls);
 
@@ -907,6 +909,7 @@ export function computeHhGirlsMetrics(
     },
     filterOptions,
     revisitDetail,
+    missingDetail,
     duplicateDetail,
     coreKpiLists,
     allHousehold: household,
