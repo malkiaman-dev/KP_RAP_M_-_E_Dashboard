@@ -35,6 +35,7 @@ export interface HhGirlsRow {
   mother_unavailable_other?: string;
   girl_available?: string;
   girl_available_reason?: string;
+  girl_available_reason_other?: string;
   parental_consent_agree?: string;
   child_consent_agree?: string;
   currently_studying?: string;

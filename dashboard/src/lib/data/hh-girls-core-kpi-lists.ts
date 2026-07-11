@@ -3,6 +3,8 @@ import {
   isParentMarkedUnavailable,
   latestParentUnavailableCode,
   latestParentUnavailableOther,
+  girlUnavailableLabel,
+  isTemporaryGirlUnavailable,
   parentUnavailableLabel,
 } from "./hh-girls-completion";
 import {
@@ -141,9 +143,26 @@ export function computeHhGirlsCoreKpiLists(
       lists.consentRefused.push(toHhGirlsExportRow(row, "Consent refused"));
     }
     if (row.girl_available === "0") {
-      lists.girlNotAvailable.push(
-        toHhGirlsExportRow(row, "Girl not available")
+      const code = (row.girl_available_reason || "").trim();
+      const other = (row.girl_available_reason_other || "").trim();
+      const reason = girlUnavailableLabel(code);
+      const needsRevisit = isTemporaryGirlUnavailable(
+        row.girl_available,
+        row.girl_available_reason
       );
+      lists.girlNotAvailable.push({
+        ...toHhGirlsExportRow(row, "Girl not available"),
+        unavailableCode: code,
+        unavailableReason: reason,
+        unavailableOther: other,
+        exportReason: [
+          reason || "Not available",
+          needsRevisit ? "Revisit required (up to 3 attempts)" : "No revisit — incomplete",
+          other,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      });
     }
   }
 

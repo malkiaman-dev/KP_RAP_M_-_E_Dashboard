@@ -89,10 +89,11 @@ export function HhGirlsRolloutOverview({
 
       <ProgressBar value={c.completedHouseholds} max={metrics.targetN} />
       <p className="mt-2 text-[10px] text-muted-foreground">
-        Completed when the girl survey succeeds and: father+girl (mother
-        permanent), mother+girl (father permanent), caretaker+girl (both
-        permanent), or both parents interviewed. Temporary unavailability
-        blocks until required revisits finish (father 1 · mother/girl 3).
+        Completed when the girl survey succeeds (available + both consents) and:
+        father+girl (mother permanent), mother+girl (father permanent),
+        caretaker+girl (both permanent), or both parents interviewed. Girl
+        unavailable 1/4 needs up to 3 attempts; 2/3 = incomplete with no
+        revisit. Consent refused = incomplete.
       </p>
     </motion.div>
   );

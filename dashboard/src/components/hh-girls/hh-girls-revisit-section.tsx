@@ -265,8 +265,9 @@ export function HhGirlsRevisitSection({
           </div>
           {expanded && (
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Revisits when temporarily unavailable: father 1 · mother/girl 3 ·
-              click any card to download an Excel list
+              Revisits when temporarily unavailable: father 1 revisit (2
+              attempts) · mother/caretaker 3 revisits (4 attempts) · girl codes
+              1/4 only, 3 attempts to close · click any card to download Excel
             </p>
           )}
         </div>

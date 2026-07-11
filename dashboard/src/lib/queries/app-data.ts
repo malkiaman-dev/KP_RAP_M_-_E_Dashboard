@@ -6,7 +6,7 @@ import type { TrackingMetrics } from "@/lib/data/tracking-metrics";
 export const TRACKING_METRICS_QUERY_KEY = ["tracking-metrics"] as const;
 export const TRACKING_EXPORTS_QUERY_KEY = ["tracking-exports"] as const;
 export const DASHBOARD_METRICS_QUERY_KEY = ["dashboard-metrics"] as const;
-export const HH_GIRLS_METRICS_QUERY_KEY = ["hh-girls-metrics", "v6"] as const;
+export const HH_GIRLS_METRICS_QUERY_KEY = ["hh-girls-metrics", "v7"] as const;
 export const HH_GIRLS_EXPORTS_QUERY_KEY = ["hh-girls-exports", "v2"] as const;
 
 export interface TrackingExportPayload {

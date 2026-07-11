@@ -6,6 +6,7 @@ import {
   isPermanentParentUnavailable,
   isTemporaryGirlUnavailable,
   isTemporaryParentUnavailable,
+  girlUnavailableLabel,
   maxAttemptForSlot,
   parentUnavailableLabel,
   type HhGirlsRevisitSlot,
@@ -208,7 +209,17 @@ function surveyStatusLabel(v?: string): string {
 function availabilityLabel(row: HhGirlsRow): string {
   if (row.survey_type === "girls") {
     if (row.girl_available === "1") return "Girl available";
-    if (row.girl_available === "0") return "Girl not available";
+    if (row.girl_available === "0") {
+      const reason = girlUnavailableLabel(row.girl_available_reason);
+      if (!reason) return "Girl not available";
+      const revisit = isTemporaryGirlUnavailable(
+        row.girl_available,
+        row.girl_available_reason
+      )
+        ? "revisit required"
+        : "no revisit";
+      return `Girl not available — ${reason} (${revisit})`;
+    }
     return "";
   }
   const a = (row.available || "").trim();

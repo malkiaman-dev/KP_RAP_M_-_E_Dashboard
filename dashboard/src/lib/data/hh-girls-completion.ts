@@ -20,21 +20,30 @@ export const PERMANENT_PARENT_UNAVAILABLE_CODES = new Set(["3", "4", "5"]);
 export const TEMPORARY_PARENT_UNAVAILABLE_CODES = new Set(["1", "2", "6"]);
 
 /**
- * Required revisits when temporarily unavailable (after the first visit).
- * Father: 1 revisit (max attempt 2)
- * Mother / girl / caretaker: 3 revisits (max attempt 4)
+ * Max attempts when temporarily unavailable (to close revisit cases).
+ * Father: 2 attempts (1 revisit)
+ * Mother / caretaker: 4 attempts (3 revisits)
+ * Girl: 3 attempts (close after 3rd attempt)
  */
+export const MAX_ATTEMPTS_BY_SLOT = {
+  father: 2,
+  mother: 4,
+  girls: 3,
+  caretaker: 4,
+} as const;
+
+/** @deprecated Prefer MAX_ATTEMPTS_BY_SLOT — kept as revisits-after-first-visit. */
 export const REQUIRED_REVISITS_BY_SLOT = {
   father: 1,
   mother: 3,
-  girls: 3,
+  girls: 2,
   caretaker: 3,
 } as const;
 
-export type HhGirlsRevisitSlot = keyof typeof REQUIRED_REVISITS_BY_SLOT;
+export type HhGirlsRevisitSlot = keyof typeof MAX_ATTEMPTS_BY_SLOT;
 
 export function maxAttemptForSlot(slot: HhGirlsRevisitSlot): number {
-  return 1 + REQUIRED_REVISITS_BY_SLOT[slot];
+  return MAX_ATTEMPTS_BY_SLOT[slot];
 }
 
 export const PARENT_UNAVAILABLE_LABELS: Record<string, string> = {
@@ -46,9 +55,31 @@ export const PARENT_UNAVAILABLE_LABELS: Record<string, string> = {
   "6": "Other (specify)",
 };
 
-/** Girl unavailable codes from girls survey `availability_reason` choices. */
+/**
+ * Girl unavailable codes from girls survey `availability_reason`
+ * (fields: girl_available_reason / girl_available_reason_other).
+ *
+ * girl_available: 1 = yes at home, 0 = no
+ * 1 – Gone to school              → temporary, revisit (up to 3 attempts)
+ * 2 – Lives in another city       → permanent, incomplete, no revisit
+ * 3 – Lives in another country    → permanent, incomplete, no revisit
+ * 4 – Other                       → temporary, revisit (up to 3 attempts)
+ */
 export const PERMANENT_GIRL_UNAVAILABLE_CODES = new Set(["2", "3"]);
 export const TEMPORARY_GIRL_UNAVAILABLE_CODES = new Set(["1", "4"]);
+
+export const GIRL_UNAVAILABLE_LABELS: Record<string, string> = {
+  "1": "Gone to school",
+  "2": "Lives in another city",
+  "3": "Lives in another country",
+  "4": "Other",
+};
+
+export function girlUnavailableLabel(code?: string): string {
+  const c = (code || "").trim();
+  if (!c) return "";
+  return GIRL_UNAVAILABLE_LABELS[c] || `Code ${c}`;
+}
 
 export function parentUnavailableLabel(code?: string): string {
   const c = (code || "").trim();
@@ -109,9 +140,16 @@ export function isTemporaryGirlUnavailable(
   reason?: string
 ): boolean {
   if (girlAvailable !== "0") return false;
-  const r = (reason || "").trim();
-  if (!r) return true;
-  return !isPermanentGirlUnavailable(r);
+  return TEMPORARY_GIRL_UNAVAILABLE_CODES.has((reason || "").trim());
+}
+
+/** Permanent / non-revisit unavailability (codes 2, 3, or other non-1/4 reasons). */
+export function isGirlUnavailableWithoutRevisit(
+  girlAvailable?: string,
+  reason?: string
+): boolean {
+  if (girlAvailable !== "0") return false;
+  return !isTemporaryGirlUnavailable(girlAvailable, reason);
 }
 
 function parseAttempt(row: HhGirlsRow): number {
@@ -215,6 +253,13 @@ export function isCaretakerMarkedUnavailable(hhSubs: HhGirlsRow[]): boolean {
 
 function isGirlSurveyComplete(gsRow: HhGirlsRow | undefined): boolean {
   if (!gsRow) return false;
+  // Parental or child consent refused → incomplete
+  if (
+    gsRow.parental_consent_agree === "0" ||
+    gsRow.child_consent_agree === "0"
+  ) {
+    return false;
+  }
   return (
     gsRow.survey_status === "1" &&
     gsRow.girl_available === "1" &&
@@ -232,10 +277,10 @@ function isGirlSurveyComplete(gsRow: HhGirlsRow | undefined): boolean {
  * - Both permanently unavailable → caretaker interview + girl survey
  * - Both parents interviewed → + girl survey
  *
- * Temporary unavailability (father/mother 1/2/6, or girl temporary) blocks
- * completion until the required revisits are done AND the slot is successfully
- * interviewed (or coded permanent). Exhausted revisits without an interview
- * still leave the household incomplete.
+ * Temporary girl unavailability (gone to school / other — codes 1, 4) requires
+ * revisits for up to 3 attempts. Permanent girl unavailability (another
+ * city/country — codes 2, 3) leaves the HH incomplete with no revisit.
+ * Parental or child consent refused also leaves the girl survey incomplete.
  */
 export function isCompletedHouseholdForGirl(
   hhSubs: HhGirlsRow[],

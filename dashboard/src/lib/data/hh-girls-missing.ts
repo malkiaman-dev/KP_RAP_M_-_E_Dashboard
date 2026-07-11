@@ -3,6 +3,7 @@ import {
   isCaretakerMarkedUnavailable,
   isCaretakerSurveyComplete,
   isCompletedHouseholdForGirl,
+  isGirlUnavailableWithoutRevisit,
   isTemporaryGirlUnavailable,
 } from "./hh-girls-completion";
 import type { HhGirlsRow } from "./hh-girls-metrics";
@@ -163,14 +164,12 @@ export function computeHhGirlsMissingDetail(
       !isGirlSurveyComplete(gsRow);
 
     if (!isGirlSurveyComplete(gsRow) && !girlTempPending) {
-      // Permanent girl unavailability still leaves HH incomplete, but that is
-      // "not available" rather than a skipped available interview — only flag
-      // when there is no permanent unavailability reason, or no girls form yet.
+      // Permanent / non-revisit unavailability (codes 2, 3) is not a "skipped" survey
       const permanentlyUnavailableGirl =
-        gsRow?.girl_available === "0" &&
-        !isTemporaryGirlUnavailable(
-          gsRow.girl_available,
-          gsRow.girl_available_reason
+        Boolean(gsRow) &&
+        isGirlUnavailableWithoutRevisit(
+          gsRow!.girl_available,
+          gsRow!.girl_available_reason
         );
 
       if (!permanentlyUnavailableGirl) {
