@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import {
   Area,
   Bar,
@@ -10,8 +9,6 @@ import {
   ComposedChart,
   Legend,
   Line,
-  Pie,
-  PieChart,
   Tooltip,
   XAxis,
   YAxis,
@@ -36,7 +33,6 @@ import {
 } from "@/lib/chart-cross-filter";
 import {
   buildTargetTrend,
-  computeModuleHealth,
   type ProtocolProgress,
 } from "@/lib/data/analytics-insights";
 import {
@@ -72,7 +68,7 @@ export function AnalyticsCharts({
   if (loading || !dashboard || !tracking || !progress) {
     return (
       <ChartGridSkeleton
-        count={6}
+        count={4}
         className="mb-8 grid gap-6 lg:grid-cols-2 xl:grid-cols-3"
       />
     );
@@ -95,19 +91,10 @@ export function AnalyticsCharts({
     tracking.successTarget
   );
 
-  const moduleHealth = computeModuleHealth(dashboard);
-
   const cohortBars = tracking.cohortProgress.map((c) => ({
     ...c,
     progressPct: c.target > 0 ? (c.tracked / c.target) * 100 : 0,
   }));
-
-  const enrollment = [
-    { name: "Enrolled", value: tracking.primaryAlternate.enrolled },
-    { name: "Dropped Out", value: tracking.primaryAlternate.droppedOut },
-  ].filter((d) => d.value > 0);
-
-  const enrollmentColors = [palette.teal, palette.gold];
 
   return (
     <section className="mb-8">
@@ -116,7 +103,7 @@ export function AnalyticsCharts({
           Deep Dive Charts
         </h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Target trajectory, district quality, and module health ·{" "}
+          Target trajectory, cohort progress, and district quality ·{" "}
           {CHART_CLICK_HINT}
         </p>
       </div>
@@ -393,152 +380,6 @@ export function AnalyticsCharts({
               />
             </BarChart>
           </ChartArea>
-        </ChartCard>
-
-        <ChartCard
-          title="Module Health"
-          subtitle="Submissions and outcome rates by survey"
-          index={4}
-        >
-          <ChartArea>
-            <BarChart data={moduleHealth} margin={chartMargin.withLegend}>
-              <ChartGradients />
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="var(--border)"
-                vertical={false}
-              />
-              <XAxis
-                dataKey="module"
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                yAxisId="left"
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                domain={[0, 100]}
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                cursor={false}
-                formatter={(value, name, item) => {
-                  const row = item?.payload as
-                    | { rateLabel?: string }
-                    | undefined;
-                  if (name === "Outcome %") {
-                    return [
-                      `${Number(value).toFixed(1)}%`,
-                      row?.rateLabel ?? "Rate",
-                    ];
-                  }
-                  return [Number(value).toLocaleString(), "Submissions"];
-                }}
-              />
-              <Legend {...legendProps} />
-              <Bar
-                yAxisId="left"
-                dataKey="submissions"
-                name="Submissions"
-                fill="url(#grad-deepteal)"
-                radius={[6, 6, 0, 0]}
-                style={pointerBarStyle}
-                onClick={(data) => {
-                  const row = barPayload(data) as { module?: string } | undefined;
-                  const map: Record<string, string> = {
-                    Tracking: "tracking",
-                    Household: "household",
-                    Girls: "girls",
-                  };
-                  if (row?.module && map[row.module]) {
-                    pick({ surveyType: map[row.module] });
-                  }
-                }}
-              />
-              <Bar
-                yAxisId="right"
-                dataKey="rate"
-                name="Outcome %"
-                fill="url(#grad-gold)"
-                radius={[6, 6, 0, 0]}
-              />
-            </BarChart>
-          </ChartArea>
-        </ChartCard>
-
-        <ChartCard
-          title="Enrollment Mix"
-          subtitle="Tracked girls by listing enrollment status"
-          index={5}
-        >
-          {enrollment.length === 0 ? (
-            <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-              No enrollment status available in the current filters
-            </div>
-          ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 sm:flex-row">
-              <div className="h-[220px] w-full max-w-[240px]">
-                <ChartArea>
-                  <PieChart>
-                    <Pie
-                      data={enrollment}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={58}
-                      outerRadius={88}
-                      paddingAngle={4}
-                    >
-                      {enrollment.map((entry, index) => (
-                        <Cell
-                          key={entry.name}
-                          fill={enrollmentColors[index] ?? palette.teal}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={tooltipStyle} />
-                  </PieChart>
-                </ChartArea>
-              </div>
-              <div className="w-full space-y-2 sm:max-w-[160px]">
-                {enrollment.map((entry, index) => (
-                  <motion.div
-                    key={entry.name}
-                    initial={{ opacity: 0, x: 8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 + index * 0.05 }}
-                    className="flex items-center justify-between rounded-xl border border-border/50 bg-muted/20 px-3 py-2"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{
-                          backgroundColor:
-                            enrollmentColors[index] ?? palette.teal,
-                        }}
-                      />
-                      <span className="text-xs text-muted-foreground">
-                        {entry.name}
-                      </span>
-                    </div>
-                    <span className="text-sm font-semibold tabular-nums text-foreground">
-                      {entry.value.toLocaleString()}
-                    </span>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          )}
         </ChartCard>
       </div>
     </section>
