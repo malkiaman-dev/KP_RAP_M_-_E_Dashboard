@@ -95,14 +95,18 @@ function trackingFilePaths(): string[] {
 }
 
 function slimTrackingRow(row: TrackingRow): TrackingRow {
-  const slim: TrackingRow = { KEY: "", SubmissionDate: "" };
+  const slim: Record<string, string | undefined> = {
+    KEY: "",
+    SubmissionDate: "",
+    district: "",
+  };
   for (const field of CLIENT_ROW_FIELDS) {
     const value = row[field];
     if (value !== undefined && value !== "") {
       slim[field] = value;
     }
   }
-  return slim;
+  return slim as TrackingRow;
 }
 
 function parseTrackingFile(
