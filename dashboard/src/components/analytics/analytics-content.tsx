@@ -200,6 +200,7 @@ export function AnalyticsContent() {
         filterOptions={dashboardQuery.data?.filterOptions}
         filters={filters}
         onChange={setFilters}
+        showPresets={false}
       />
       <DashboardActiveFilters
         filters={filters}

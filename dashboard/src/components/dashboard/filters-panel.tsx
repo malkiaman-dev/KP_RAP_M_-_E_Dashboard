@@ -41,12 +41,15 @@ interface FiltersPanelProps {
   filterOptions?: FilterOptions;
   filters: DashboardFilters;
   onChange: (filters: DashboardFilters) => void;
+  /** Quick preset chips (All Data, Tracking Only, etc.). Default true. */
+  showPresets?: boolean;
 }
 
 export function FiltersPanel({
   filterOptions,
   filters,
   onChange,
+  showPresets = true,
 }: FiltersPanelProps) {
   const [expanded, setExpanded] = useCollapsedOnMobile();
   const [activePreset, setActivePreset] = useState("all");
@@ -91,23 +94,25 @@ export function FiltersPanel({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <div className="hidden items-center gap-1 sm:flex">
-            {presets.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => applyPreset(p.id)}
-                className={cn(
-                  "flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors",
-                  activePreset === p.id
-                    ? "bg-teal/10 text-teal"
-                    : "text-muted-foreground hover:bg-muted"
-                )}
-              >
-                <Bookmark className="h-3 w-3" aria-hidden="true" />
-                {p.label}
-              </button>
-            ))}
-          </div>
+          {showPresets && (
+            <div className="hidden items-center gap-1 sm:flex">
+              {presets.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => applyPreset(p.id)}
+                  className={cn(
+                    "flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors",
+                    activePreset === p.id
+                      ? "bg-teal/10 text-teal"
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <Bookmark className="h-3 w-3" aria-hidden="true" />
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          )}
           <button
             onClick={() => setExpanded(!expanded)}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
