@@ -46,6 +46,8 @@ interface FilterSelectProps {
   className?: string;
   disabled?: boolean;
   "aria-label"?: string;
+  /** Reports near the page bottom can flip up when space below is tight. */
+  placement?: "down" | "auto";
 }
 
 export function FilterSelect({
@@ -55,6 +57,7 @@ export function FilterSelect({
   className,
   disabled = false,
   "aria-label": ariaLabel,
+  placement = "down",
 }: FilterSelectProps) {
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(-1);
@@ -157,6 +160,7 @@ export function FilterSelect({
         anchorRef={anchorRef}
         panelRef={panelRef}
         width={panelWidth}
+        placement={placement}
       >
         <ul
           id={listId}

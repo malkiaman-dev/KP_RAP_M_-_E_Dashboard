@@ -79,6 +79,9 @@ export function DropdownPanel({
 /**
  * Fixed-position portal panel. Escapes overflow:hidden / narrow grid cells
  * so calendars and large menus stay fully visible and clickable.
+ *
+ * - `down` (default): always open below the trigger
+ * - `auto`: open below when there is room; flip above only when space below is insufficient
  */
 export function PortalDropdownPanel({
   open,
@@ -87,6 +90,7 @@ export function PortalDropdownPanel({
   children,
   className,
   width = 308,
+  placement = "down",
 }: {
   open: boolean;
   anchorRef: RefObject<HTMLElement | null>;
@@ -94,6 +98,7 @@ export function PortalDropdownPanel({
   children: ReactNode;
   className?: string;
   width?: number;
+  placement?: "down" | "auto";
 }) {
   const [coords, setCoords] = useState<{
     top?: number;
@@ -126,18 +131,24 @@ export function PortalDropdownPanel({
 
       const spaceBelow = window.innerHeight - rect.bottom - margin - 6;
       const spaceAbove = rect.top - margin - 6;
-      const preferBelow =
-        spaceBelow >= Math.min(280, spaceAbove) || spaceBelow >= spaceAbove;
-      const maxHeight = Math.max(160, preferBelow ? spaceBelow : spaceAbove);
+      // Flip up only in auto mode when the menu would be too cramped below.
+      const minComfortable = 220;
+      const openUp =
+        placement === "auto" &&
+        spaceBelow < minComfortable &&
+        spaceAbove > spaceBelow;
 
-      if (preferBelow) {
-        setCoords({ top: rect.bottom + 6, left, maxHeight });
-      } else {
+      if (openUp) {
+        const maxHeight = Math.max(160, spaceAbove);
         setCoords({
           bottom: window.innerHeight - rect.top + 6,
           left,
           maxHeight,
         });
+      } else {
+        const top = rect.bottom + 6;
+        const maxHeight = Math.max(160, spaceBelow);
+        setCoords({ top, left, maxHeight });
       }
     };
 
@@ -148,7 +159,7 @@ export function PortalDropdownPanel({
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
     };
-  }, [open, anchorRef, width]);
+  }, [open, anchorRef, width, placement]);
 
   if (!mounted || !open || !coords) return null;
 

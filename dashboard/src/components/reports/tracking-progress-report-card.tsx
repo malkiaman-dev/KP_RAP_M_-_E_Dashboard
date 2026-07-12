@@ -155,6 +155,7 @@ export function TrackingProgressReportCard({
             onChange={setSelectedDistrict}
             disabled={!allSubmissions || baseRows.length === 0}
             aria-label="Report district"
+            placement="auto"
           />
         </div>
 
@@ -168,6 +169,7 @@ export function TrackingProgressReportCard({
             onChange={(value) => setFormat(value as ReportFormat)}
             disabled={!allSubmissions || baseRows.length === 0}
             aria-label="Report format"
+            placement="auto"
           />
         </div>
 

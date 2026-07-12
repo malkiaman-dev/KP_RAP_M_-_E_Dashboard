@@ -176,6 +176,7 @@ export function HhGirlsStatusReportCard({
             onChange={setSelectedDistrict}
             disabled={!hasRows}
             aria-label="Report district"
+            placement="auto"
           />
         </div>
 
@@ -189,6 +190,7 @@ export function HhGirlsStatusReportCard({
             onChange={(value) => setFormat(value as ReportFormat)}
             disabled={!hasRows}
             aria-label="Report format"
+            placement="auto"
           />
         </div>
 
