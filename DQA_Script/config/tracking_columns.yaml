@@ -24,6 +24,19 @@ columns:
   min_score: 1
   match_threshold: 0.75
   district: district
+  duplicate_phone_girl_threshold: 3
+  girl_found: girl_found
+  girl_contactnumber: girl_contactnumber
+  contact: contact
+  new_contact: new_contact
+  prim_contactnumber_label: prim_contactnumber_label
+  address_label: address_label
+  enrollstat_label: enrollstat_label
+  landmark_label: landmark_label
+  girl_found_confirm_enrolled: girl_found_confirm_enrolled
+  address: address
+  girl_address: girl_address
+  landmark: landmark
 
 # --- Cross-survey linkage config (Tracking -> Household) ---
 linkage:

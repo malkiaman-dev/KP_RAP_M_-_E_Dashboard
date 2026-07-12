@@ -57,6 +57,7 @@ import warnings
 from difflib import SequenceMatcher
 import pandas as pd
 from utils.logging import add_issue
+from checks.protocol_extras import run_tracking_protocol
 
 # =========================================================
 # CONSTANTS
@@ -1248,6 +1249,9 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 submission_date=m["submission_date"],
                 district=m["district"],
             )
+
+    # Protocol extras: missing phone / listing updates / duplicate phones
+    issues.extend(run_tracking_protocol(df, col, meta))
 
     def _sev_rank(s: str) -> int:
         return {"CRITICAL": 3, "FLAG": 2, "INFO": 1}.get(str(s).upper(), 0)

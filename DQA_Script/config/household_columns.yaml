@@ -22,6 +22,10 @@ columns:
   age_round_ratio_threshold: 0.70
   age_round_min_members: 5
   min_survey_duration_minutes: 30
+  long_duration_warn_minutes: 120
+  long_duration_critical_minutes: 180
+  transport_eligible_edu_code: 3
+  girl_id: girl
 
   electricity: electricity_connection
 

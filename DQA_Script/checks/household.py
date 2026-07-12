@@ -154,6 +154,7 @@ from typing import Any, Iterable
 import pandas as pd
 
 from utils.logging import add_issue as log_add_issue
+from checks.protocol_extras import run_household_protocol
 
 YES_SET = {"yes", "y", "1", "true", "t"}
 NO_SET = {"no", "n", "0", "false", "f", "none", "nan", ""}
@@ -2036,6 +2037,11 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     except Exception:
         # do not crash data quality run if filesystem is not writable
         pass
+
+    # =========================================================
+    # Protocol extras: roster / schooling / transport / duration / dummy phones
+    # =========================================================
+    issues.extend(run_household_protocol(df, col, meta))
 
     # =========================================================
     # FINAL: allow multiple issues per record, but dedupe within record per field
