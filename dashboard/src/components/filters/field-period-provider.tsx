@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -31,18 +30,18 @@ export function FieldPeriodProvider({
 }: {
   children: React.ReactNode;
 }) {
-  // Default ON per product requirement; hydrate from localStorage after mount.
-  const [enabled, setEnabledState] = useState(true);
-
-  useEffect(() => {
+  // Default ON; read localStorage synchronously to avoid a second filter pass.
+  const [enabled, setEnabledState] = useState(() => {
+    if (typeof window === "undefined") return true;
     try {
       const stored = window.localStorage.getItem(FIELD_PERIOD_STORAGE_KEY);
-      if (stored === "0") setEnabledState(false);
-      else if (stored === "1") setEnabledState(true);
+      if (stored === "0") return false;
+      if (stored === "1") return true;
     } catch {
       // Ignore storage failures (private mode, etc.).
     }
-  }, []);
+    return true;
+  });
 
   const setEnabled = useCallback((next: boolean) => {
     setEnabledState(next);

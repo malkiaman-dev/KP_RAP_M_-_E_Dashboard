@@ -16,22 +16,26 @@ import {
   computeProtocolProgress,
 } from "@/lib/data/analytics-insights";
 import {
+  applyFilters,
+  computeMetrics,
+  createDefaultDashboardFilters,
+  dashboardFiltersEqual,
+  type DashboardFilters,
+} from "@/lib/data/survey-metrics";
+import { FIELD_PERIOD_START } from "@/lib/data/field-period";
+import {
   applyHhGirlsDataFilters,
   computeHhGirlsMetrics,
   createDefaultHhGirlsFilters,
+  hhGirlsFiltersEqual,
   type HhGirlsFilters,
 } from "@/lib/data/hh-girls-metrics";
 import { PROTOCOL } from "@/lib/data/protocol";
 import {
-  applyFilters,
-  computeMetrics,
-  createDefaultDashboardFilters,
-  type DashboardFilters,
-} from "@/lib/data/survey-metrics";
-import {
   applyTrackingFilters,
   computeTrackingMetrics,
   createDefaultTrackingFilters,
+  trackingFiltersEqual,
   type TrackingFilters,
 } from "@/lib/data/tracking-metrics";
 import {
@@ -64,6 +68,10 @@ function toHhGirlsFilters(filters: DashboardFilters): HhGirlsFilters {
   };
 }
 
+const FIELD_PERIOD_DASHBOARD = createDefaultDashboardFilters(FIELD_PERIOD_START);
+const FIELD_PERIOD_TRACKING = createDefaultTrackingFilters(FIELD_PERIOD_START);
+const FIELD_PERIOD_HH = createDefaultHhGirlsFilters(FIELD_PERIOD_START);
+
 export function AnalyticsContent() {
   const { dateFrom: fieldDateFrom } = useFieldPeriod();
   const [filters, setFilters] = useState<DashboardFilters>(() =>
@@ -95,6 +103,9 @@ export function AnalyticsContent() {
 
   const dashboard = useMemo(() => {
     if (!dashboardQuery.data?.allSubmissions) return undefined;
+    if (dashboardFiltersEqual(deferredFilters, FIELD_PERIOD_DASHBOARD)) {
+      return dashboardQuery.data;
+    }
     return computeMetrics(
       applyFilters(dashboardQuery.data.allSubmissions, deferredFilters),
       { allRows: dashboardQuery.data.allSubmissions }
@@ -104,12 +115,16 @@ export function AnalyticsContent() {
   /** Protocol cards ignore survey/status filters so module targets stay comparable. */
   const protocolDashboard = useMemo(() => {
     if (!dashboardQuery.data?.allSubmissions) return undefined;
+    const protocolFilters = {
+      ...deferredFilters,
+      surveyType: "all",
+      status: "all",
+    };
+    if (dashboardFiltersEqual(protocolFilters, FIELD_PERIOD_DASHBOARD)) {
+      return dashboardQuery.data;
+    }
     return computeMetrics(
-      applyFilters(dashboardQuery.data.allSubmissions, {
-        ...deferredFilters,
-        surveyType: "all",
-        status: "all",
-      }),
+      applyFilters(dashboardQuery.data.allSubmissions, protocolFilters),
       { allRows: dashboardQuery.data.allSubmissions }
     );
   }, [dashboardQuery.data, deferredFilters]);
@@ -117,6 +132,9 @@ export function AnalyticsContent() {
   const tracking = useMemo(() => {
     if (!trackingQuery.data?.allSubmissions) return undefined;
     const trackingFilters = toTrackingFilters(deferredFilters);
+    if (trackingFiltersEqual(trackingFilters, FIELD_PERIOD_TRACKING)) {
+      return trackingQuery.data;
+    }
     return computeTrackingMetrics(
       applyTrackingFilters(trackingQuery.data.allSubmissions, trackingFilters),
       undefined,
@@ -127,10 +145,14 @@ export function AnalyticsContent() {
 
   const hhGirls = useMemo(() => {
     if (!hhQuery.data?.allHousehold || !hhQuery.data?.allGirls) return undefined;
+    const hhFilters = toHhGirlsFilters(deferredFilters);
+    if (hhGirlsFiltersEqual(hhFilters, FIELD_PERIOD_HH)) {
+      return hhQuery.data;
+    }
     const { household, girls } = applyHhGirlsDataFilters(
       hhQuery.data.allHousehold,
       hhQuery.data.allGirls,
-      toHhGirlsFilters(deferredFilters)
+      hhFilters
     );
     return computeHhGirlsMetrics(household, girls);
   }, [hhQuery.data, deferredFilters]);

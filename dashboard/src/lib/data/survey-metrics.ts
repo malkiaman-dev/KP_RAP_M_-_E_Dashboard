@@ -68,6 +68,20 @@ export function createDefaultDashboardFilters(
   return { ...defaultDashboardFilters, dateFrom };
 }
 
+export function dashboardFiltersEqual(
+  a: DashboardFilters,
+  b: DashboardFilters
+): boolean {
+  return (
+    a.district === b.district &&
+    a.surveyType === b.surveyType &&
+    a.enumerator === b.enumerator &&
+    a.status === b.status &&
+    a.dateFrom === b.dateFrom &&
+    a.dateTo === b.dateTo
+  );
+}
+
 /** Toggle filter values from chart clicks - click again to clear. */
 export function toggleDashboardFilters(
   current: DashboardFilters,

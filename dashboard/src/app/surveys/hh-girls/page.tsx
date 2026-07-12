@@ -14,6 +14,7 @@ import { HhGirlsMissingSection } from "@/components/hh-girls/hh-girls-missing-se
 import { HhGirlsRevisitSection } from "@/components/hh-girls/hh-girls-revisit-section";
 import { PageHero, SectionHeader } from "@/components/ui/page-hero";
 import { useFieldPeriod } from "@/components/filters/field-period-provider";
+import { FIELD_PERIOD_START } from "@/lib/data/field-period";
 import {
   applyHhGirlsDataFilters,
   computeHhGirlsMetrics,
@@ -37,6 +38,7 @@ export default function HhGirlsSurveyPage() {
     createDefaultHhGirlsFilters(fieldDateFrom)
   );
   const deferredFilters = useDeferredValue(filters);
+  const [exportsEnabled, setExportsEnabled] = useState(false);
 
   useEffect(() => {
     setFilters((prev) => ({ ...prev, dateFrom: fieldDateFrom }));
@@ -52,17 +54,32 @@ export default function HhGirlsSurveyPage() {
     queryKey: [...HH_GIRLS_EXPORTS_QUERY_KEY],
     queryFn: fetchHhGirlsExports,
     staleTime: QUERY_STALE_MS,
+    enabled: exportsEnabled,
   });
+
+  // Defer Excel list payload until after first paint / idle.
+  useEffect(() => {
+    if (!data || exportsEnabled) return;
+    const schedule =
+      typeof window.requestIdleCallback === "function"
+        ? (cb: () => void) => window.requestIdleCallback(() => cb())
+        : (cb: () => void) => window.setTimeout(cb, 1500);
+    const id = schedule(() => setExportsEnabled(true));
+    return () => {
+      if (typeof id === "number") window.clearTimeout(id);
+    };
+  }, [data, exportsEnabled]);
 
   const display = useMemo(() => {
     if (!data?.allHousehold) return undefined;
 
-    const unfiltered = createDefaultHhGirlsFilters("");
-    const isUnfiltered =
-      !deferredFilters.dateFrom &&
-      hhGirlsFiltersEqual(deferredFilters, unfiltered);
+    const fieldPeriodDefaults = createDefaultHhGirlsFilters(FIELD_PERIOD_START);
+    const isFieldPeriodDefault = hhGirlsFiltersEqual(
+      deferredFilters,
+      fieldPeriodDefaults
+    );
 
-    let metrics = isUnfiltered
+    let metrics = isFieldPeriodDefault
       ? data
       : (() => {
           const { household, girls } = applyHhGirlsDataFilters(
@@ -73,7 +90,7 @@ export default function HhGirlsSurveyPage() {
           return computeHhGirlsMetrics(household, girls);
         })();
 
-    if (exports && isUnfiltered) {
+    if (exports && isFieldPeriodDefault) {
       metrics = mergeHhGirlsExportLists(metrics, exports);
     }
 

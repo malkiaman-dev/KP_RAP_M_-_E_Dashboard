@@ -26,15 +26,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { getTabsBySection, isNavTabActive } from "@/lib/auth/nav-tabs";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import {
-  fetchDashboardMetrics,
-  fetchHhGirlsExports,
-  fetchHhGirlsMetrics,
-  fetchTrackingMetrics,
-  QUERY_STALE_MS,
-  DASHBOARD_METRICS_QUERY_KEY,
-  HH_GIRLS_EXPORTS_QUERY_KEY,
-  HH_GIRLS_METRICS_QUERY_KEY,
-  TRACKING_METRICS_QUERY_KEY,
+  prefetchRouteData,
 } from "@/lib/queries/app-data";
 import type { LucideIcon } from "lucide-react";
 
@@ -93,44 +85,7 @@ export function Sidebar({
   const effectiveCollapsed = collapsed && !isMobile;
 
   const prefetchRoute = (href: string) => {
-    if (
-      href === "/" ||
-      href === "/analytics" ||
-      href === "/surveys" ||
-      href === "/surveys/hh-girls"
-    ) {
-      void queryClient.prefetchQuery({
-        queryKey: [...DASHBOARD_METRICS_QUERY_KEY],
-        queryFn: fetchDashboardMetrics,
-        staleTime: QUERY_STALE_MS,
-      });
-      if (href === "/surveys/hh-girls") {
-        void queryClient.prefetchQuery({
-          queryKey: [...HH_GIRLS_METRICS_QUERY_KEY],
-          queryFn: fetchHhGirlsMetrics,
-          staleTime: QUERY_STALE_MS,
-        });
-        void queryClient.prefetchQuery({
-          queryKey: [...HH_GIRLS_EXPORTS_QUERY_KEY],
-          queryFn: fetchHhGirlsExports,
-          staleTime: QUERY_STALE_MS,
-        });
-      }
-      return;
-    }
-
-    if (
-      href === "/tracking" ||
-      href === "/monitoring" ||
-      href === "/reports"
-    ) {
-      void queryClient.prefetchQuery({
-        queryKey: [...TRACKING_METRICS_QUERY_KEY],
-        queryFn: fetchTrackingMetrics,
-        staleTime: QUERY_STALE_MS,
-      });
-      // Exports are loaded after metrics on the tracking page — skip prefetch.
-    }
+    prefetchRouteData(queryClient, href);
   };
 
   return (
@@ -234,6 +189,7 @@ export function Sidebar({
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      prefetch={false}
                       onClick={onMobileClose}
                       onMouseEnter={() => prefetchRoute(item.href)}
                       onFocus={() => prefetchRoute(item.href)}

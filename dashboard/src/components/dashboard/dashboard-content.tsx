@@ -14,8 +14,10 @@ import {
   applyFilters,
   computeMetrics,
   createDefaultDashboardFilters,
+  dashboardFiltersEqual,
   type DashboardFilters,
 } from "@/lib/data/survey-metrics";
+import { FIELD_PERIOD_START } from "@/lib/data/field-period";
 import {
   DASHBOARD_METRICS_QUERY_KEY,
   fetchDashboardMetrics,
@@ -41,6 +43,17 @@ export function DashboardContent() {
 
   const displayMetrics = useMemo(() => {
     if (!data?.allSubmissions) return data;
+
+    // Server already computed the default field-period view — skip heavy recompute.
+    if (
+      dashboardFiltersEqual(
+        deferredFilters,
+        createDefaultDashboardFilters(FIELD_PERIOD_START)
+      )
+    ) {
+      return data;
+    }
+
     return computeMetrics(applyFilters(data.allSubmissions, deferredFilters), {
       allRows: data.allSubmissions,
     });
@@ -48,6 +61,17 @@ export function DashboardContent() {
 
   const tableData = useMemo(() => {
     if (!data?.allSubmissions) return [];
+    if (
+      dashboardFiltersEqual(
+        deferredFilters,
+        createDefaultDashboardFilters(FIELD_PERIOD_START)
+      )
+    ) {
+      return applyFilters(
+        data.allSubmissions,
+        createDefaultDashboardFilters(FIELD_PERIOD_START)
+      ).slice(0, 100);
+    }
     return applyFilters(data.allSubmissions, deferredFilters).slice(0, 100);
   }, [data, deferredFilters]);
 

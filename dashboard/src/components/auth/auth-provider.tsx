@@ -97,6 +97,13 @@ export function AuthProvider({
     let cancelled = false;
 
     async function syncAuth() {
+      // Server already hydrated a valid session — skip the immediate /api/auth/me
+      // round-trip so the first paint is not blocked on auth.
+      if (initialAuth?.user) {
+        setLoading(false);
+        return;
+      }
+
       if (initialAuth) {
         setLoading(false);
       }

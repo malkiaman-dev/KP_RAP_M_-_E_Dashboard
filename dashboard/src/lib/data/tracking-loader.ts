@@ -2,12 +2,15 @@ import fs from "fs";
 import path from "path";
 import Papa from "papaparse";
 import {
+  applyTrackingFilters,
   computeTrackingMetrics,
+  createDefaultTrackingFilters,
   inferTrackingSession,
   type TrackingCohort,
   type TrackingRow,
 } from "./tracking-metrics";
 import { DEFAULT_TRACKING_TARGETS } from "./protocol";
+import { FIELD_PERIOD_START } from "./field-period";
 import { filesSignature, getCached } from "./survey-cache";
 
 export {
@@ -147,23 +150,28 @@ export function loadTrackingSurvey(): TrackingRow[] {
   return getCached("tracking-rows", signature, readTrackingSurvey);
 }
 
-/** Fast path for the tracking page UI — counts only, no Excel row arrays. */
+/** Fast path for tracking UI — field-period aggregates, no Excel row arrays. */
 export function loadTrackingMetricsForClient() {
-  const signature = `v3-cross-in-gap|${filesSignature(trackingFilePaths())}`;
-  return getCached("tracking-metrics-light", signature, () =>
-    computeTrackingMetrics(
-      loadTrackingSurvey(),
+  const signature = `v4-fp|${FIELD_PERIOD_START}|${filesSignature(trackingFilePaths())}`;
+  return getCached("tracking-metrics-light-v4", signature, () => {
+    const allRows = loadTrackingSurvey();
+    const fieldPeriodRows = applyTrackingFilters(
+      allRows,
+      createDefaultTrackingFilters(FIELD_PERIOD_START)
+    );
+    return computeTrackingMetrics(
+      fieldPeriodRows,
       DEFAULT_TRACKING_TARGETS,
-      undefined,
+      allRows,
       { includeExportLists: false }
-    )
-  );
+    );
+  });
 }
 
 /** Full metrics including Excel export lists (used by /api/tracking/exports). */
 export function loadTrackingMetrics() {
-  const signature = `v3-cross-in-gap|${filesSignature(trackingFilePaths())}`;
-  return getCached("tracking-metrics-full", signature, () =>
+  const signature = `v4-cross-in-gap|${filesSignature(trackingFilePaths())}`;
+  return getCached("tracking-metrics-full-v4", signature, () =>
     computeTrackingMetrics(loadTrackingSurvey(), DEFAULT_TRACKING_TARGETS)
   );
 }

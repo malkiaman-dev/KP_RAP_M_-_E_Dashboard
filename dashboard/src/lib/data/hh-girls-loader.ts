@@ -2,10 +2,13 @@ import fs from "fs";
 import path from "path";
 import Papa from "papaparse";
 import {
+  applyHhGirlsDataFilters,
   applyHhGirlsFilters,
   computeHhGirlsMetrics,
+  createDefaultHhGirlsFilters,
   type HhGirlsRow,
 } from "./hh-girls-metrics";
+import { FIELD_PERIOD_START } from "./field-period";
 import { filesSignature, getCached } from "./survey-cache";
 import {
   mergeHhGirlsExportLists,
@@ -27,6 +30,7 @@ export {
   applyHhGirlsFilters,
   applyHhGirlsDataFilters,
   computeHhGirlsMetrics,
+  createDefaultHhGirlsFilters,
   defaultHhGirlsFilters,
   getHhGirlsFilterOptions,
   hhGirlsFiltersEqual,
@@ -71,15 +75,35 @@ export function loadHhGirlsSurveys() {
 }
 
 export function loadHhGirlsMetrics() {
-  const signature = filesSignature(hhGirlsFilePaths());
-  return getCached("hh-girls-metrics-v8", signature, () => {
-    const { household, girls } = readHhGirlsSurveys();
+  const signature = `v9-fp|${filesSignature(hhGirlsFilePaths())}`;
+  return getCached("hh-girls-metrics-v9", signature, () => {
+    const { household, girls } = loadHhGirlsSurveys();
     return computeHhGirlsMetrics(household, girls);
   });
 }
 
+/**
+ * Client payload: metrics scoped to the default field period, with full row
+ * arrays retained for further filtering without a refetch.
+ */
 export function loadHhGirlsMetricsForClient() {
-  return stripHhGirlsExportLists(loadHhGirlsMetrics());
+  const signature = `v9-fp-client|${FIELD_PERIOD_START}|${filesSignature(hhGirlsFilePaths())}`;
+  return getCached("hh-girls-metrics-client-v9", signature, () => {
+    const { household, girls } = loadHhGirlsSurveys();
+    const filtered = applyHhGirlsDataFilters(
+      household,
+      girls,
+      createDefaultHhGirlsFilters(FIELD_PERIOD_START)
+    );
+    const metrics = stripHhGirlsExportLists(
+      computeHhGirlsMetrics(filtered.household, filtered.girls)
+    );
+    return {
+      ...metrics,
+      allHousehold: household,
+      allGirls: girls,
+    };
+  });
 }
 
 export function loadHhGirlsExportPayload() {

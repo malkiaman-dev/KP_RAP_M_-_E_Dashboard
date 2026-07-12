@@ -75,7 +75,7 @@ export function TrackingTargetGapsSection({
   districtFilter?: string;
   cohortFilter?: "all" | TrackingCohort;
 }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [localDistrict, setLocalDistrict] = useState<string>("all");
   const [localCohort, setLocalCohort] = useState<"all" | TrackingCohort>("all");
   const [statusView, setStatusView] = useState<
@@ -86,6 +86,7 @@ export function TrackingTargetGapsSection({
     queryKey: [...TRACKING_GAPS_QUERY_KEY],
     queryFn: fetchTrackingGaps,
     staleTime: QUERY_STALE_MS,
+    enabled: expanded,
   });
 
   // Prefer page-level filters when set; otherwise local controls.
@@ -162,6 +163,11 @@ export function TrackingTargetGapsSection({
             {!isLoading && data && (
               <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
                 {data.actionable.toLocaleString()} to share with districts
+              </span>
+            )}
+            {!expanded && !data && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                Click Show to load
               </span>
             )}
           </div>

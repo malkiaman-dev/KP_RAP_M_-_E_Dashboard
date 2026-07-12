@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { loadDashboardMetrics } from "@/lib/data/survey-loader";
+import { loadDashboardMetricsForClient } from "@/lib/data/survey-loader";
 import { requireApiAccess } from "@/lib/auth/guard";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ export async function GET() {
   if ("error" in auth) return auth.error;
 
   try {
-    const metrics = loadDashboardMetrics();
+    const metrics = loadDashboardMetricsForClient();
     return NextResponse.json(metrics);
   } catch (error) {
     console.error("Failed to load metrics:", error);

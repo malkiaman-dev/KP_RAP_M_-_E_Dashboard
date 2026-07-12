@@ -8,7 +8,7 @@ export const TRACKING_METRICS_QUERY_KEY = ["tracking-metrics"] as const;
 export const TRACKING_EXPORTS_QUERY_KEY = ["tracking-exports"] as const;
 export const TRACKING_GAPS_QUERY_KEY = ["tracking-gaps"] as const;
 export const DASHBOARD_METRICS_QUERY_KEY = ["dashboard-metrics"] as const;
-export const HH_GIRLS_METRICS_QUERY_KEY = ["hh-girls-metrics", "v8"] as const;
+export const HH_GIRLS_METRICS_QUERY_KEY = ["hh-girls-metrics", "v9"] as const;
 export const HH_GIRLS_EXPORTS_QUERY_KEY = ["hh-girls-exports", "v2"] as const;
 
 export interface TrackingExportPayload {
@@ -62,25 +62,74 @@ export async function fetchHhGirlsExports(): Promise<HhGirlsExportPayload> {
   return res.json();
 }
 
-export function prefetchAppQueries(queryClient: QueryClient) {
-  void queryClient.prefetchQuery({
-    queryKey: [...TRACKING_METRICS_QUERY_KEY],
-    queryFn: fetchTrackingMetrics,
-    staleTime: QUERY_STALE_MS,
-  });
-  // Defer dashboard metrics so they do not compete with tracking on cold start
-  // (Node is single-threaded; parallel heavy computes serialize wall-clock).
-  const schedule =
-    typeof globalThis.requestIdleCallback === "function"
-      ? globalThis.requestIdleCallback
-      : (cb: () => void) => window.setTimeout(cb, 2500);
-  schedule(() => {
+function idle(cb: () => void, fallbackMs = 1200) {
+  if (typeof globalThis.requestIdleCallback === "function") {
+    globalThis.requestIdleCallback(() => cb());
+    return;
+  }
+  window.setTimeout(cb, fallbackMs);
+}
+
+/** Prefetch APIs needed for a specific tab (sidebar hover / warm start). */
+export function prefetchRouteData(queryClient: QueryClient, href: string) {
+  const warm = (
+    queryKey: readonly unknown[],
+    queryFn: () => Promise<unknown>
+  ) => {
     void queryClient.prefetchQuery({
-      queryKey: [...DASHBOARD_METRICS_QUERY_KEY],
-      queryFn: fetchDashboardMetrics,
+      queryKey: [...queryKey],
+      queryFn,
       staleTime: QUERY_STALE_MS,
     });
-  });
+  };
+
+  if (href === "/" || href === "/analytics" || href === "/surveys") {
+    warm(DASHBOARD_METRICS_QUERY_KEY, fetchDashboardMetrics);
+  }
+
+  if (href === "/analytics") {
+    warm(TRACKING_METRICS_QUERY_KEY, fetchTrackingMetrics);
+    warm(HH_GIRLS_METRICS_QUERY_KEY, fetchHhGirlsMetrics);
+  }
+
+  if (href === "/surveys/hh-girls") {
+    warm(HH_GIRLS_METRICS_QUERY_KEY, fetchHhGirlsMetrics);
+  }
+
+  if (
+    href === "/tracking" ||
+    href === "/monitoring" ||
+    href === "/reports"
+  ) {
+    warm(TRACKING_METRICS_QUERY_KEY, fetchTrackingMetrics);
+  }
+
+  if (href === "/monitoring") {
+    idle(() => warm(HH_GIRLS_METRICS_QUERY_KEY, fetchHhGirlsMetrics));
+  }
+}
+
+/**
+ * Warm caches after shell mount. Prioritize the current route, then idle-warm
+ * the other common tabs so switches feel instant.
+ */
+export function prefetchAppQueries(
+  queryClient: QueryClient,
+  pathname = "/"
+) {
+  prefetchRouteData(queryClient, pathname);
+
+  idle(() => {
+    if (pathname !== "/") {
+      prefetchRouteData(queryClient, "/");
+    }
+    if (pathname !== "/tracking") {
+      prefetchRouteData(queryClient, "/tracking");
+    }
+    if (pathname !== "/surveys/hh-girls") {
+      prefetchRouteData(queryClient, "/surveys/hh-girls");
+    }
+  }, 1800);
 }
 
 export { QUERY_STALE_MS };

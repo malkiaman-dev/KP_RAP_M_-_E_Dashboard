@@ -1,11 +1,13 @@
-import fs from "fs";
 import path from "path";
-import Papa from "papaparse";
 import {
+  applyFilters,
   computeMetrics,
+  createDefaultDashboardFilters,
   type SurveyRow,
-  type SurveyType,
 } from "./survey-metrics";
+import { loadTrackingSurvey } from "./tracking-loader";
+import { loadHhGirlsSurveys } from "./hh-girls-loader";
+import { FIELD_PERIOD_START } from "./field-period";
 import { filesSignature, getCached } from "./survey-cache";
 
 export type {
@@ -15,70 +17,74 @@ export type {
   DashboardFilters,
   FilterOptions,
 } from "./survey-metrics";
-export { computeMetrics, applyFilters, getFilterOptions } from "./survey-metrics";
+export {
+  computeMetrics,
+  applyFilters,
+  getFilterOptions,
+  createDefaultDashboardFilters,
+  dashboardFiltersEqual,
+} from "./survey-metrics";
 
 const DATA_ROOT = path.join(process.cwd(), "..");
 
-const SURVEY_FILES: { file: string; type: SurveyType }[] = [
-  { file: "Tracking_Survey_Baseline.csv", type: "tracking" },
-  { file: "Tracking_Survey_NewSample.csv", type: "tracking" },
-  { file: "Tracking_Survey.csv", type: "tracking" },
-  { file: "Household_Survey.csv", type: "household" },
-  { file: "Girls_Survey.csv", type: "girls" },
+const SURVEY_FILES = [
+  "Tracking_Survey_Baseline.csv",
+  "Tracking_Survey_NewSample.csv",
+  "Tracking_Survey.csv",
+  "Household_Survey.csv",
+  "Girls_Survey.csv",
 ];
 
 function surveyFilePaths(): string[] {
-  return SURVEY_FILES.map((s) => path.join(DATA_ROOT, "Surveys", s.file));
+  return SURVEY_FILES.map((f) => path.join(DATA_ROOT, "Surveys", f));
 }
 
-function parseCsv(filePath: string, surveyType: SurveyType): SurveyRow[] {
-  if (!fs.existsSync(filePath)) return [];
-  const content = fs.readFileSync(filePath, "utf-8");
-  const parsed = Papa.parse<Record<string, string>>(content, {
-    header: true,
-    skipEmptyLines: true,
-  });
-  return parsed.data.map((row) => ({
-    ...row,
-    survey_type: surveyType,
-  })) as SurveyRow[];
-}
-
+/** Prefer shared tracking + HH caches so CSVs are not re-parsed per API. */
 function readAllSurveys(): SurveyRow[] {
-  const trackingBaseline = parseCsv(
-    path.join(DATA_ROOT, "Surveys", "Tracking_Survey_Baseline.csv"),
-    "tracking"
+  const tracking = loadTrackingSurvey().map(
+    (row) =>
+      ({
+        ...row,
+        survey_type: "tracking",
+      }) as SurveyRow
   );
-  const trackingNewSample = parseCsv(
-    path.join(DATA_ROOT, "Surveys", "Tracking_Survey_NewSample.csv"),
-    "tracking"
-  );
-  const tracking =
-    trackingBaseline.length + trackingNewSample.length > 0
-      ? [...trackingBaseline, ...trackingNewSample]
-      : parseCsv(
-          path.join(DATA_ROOT, "Surveys", "Tracking_Survey.csv"),
-          "tracking"
-        );
-  const household = parseCsv(
-    path.join(DATA_ROOT, "Surveys", "Household_Survey.csv"),
-    "household"
-  );
-  const girls = parseCsv(
-    path.join(DATA_ROOT, "Surveys", "Girls_Survey.csv"),
-    "girls"
-  );
-  return [...tracking, ...household, ...girls];
+  const { household, girls } = loadHhGirlsSurveys();
+  return [
+    ...tracking,
+    ...(household as SurveyRow[]),
+    ...(girls as SurveyRow[]),
+  ];
 }
 
 export function loadAllSurveys(): SurveyRow[] {
   const signature = filesSignature(surveyFilePaths());
-  return getCached("dashboard-rows", signature, readAllSurveys);
+  return getCached("dashboard-rows-v2", signature, readAllSurveys);
 }
 
+/** Unfiltered full metrics (reports / legacy). */
 export function loadDashboardMetrics() {
-  const signature = filesSignature(surveyFilePaths());
-  return getCached("dashboard-metrics", signature, () =>
+  const signature = `v2|${filesSignature(surveyFilePaths())}`;
+  return getCached("dashboard-metrics-v2", signature, () =>
     computeMetrics(loadAllSurveys())
   );
+}
+
+/**
+ * Client dashboard payload: aggregates for the default field period,
+ * plus full-row arrays for further client-side filtering.
+ */
+export function loadDashboardMetricsForClient() {
+  const signature = `v2-fp|${FIELD_PERIOD_START}|${filesSignature(surveyFilePaths())}`;
+  return getCached("dashboard-metrics-client-v2", signature, () => {
+    const allRows = loadAllSurveys();
+    const fieldPeriodRows = applyFilters(
+      allRows,
+      createDefaultDashboardFilters(FIELD_PERIOD_START)
+    );
+    const metrics = computeMetrics(fieldPeriodRows, { allRows });
+    return {
+      ...metrics,
+      allSubmissions: allRows,
+    };
+  });
 }

@@ -29,6 +29,7 @@ import {
   type TrackingMetrics,
   type TrackingTargets,
 } from "@/lib/data/tracking-metrics";
+import { FIELD_PERIOD_START } from "@/lib/data/field-period";
 import {
   fetchTrackingMetrics,
   QUERY_STALE_MS,
@@ -72,12 +73,27 @@ export default function TrackingPage() {
   const display = useMemo(() => {
     if (!data?.allSubmissions) return undefined;
 
+    // Server metrics are pre-scoped to the field-period start date.
+    if (
+      trackingFiltersEqual(
+        deferredFilters,
+        createDefaultTrackingFilters(FIELD_PERIOD_START)
+      )
+    ) {
+      return data;
+    }
+
     const emptyDefaults = createDefaultTrackingFilters("");
     if (
       !deferredFilters.dateFrom &&
       trackingFiltersEqual(deferredFilters, emptyDefaults)
     ) {
-      return data;
+      return computeTrackingMetrics(
+        data.allSubmissions,
+        targets,
+        data.allSubmissions,
+        { includeExportLists: false }
+      );
     }
 
     // Skip Excel row arrays while filtering — keeps the browser responsive.
