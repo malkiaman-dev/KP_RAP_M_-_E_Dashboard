@@ -1,3 +1,10 @@
+import {
+  buildEnumeratorFilterOptions,
+  displayEnumeratorLabel,
+  enumeratorIdentityKey,
+  matchesEnumeratorFilter,
+} from "./enumerator-identity";
+
 export type ErrorSeverity = "CRITICAL" | "FLAG";
 
 export interface ErrorRow {
@@ -86,7 +93,15 @@ export function applyErrorFilters(
     if (filters.enumerator !== "all") {
       if (filters.enumerator === UNASSIGNED) {
         if (isEnumeratorAttributable(r)) return false;
-      } else if (r.enumeratorName !== filters.enumerator) {
+      } else if (
+        !matchesEnumeratorFilter(
+          {
+            enumerator_id: r.enumeratorId,
+            enumerator_name: r.enumeratorName,
+          },
+          filters.enumerator
+        )
+      ) {
         return false;
       }
     }
@@ -122,7 +137,14 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
   ).length;
 
   const affectedEnumerators = new Set(
-    attributable.map((r) => r.enumeratorName)
+    attributable
+      .map((r) =>
+        enumeratorIdentityKey({
+          enumerator_id: r.enumeratorId,
+          enumerator_name: r.enumeratorName,
+        })
+      )
+      .filter((id) => id && id !== "unknown")
   ).size;
   const affectedDistricts = new Set(
     rows.map((r) => r.district).filter(Boolean)
@@ -196,10 +218,14 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
     { name: string; district: string; critical: number; flag: number }
   >();
   for (const r of attributable) {
-    const key = r.enumeratorName;
+    const key = enumeratorIdentityKey({
+      enumerator_id: r.enumeratorId,
+      enumerator_name: r.enumeratorName,
+    });
+    if (!key || key === "unknown") continue;
     if (!enumMap.has(key)) {
       enumMap.set(key, {
-        name: key,
+        name: displayEnumeratorLabel(key),
         district: r.district,
         critical: 0,
         flag: 0,
@@ -241,11 +267,12 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
   const surveys = [...new Set(rows.map((r) => r.survey).filter(Boolean))]
     .sort()
     .map((s) => ({ value: s, label: s }));
-  const enumeratorOptions = [
-    ...new Set(attributable.map((r) => r.enumeratorName)),
-  ]
-    .sort()
-    .map((e) => ({ value: e, label: e }));
+  const enumeratorOptions = buildEnumeratorFilterOptions(
+    attributable.map((r) => ({
+      enumerator_id: r.enumeratorId,
+      enumerator_name: r.enumeratorName,
+    }))
+  );
 
   return {
     totalErrors,

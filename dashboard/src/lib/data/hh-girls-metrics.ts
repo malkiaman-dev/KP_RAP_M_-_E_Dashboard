@@ -7,6 +7,12 @@ import { computeHhGirlsCoreKpiLists } from "./hh-girls-core-kpi-lists";
 import { computeHhGirlsDuplicateDetail } from "./hh-girls-duplicates";
 import { computeHhGirlsMissingDetail } from "./hh-girls-missing";
 import { computeHhGirlsRevisitDetail } from "./hh-girls-revisit";
+import {
+  buildEnumeratorFilterOptions,
+  cleanEnumeratorName,
+  enumeratorIdentityKey,
+  matchesEnumeratorFilter,
+} from "./enumerator-identity";
 
 export type HhGirlsSurveyType = "household" | "girls";
 
@@ -107,17 +113,12 @@ export function districtLabel(d: string): string {
   return map[d] || `District ${d}`;
 }
 
-function cleanEnumeratorName(name?: string): string {
-  if (!name) return "";
-  return name.replace(/\(.*\)/, "").trim();
-}
-
 function resolveVillage(row: HhGirlsRow): string {
   return (row.village_label || row.village || "").trim();
 }
 
 function enumeratorKey(row: HhGirlsRow): string {
-  return row.enumerator_id || row.enumerator_name || "";
+  return enumeratorIdentityKey(row);
 }
 
 export function isMotherRespondent(respondent?: string): boolean {
@@ -164,14 +165,10 @@ export function getHhGirlsFilterOptions(
   const rows = [...hhRows, ...girlsRows];
   const districtSet = new Set(rows.map((r) => r.district).filter(Boolean));
   const villageMap = new Map<string, string>();
-  const enumeratorMap = new Map<string, string>();
 
   for (const r of rows) {
     const village = resolveVillage(r);
     if (village) villageMap.set(village, village);
-    const enumKey = enumeratorKey(r);
-    if (!enumKey) continue;
-    enumeratorMap.set(enumKey, cleanEnumeratorName(r.enumerator_name) || enumKey);
   }
 
   const dates = rows
@@ -184,10 +181,7 @@ export function getHhGirlsFilterOptions(
       value: d,
       label: districtLabel(d),
     })),
-    enumerators: [...enumeratorMap.entries()].map(([value, label]) => ({
-      value,
-      label,
-    })),
+    enumerators: buildEnumeratorFilterOptions(rows),
     villages: [...villageMap.entries()].map(([value, label]) => ({
       value,
       label,
@@ -208,8 +202,7 @@ export function applyHhGirlsFilters(
       return false;
     if (
       filters.enumerator !== "all" &&
-      enumeratorKey(r) !== filters.enumerator &&
-      r.enumerator_name !== filters.enumerator
+      !matchesEnumeratorFilter(r, filters.enumerator)
     )
       return false;
     if (filters.village !== "all" && resolveVillage(r) !== filters.village)

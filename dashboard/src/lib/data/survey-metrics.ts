@@ -7,6 +7,11 @@ import {
 import { isCompletedHouseholdForGirl } from "./hh-girls-completion";
 import type { HhGirlsRow } from "./hh-girls-metrics";
 import { PROTOCOL } from "./protocol";
+import {
+  buildEnumeratorFilterOptions,
+  enumeratorIdentityKey,
+  matchesEnumeratorFilter,
+} from "./enumerator-identity";
 
 export type SurveyType = "tracking" | "household" | "girls";
 
@@ -91,11 +96,6 @@ function districtLabel(d: string): string {
   return map[d] || `District ${d}`;
 }
 
-function cleanEnumeratorName(name?: string): string {
-  if (!name) return "";
-  return name.replace(/\(.*\)/, "").trim();
-}
-
 function buildSubmissionTrend(rows: SurveyRow[]) {
   const trendMap = new Map<string, number>();
   for (const r of rows) {
@@ -121,14 +121,6 @@ function buildCumulativeSparkline(trend: { date: string; count: number }[]) {
 
 export function getFilterOptions(rows: SurveyRow[]): FilterOptions {
   const districtSet = new Set(rows.map((r) => r.district).filter(Boolean));
-  const enumeratorMap = new Map<string, string>();
-
-  for (const r of rows) {
-    const id = r.enumerator_id || r.enumerator_name || "";
-    if (!id) continue;
-    const label = cleanEnumeratorName(r.enumerator_name) || id;
-    enumeratorMap.set(id, label);
-  }
 
   const dates = rows
     .map((r) => parseSubmissionDate(r.SubmissionDate || ""))
@@ -140,10 +132,7 @@ export function getFilterOptions(rows: SurveyRow[]): FilterOptions {
       value: d,
       label: districtLabel(d),
     })),
-    enumerators: [...enumeratorMap.entries()].map(([value, label]) => ({
-      value,
-      label,
-    })),
+    enumerators: buildEnumeratorFilterOptions(rows),
     dateRange: {
       start: dates[0]?.toISOString().slice(0, 10) || "",
       end: dates[dates.length - 1]?.toISOString().slice(0, 10) || "",
@@ -160,12 +149,7 @@ export function applyFilters(
       return false;
     if (filters.surveyType !== "all" && r.survey_type !== filters.surveyType)
       return false;
-    if (
-      filters.enumerator !== "all" &&
-      r.enumerator_id !== filters.enumerator &&
-      r.enumerator_name !== filters.enumerator
-    )
-      return false;
+    if (!matchesEnumeratorFilter(r, filters.enumerator)) return false;
     if (filters.status === "complete" && r.survey_status !== "1") return false;
     if (filters.status === "incomplete" && r.survey_status === "1")
       return false;
@@ -306,7 +290,9 @@ export function computeMetrics(
     tracking.map((r) => r.school_label).filter(Boolean)
   );
   const enumerators = new Set(
-    rows.map((r) => r.enumerator_id || r.enumerator_name).filter(Boolean)
+    rows
+      .map((r) => enumeratorIdentityKey(r))
+      .filter((id) => id && id !== "unknown")
   );
   const districts = new Set(rows.map((r) => r.district).filter(Boolean));
 

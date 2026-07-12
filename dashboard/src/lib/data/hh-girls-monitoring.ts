@@ -6,6 +6,12 @@ import {
   type HhGirlsFilters,
   type HhGirlsRow,
 } from "./hh-girls-metrics";
+import {
+  cleanEnumeratorName,
+  displayEnumeratorLabel,
+  enumeratorIdentityKey,
+  matchesEnumeratorFilter,
+} from "./enumerator-identity";
 
 export interface HhGirlsEnumeratorPerformance {
   id: string;
@@ -56,21 +62,16 @@ function submissionDateKey(r: HhGirlsRow): string {
     : (r.SubmissionDate || "").slice(0, 10);
 }
 
-function enumeratorIdentityKey(r: HhGirlsRow): string {
-  return (r.enumerator_id || r.enumerator_name || "").trim() || "unknown";
-}
-
-function cleanEnumeratorName(name?: string): string {
-  if (!name) return "";
-  return name.replace(/\(.*\)/, "").trim();
-}
-
 function displayEnumeratorName(subs: HhGirlsRow[]): string {
+  const key = enumeratorIdentityKey(subs[0]!);
+  if (key && key !== "unknown" && !key.startsWith("id:")) {
+    return displayEnumeratorLabel(key);
+  }
   for (const s of subs) {
     const cleaned = cleanEnumeratorName(s.enumerator_name);
     if (cleaned) return cleaned;
   }
-  return enumeratorIdentityKey(subs[0]!);
+  return key;
 }
 
 function girlKey(r: HhGirlsRow): string {
@@ -103,8 +104,7 @@ export function applyHhGirlsMonitoringFilters(
       return false;
     if (
       effective.enumerator !== "all" &&
-      enumeratorIdentityKey(r) !== effective.enumerator &&
-      r.enumerator_name !== effective.enumerator
+      !matchesEnumeratorFilter(r, effective.enumerator)
     )
       return false;
     if (

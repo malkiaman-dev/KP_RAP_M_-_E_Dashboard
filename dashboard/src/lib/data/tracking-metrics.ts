@@ -1,5 +1,13 @@
 import { DEFAULT_TRACKING_TARGETS } from "./protocol";
 import { toIsoDateString } from "../utils";
+import {
+  buildEnumeratorFilterOptions,
+  cleanEnumeratorName as cleanEnumeratorNameBase,
+  displayEnumeratorLabel,
+  enumeratorIdentityKey,
+} from "@/lib/data/enumerator-identity";
+
+export { enumeratorIdentityKey };
 
 export type TrackingCohort = "baseline" | "new-sample";
 
@@ -229,105 +237,42 @@ function districtLabel(d: string, label?: string): string {
 }
 
 function cleanEnumeratorName(name?: string): string {
-  if (!name) return "Unknown";
-  return name.replace(/\(.*\)/, "").trim();
+  return cleanEnumeratorNameBase(name) || "Unknown";
 }
-
-/**
- * Same field worker, different spelling or ID in the raw data (district-scoped).
- * Keys are normalized slugs; values are the canonical slug used in identity keys.
- */
-const ENUMERATOR_NAME_ALIASES: Record<string, Record<string, string>> = {
-  "1": {
-    javairia: "javeria",
-    jaweria: "javeria",
-    javeria: "javeria",
-    naureen: "naureen khan",
-    "naureen khan": "naureen khan",
-  },
-};
-
-function normalizeEnumeratorNameSlug(name: string, district: string): string {
-  const slug = name.toLowerCase().replace(/\s+/g, " ").trim();
-  return ENUMERATOR_NAME_ALIASES[district]?.[slug] ?? slug;
-}
-
-/** Preferred display label for a merged enumerator identity. */
-const CANONICAL_ENUMERATOR_LABELS: Record<string, string> = {
-  "1::javeria": "Javeria",
-  "1::naureen khan": "Naureen Khan",
-};
 
 function displayEnumeratorName(subs: TrackingRow[]): string {
   const key = enumeratorIdentityKey(subs[0]!);
-  return CANONICAL_ENUMERATOR_LABELS[key] ?? preferredEnumeratorName(subs);
-}
-
-/**
- * Canonical identity for an enumerator.
- *
- * The raw data sometimes assigns the *same* field worker two different
- * `enumerator_id` values (and the name casing/spacing varies between forms),
- * which previously caused the same person to appear as two separate rows in the
- * monitoring report (e.g. "Lati khan" and "Lati Khan"). Keying on a normalized
- * name scoped to the district merges those records back into one enumerator.
- */
-export function enumeratorIdentityKey(row: TrackingRow): string {
-  const district = (row.district || "").trim();
-  const name = normalizeEnumeratorNameSlug(
-    cleanEnumeratorName(row.enumerator_name)
-      .toLowerCase()
-      .replace(/\s+/g, " ")
-      .trim(),
-    district
-  );
-  if (name && name !== "unknown") return `${district}::${name}`;
-  return row.enumerator_id || row.enumerator_name || "unknown";
+  if (key && key !== "unknown" && !key.startsWith("id:")) {
+    return displayEnumeratorLabel(key);
+  }
+  return preferredEnumeratorName(subs);
 }
 
 function enumeratorIdentityFromSummary(
   g: Pick<GirlSummary, "enumeratorId" | "enumeratorName" | "district">
 ): string {
-  const district = (g.district || "").trim();
-  const name = normalizeEnumeratorNameSlug(
-    cleanEnumeratorName(g.enumeratorName)
-      .toLowerCase()
-      .replace(/\s+/g, " ")
-      .trim(),
-    district
-  );
-  if (name && name !== "unknown") return `${district}::${name}`;
-  return g.enumeratorId || g.enumeratorName || "unknown";
+  return enumeratorIdentityKey({
+    enumerator_id: g.enumeratorId,
+    enumerator_name: g.enumeratorName,
+  });
 }
 
 /** Pick the most frequently submitted name variant for display. */
 function preferredEnumeratorName(subs: TrackingRow[]): string {
   const counts = new Map<string, number>();
   for (const r of subs) {
-    const name = cleanEnumeratorName(r.enumerator_name);
-    if (!name || name === "Unknown") continue;
+    const name = cleanEnumeratorNameBase(r.enumerator_name);
+    if (!name) continue;
     counts.set(name, (counts.get(name) || 0) + 1);
   }
   if (counts.size === 0) {
-    return cleanEnumeratorName(subs[0]?.enumerator_name) || "Unknown";
+    return cleanEnumeratorName(subs[0]?.enumerator_name);
   }
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
 }
 
 function buildEnumeratorOptions(rows: TrackingRow[]) {
-  const groups = new Map<string, TrackingRow[]>();
-  for (const r of rows) {
-    const key = enumeratorIdentityKey(r);
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(r);
-  }
-  return [...groups.entries()]
-    .filter(([key]) => key && key !== "unknown")
-    .map(([value, subs]) => ({
-      value,
-      label: displayEnumeratorName(subs),
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+  return buildEnumeratorFilterOptions(rows);
 }
 
 function resolveSchoolLabel(row: TrackingRow): string | undefined {
