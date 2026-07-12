@@ -9,6 +9,7 @@ import { TrackingKpis } from "@/components/tracking/tracking-kpis";
 import { TrackingSecondaryKpis } from "@/components/tracking/tracking-secondary-kpis";
 import { TrackingRevisitSection } from "@/components/tracking/tracking-revisit-section";
 import { TrackingDuplicateSection } from "@/components/tracking/tracking-duplicate-section";
+import { TrackingTargetGapsSection } from "@/components/tracking/tracking-target-gaps-section";
 import { TrackingCharts } from "@/components/tracking/tracking-charts";
 import { TrackingCohortOverview } from "@/components/tracking/tracking-cohort-overview";
 import { TrackingCohortSection } from "@/components/tracking/tracking-cohort-section";
@@ -208,6 +209,16 @@ export default function TrackingPage() {
           cohort="new-sample"
         />
       )}
+
+      <SectionHeader
+        title="Outstanding for districts"
+        subtitle="Target lists vs tracked girls — not attempted and revisit needed, ready to share by district."
+        className="mt-8"
+      />
+      <TrackingTargetGapsSection
+        districtFilter={deferredFilters.district}
+        cohortFilter={activeCohort}
+      />
 
       <SectionHeader
         title="Field quality & exports"

@@ -600,7 +600,7 @@ function isConsentStepReached(row: TrackingRow): boolean {
   return false;
 }
 
-function classifyUntrackedGirl(
+export function classifyUntrackedGirl(
   subs: TrackingRow[]
 ): Exclude<keyof UntrackedBreakdown, "total"> {
   // Case 6
@@ -1041,13 +1041,21 @@ function chronologicalGirlSubmissions(
 }
 
 /** True if the girl meets tracking success on any chronological attempt. */
-function girlIsTrackedAcrossAttempts(
+export function girlIsTrackedAcrossAttempts(
   allRows: TrackingRow[],
   girl: string
 ): boolean {
   return chronologicalGirlSubmissions(allRows, girl).some(
     isGirlTrackedForMetrics
   );
+}
+
+/** Chronological submissions for a listing ID / girl key. */
+export function getGirlSubmissions(
+  allRows: TrackingRow[],
+  girl: string
+): TrackingRow[] {
+  return chronologicalGirlSubmissions(allRows, girl);
 }
 
 /**
@@ -1538,7 +1546,7 @@ function girlStillNeeds3rd(subs: TrackingRow[], allRows: TrackingRow[]): boolean
 }
 
 /** Next follow-up still outstanding: 3rd takes priority over 2nd (mutually exclusive per girl). */
-function girlPendingRevisit(
+export function girlPendingRevisit(
   subs: TrackingRow[],
   allRows: TrackingRow[]
 ): "2nd" | "3rd" | null {

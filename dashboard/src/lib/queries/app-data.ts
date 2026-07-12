@@ -1,10 +1,12 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { DashboardMetrics } from "@/lib/data/survey-metrics";
 import type { HhGirlsMetrics } from "@/lib/data/hh-girls-metrics";
+import type { TrackingTargetGaps } from "@/lib/data/tracking-target-gaps-types";
 import type { TrackingMetrics } from "@/lib/data/tracking-metrics";
 
 export const TRACKING_METRICS_QUERY_KEY = ["tracking-metrics"] as const;
 export const TRACKING_EXPORTS_QUERY_KEY = ["tracking-exports"] as const;
+export const TRACKING_GAPS_QUERY_KEY = ["tracking-gaps"] as const;
 export const DASHBOARD_METRICS_QUERY_KEY = ["dashboard-metrics"] as const;
 export const HH_GIRLS_METRICS_QUERY_KEY = ["hh-girls-metrics", "v8"] as const;
 export const HH_GIRLS_EXPORTS_QUERY_KEY = ["hh-girls-exports", "v2"] as const;
@@ -26,6 +28,12 @@ export async function fetchTrackingMetrics(): Promise<TrackingMetrics> {
 export async function fetchTrackingExports(): Promise<TrackingExportPayload> {
   const res = await fetch("/api/tracking/exports");
   if (!res.ok) throw new Error("Failed to load tracking export data");
+  return res.json();
+}
+
+export async function fetchTrackingGaps(): Promise<TrackingTargetGaps> {
+  const res = await fetch("/api/tracking/gaps");
+  if (!res.ok) throw new Error("Failed to load tracking target gaps");
   return res.json();
 }
 
