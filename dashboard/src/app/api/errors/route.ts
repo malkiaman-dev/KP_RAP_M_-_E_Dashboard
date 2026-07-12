@@ -3,6 +3,8 @@ import { loadErrorMetrics } from "@/lib/data/error-loader";
 import { requireApiAccess } from "@/lib/auth/guard";
 
 export const dynamic = "force-dynamic";
+/** DQA may still be regenerating in the background; allow a long request budget. */
+export const maxDuration = 60;
 
 export async function GET() {
   const auth = await requireApiAccess("/api/errors");

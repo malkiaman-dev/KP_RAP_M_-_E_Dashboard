@@ -129,7 +129,22 @@ All metrics, charts, and the table recompute on filtered rows.
 
 ## 7. Regenerating the log
 
-From `DQA_Script/`:
+The Error Report **auto-updates** when files in `Surveys/` are newer than
+`Error_log/Daily_Error_Log.xlsx`:
+
+1. Replace/update CSVs in `Surveys/`
+2. Open `/surveys/errors` — the API starts `DQA_Script/run_dqa.py` in the background
+3. The page shows an “Updating…” banner and refreshes when the new log is ready
+
+**Publish live** (Settings) also regenerates the error log first when surveys are stale, so GitHub gets matching Surveys + Error_log.
+
+Manual run from `dashboard/`:
+
+```bash
+npm run dqa
+```
+
+Or from `DQA_Script/`:
 
 ```bash
 python run_dqa.py
@@ -145,6 +160,7 @@ Reads CSVs from project `Surveys/` (preferred) or `DQA_Script/data_raw/`, then w
 |------|------|
 | Error metrics & scope | `src/lib/data/error-metrics.ts` |
 | Excel loading (xlsx) | `src/lib/data/error-loader.ts` |
+| DQA auto-refresh | `src/lib/data/dqa-runner.ts` |
 | API route | `src/app/api/errors/route.ts` |
 | Page | `src/app/surveys/errors/page.tsx` |
 | KPI cards | `src/components/errors/error-kpis.tsx` |

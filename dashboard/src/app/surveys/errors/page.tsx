@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ShieldAlert, Users } from "lucide-react";
+import { AlertTriangle, Loader2, ShieldAlert, Users } from "lucide-react";
 import { ErrorFiltersPanel } from "@/components/errors/error-filters";
 import { ErrorActiveFilters } from "@/components/errors/error-active-filters";
 import { ErrorKpis } from "@/components/errors/error-kpis";
@@ -16,8 +16,14 @@ import {
   type ErrorFilters,
   type ErrorMetrics,
 } from "@/lib/data/error-metrics";
+import type { DqaStatus } from "@/lib/data/dqa-runner";
 
-async function fetchErrors(): Promise<ErrorMetrics> {
+type ErrorMetricsPayload = ErrorMetrics & {
+  dqaStatus?: DqaStatus;
+  dqaError?: string | null;
+};
+
+async function fetchErrors(): Promise<ErrorMetricsPayload> {
   const res = await fetch("/api/errors");
   if (!res.ok) throw new Error("Failed to load error log");
   return res.json();
@@ -29,6 +35,12 @@ export default function ErrorReportPage() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["error-metrics"],
     queryFn: fetchErrors,
+    refetchInterval: (query) => {
+      const status = query.state.data?.dqaStatus;
+      return status === "regenerating" || status === "stale" || status === "missing"
+        ? 15_000
+        : false;
+    },
   });
 
   const display = useMemo(() => {
@@ -37,13 +49,21 @@ export default function ErrorReportPage() {
     return computeErrorMetrics(rows);
   }, [data, filters]);
 
+  const dqaStatus = data?.dqaStatus;
+  const showDqaBanner =
+    dqaStatus === "regenerating" ||
+    dqaStatus === "stale" ||
+    dqaStatus === "missing" ||
+    Boolean(data?.dqaError);
+
   if (isError) {
     return (
       <div className="flex min-h-[400px] items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/5 p-8 text-center">
         <div>
           <p className="font-semibold text-red-600">Failed to load error log</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Ensure Daily_Error_Log.xlsx exists in the Error_log folder.
+            Ensure Daily_Error_Log.xlsx exists in the Error_log folder, or wait
+            for DQA to regenerate from Surveys/.
           </p>
         </div>
       </div>
@@ -90,6 +110,38 @@ export default function ErrorReportPage() {
           },
         ]}
       />
+
+      {showDqaBanner && (
+        <div
+          className={`mb-4 flex items-start gap-2 rounded-xl border px-4 py-3 text-sm ${
+            data?.dqaError
+              ? "border-red-500/25 bg-red-500/5 text-red-700 dark:text-red-300"
+              : "border-teal/25 bg-teal/5 text-foreground"
+          }`}
+        >
+          {!data?.dqaError && (
+            <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-teal" />
+          )}
+          <div>
+            {data?.dqaError ? (
+              <>
+                <p className="font-medium">Error report update failed</p>
+                <p className="mt-0.5 text-xs opacity-90">{data.dqaError}</p>
+              </>
+            ) : (
+              <>
+                <p className="font-medium">
+                  Updating error report from latest survey files…
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Survey CSVs are newer than the error log. DQA is regenerating
+                  in the background — this page will refresh automatically.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <ErrorFiltersPanel
         filterOptions={data?.filterOptions}

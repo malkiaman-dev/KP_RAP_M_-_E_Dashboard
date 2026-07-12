@@ -7,6 +7,12 @@ import {
   type ErrorRow,
   type ErrorSeverity,
 } from "./error-metrics";
+import {
+  getDqaLastError,
+  getDqaStatus,
+  scheduleDqaIfStale,
+  type DqaStatus,
+} from "./dqa-runner";
 
 export type { ErrorRow, ErrorMetrics, ErrorFilters } from "./error-metrics";
 export {
@@ -18,6 +24,8 @@ export {
   ERROR_REPORT_SURVEYS,
   toggleErrorFilters,
 } from "./error-metrics";
+export type { DqaStatus } from "./dqa-runner";
+export { runDqaNow, isErrorLogStale, getDqaStatus } from "./dqa-runner";
 
 const DATA_ROOT = path.join(process.cwd(), "..");
 
@@ -95,6 +103,17 @@ export function loadErrorRows(): ErrorRow[] {
 }
 
 export function loadErrorMetrics() {
+  // When Surveys/*.csv are newer than the error log, kick off DQA in the
+  // background so the next refresh shows updated issues without blocking this
+  // request for several minutes.
+  const dqaStatus = scheduleDqaIfStale();
   const rows = scopeErrorReportRows(loadErrorRows());
-  return computeErrorMetrics(rows);
+  const metrics = computeErrorMetrics(rows);
+  return {
+    ...metrics,
+    dqaStatus: dqaStatus === "stale" ? getDqaStatus() : dqaStatus,
+    dqaError: getDqaLastError(),
+  };
 }
+
+export type ErrorMetricsPayload = ReturnType<typeof loadErrorMetrics>;

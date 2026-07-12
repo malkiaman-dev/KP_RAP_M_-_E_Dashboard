@@ -12,7 +12,7 @@ Runs enumerator-attributable data-quality checks for the active survey modules a
 
 Listing, School, and Driver checks are **not** run.
 
-Cross-survey integrity checks still generated (optional for review):
+Cross-survey integrity checks still generated (optional for review; dashboard hides them):
 
 - Tracking vs Household
 - Household vs Girls
@@ -26,12 +26,20 @@ Cross-survey integrity checks still generated (optional for review):
 python run_dqa.py
 ```
 
+Or from `dashboard/`:
+
+```bash
+npm run dqa
+```
+
+The Error Report page also auto-runs DQA in the background when `Surveys/` files are newer than `Error_log/Daily_Error_Log.xlsx`. Publish live regenerates first when the log is stale.
+
 ## Outputs
 
 Written to both:
 
 - `Error_log/` (consumed by the dashboard at `/surveys/errors`)
-- `DQA_Script/outputs/` (local copy)
+- `DQA_Script/outputs/` (local copy; gitignored)
 
 Files:
 

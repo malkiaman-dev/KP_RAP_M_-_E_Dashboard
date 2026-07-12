@@ -6,6 +6,7 @@ import {
   getPermissionsFileContent,
   permissionsPath,
 } from "@/lib/auth/permissions";
+import { isErrorLogStale, runDqaNow } from "@/lib/data/dqa-runner";
 import { commitContents, isGithubConfigured } from "./github";
 
 const execAsync = promisify(exec);
@@ -119,6 +120,16 @@ export async function publishChanges(note?: string): Promise<PublishResult> {
   const message = buildCommitMessage(note);
 
   if (await isGitAvailable()) {
+    // Keep Error Report in sync with Surveys before committing.
+    if (isErrorLogStale()) {
+      const dqa = await runDqaNow();
+      if (!dqa.ok) {
+        throw new Error(
+          `Survey files changed but error report regeneration failed: ${dqa.message}`
+        );
+      }
+    }
+
     await git("add -A");
     const statusRaw = await git("status --porcelain");
     const hasChanges = statusRaw.trim().length > 0;

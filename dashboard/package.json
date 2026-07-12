@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "dqa": "python ../DQA_Script/run_dqa.py"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.1",
