@@ -5,7 +5,7 @@ import {
   useCallback,
   useContext,
   useMemo,
-  useState,
+  useSyncExternalStore,
 } from "react";
 import {
   FIELD_PERIOD_START,
@@ -25,31 +25,63 @@ interface FieldPeriodContextValue {
 
 const FieldPeriodContext = createContext<FieldPeriodContextValue | null>(null);
 
+const DEFAULT_ENABLED = true;
+
+function readStoredEnabled(): boolean {
+  try {
+    const stored = window.localStorage.getItem(FIELD_PERIOD_STORAGE_KEY);
+    if (stored === "0") return false;
+    if (stored === "1") return true;
+  } catch {
+    // Ignore storage failures (private mode, etc.).
+  }
+  return DEFAULT_ENABLED;
+}
+
+/** Notify subscribers when this tab updates the preference. */
+const listeners = new Set<() => void>();
+
+function subscribe(onStoreChange: () => void) {
+  listeners.add(onStoreChange);
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === FIELD_PERIOD_STORAGE_KEY || event.key === null) {
+      onStoreChange();
+    }
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    listeners.delete(onStoreChange);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+function emitChange() {
+  for (const listener of listeners) listener();
+}
+
+function getServerSnapshot() {
+  // Must match SSR HTML during hydration — never read localStorage here.
+  return DEFAULT_ENABLED;
+}
+
 export function FieldPeriodProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Default ON; read localStorage synchronously to avoid a second filter pass.
-  const [enabled, setEnabledState] = useState(() => {
-    if (typeof window === "undefined") return true;
-    try {
-      const stored = window.localStorage.getItem(FIELD_PERIOD_STORAGE_KEY);
-      if (stored === "0") return false;
-      if (stored === "1") return true;
-    } catch {
-      // Ignore storage failures (private mode, etc.).
-    }
-    return true;
-  });
+  const enabled = useSyncExternalStore(
+    subscribe,
+    readStoredEnabled,
+    getServerSnapshot
+  );
 
   const setEnabled = useCallback((next: boolean) => {
-    setEnabledState(next);
     try {
       window.localStorage.setItem(FIELD_PERIOD_STORAGE_KEY, next ? "1" : "0");
     } catch {
       // Ignore storage failures.
     }
+    emitChange();
   }, []);
 
   const value = useMemo<FieldPeriodContextValue>(
