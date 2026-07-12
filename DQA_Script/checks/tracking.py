@@ -569,84 +569,43 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         )
 
     # =========================================================
-    # VISIT DATE MUST MATCH SUBMISSION DATE (NEW CHECK)
-    # Logic: For any filled visit_date / visit_date_* column,
-    # the date must match the submission date (date part).
-    # Also flags invalid visit_date values when filled but unparseable.
+    # VISIT DATE VALIDITY (invalid parse only)
+    # Same-day vs submission is NOT flagged — late sync / offline
+    # submit is common in the field.
     # =========================================================
-    ref_dt = None
-    ref_field = None
+    visit_date_cols: list[str] = []
+    for c in df.columns:
+        if not isinstance(c, str):
+            continue
+        if c == "visit_date" or c.startswith("visit_date_"):
+            visit_date_cols.append(c)
 
-    if sub in df.columns:
-        ref_dt = _parse_dt(df[sub])
-        ref_field = sub
-    elif start_col in df.columns:
-        ref_dt = _parse_dt(df[start_col])
-        ref_field = start_col
+    for vcol in visit_date_cols:
+        raw = df[vcol].map(_norm)
+        filled = raw.ne("")
+        vdt = _parse_date_only(df[vcol])
 
-    if ref_dt is not None and ref_field is not None:
-        ref_date = ref_dt.dt.date
-
-        visit_date_cols: list[str] = []
-        for c in df.columns:
-            if not isinstance(c, str):
-                continue
-            if c == "visit_date" or c.startswith("visit_date_"):
-                visit_date_cols.append(c)
-
-        for vcol in visit_date_cols:
-            raw = df[vcol].map(_norm)
-            filled = raw.ne("")
-
-            vdt = _parse_date_only(df[vcol])
-            vdate = vdt.dt.date
-
-            # (A) Filled but invalid date
-            bad_parse = filled & vdt.isna()
-            for i in df.index[bad_parse.fillna(False)]:
-                m = meta(i)
-                add_issue(
-                    issues,
-                    survey="Tracking",
-                    severity="CRITICAL",
-                    rule_id="TRK_CE_VISIT_DATE_INVALID",
-                    title="Invalid visit date",
-                    cause="visit_date is filled but not a valid date.",
-                    field=vcol,
-                    value=_norm(df.at[i, vcol]),
-                    record_key=m["record_key"],
-                    instance_id=m["instance_id"],
-                    enumerator=m["enumerator"],
-                    enumerator_id=m["enumerator_id"],
-                    deviceid=m["deviceid"],
-                    submission_date=m["submission_date"],
-                    district=m["district"],
-                )
-
-            # (B) Date mismatch with submission/start date
-            comparable = filled & vdt.notna() & ref_dt.notna()
-            mismatch = comparable & (vdate != ref_date)
-
-            for i in df.index[mismatch.fillna(False)]:
-                m = meta(i)
-                ref_val = _norm(df.at[i, ref_field]) if ref_field in df.columns else ""
-                add_issue(
-                    issues,
-                    survey="Tracking",
-                    severity="CRITICAL",
-                    rule_id="TRK_CE_VISIT_DATE_NOT_SAME_DAY",
-                    title="Visit date does not match submission date",
-                    cause="visit_date must be the same day as the submission date.",
-                    field=",".join([vcol, ref_field]) if ref_field else vcol,
-                    value=f"visit_date={_norm(df.at[i, vcol])}, submission_date={ref_val}",
-                    record_key=m["record_key"],
-                    instance_id=m["instance_id"],
-                    enumerator=m["enumerator"],
-                    enumerator_id=m["enumerator_id"],
-                    deviceid=m["deviceid"],
-                    submission_date=m["submission_date"],
-                    district=m["district"],
-                )
+        # Filled but invalid date
+        bad_parse = filled & vdt.isna()
+        for i in df.index[bad_parse.fillna(False)]:
+            m = meta(i)
+            add_issue(
+                issues,
+                survey="Tracking",
+                severity="CRITICAL",
+                rule_id="TRK_CE_VISIT_DATE_INVALID",
+                title="Invalid visit date",
+                cause="visit_date is filled but not a valid date.",
+                field=vcol,
+                value=_norm(df.at[i, vcol]),
+                record_key=m["record_key"],
+                instance_id=m["instance_id"],
+                enumerator=m["enumerator"],
+                enumerator_id=m["enumerator_id"],
+                deviceid=m["deviceid"],
+                submission_date=m["submission_date"],
+                district=m["district"],
+            )
 
     # =========================================================
     # FAST SUBMISSION (ALWAYS USE starttime/endtime)
@@ -860,27 +819,8 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                             district=m["district"],
                         )
 
-                    if gf_code != "" and gf_code not in {"1", "2", "3"}:
-                        attempts = _count_attempts_for_block(df, row_i, k)
-                        if attempts < 3:
-                            m = meta(row_i)
-                            add_issue(
-                                issues,
-                                survey="Tracking",
-                                severity="CRITICAL",
-                                rule_id="TRK_CE_MIN_3_ATTEMPTS",
-                                title="Less than 3 attempts before closing case",
-                                cause=f"Tracking outcome is recorded but fewer than 3 attempts are documented (attempts={attempts}, block {k}).",
-                                field=",".join([c for c in [girl_found_col] if c]),
-                                value=f"girl_found={_norm(df.at[row_i, girl_found_col])}",
-                                record_key=m["record_key"],
-                                instance_id=m["instance_id"],
-                                enumerator=m["enumerator"],
-                                enumerator_id=m["enumerator_id"],
-                                deviceid=m["deviceid"],
-                                submission_date=m["submission_date"],
-                                district=m["district"],
-                            )
+                    # Min-3-attempts before closing is tracked on the
+                    # revisits page — do not duplicate here as TRK_CE_MIN_3_ATTEMPTS.
 
             def _val(primary_col: str | None, fallback_col: str | None) -> str:
                 v1 = _norm(df.at[row_i, primary_col]) if primary_col else ""

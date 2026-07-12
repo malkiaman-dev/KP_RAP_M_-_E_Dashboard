@@ -43,6 +43,16 @@ export const defaultErrorFilters: ErrorFilters = {
 /** Surveys shown on the Error Report (enumerator-attributable field checks). */
 export const ERROR_REPORT_SURVEYS = ["Tracking", "Household", "Girls"] as const;
 
+/**
+ * Rules handled elsewhere (revisits) or intentionally not treated as DQA
+ * errors (late submit / offline sync). Dropped from the Error Report even if
+ * still present in an older Daily_Error_Log.xlsx.
+ */
+export const ERROR_REPORT_EXCLUDED_RULE_IDS = new Set([
+  "TRK_CE_MIN_3_ATTEMPTS",
+  "TRK_CE_VISIT_DATE_NOT_SAME_DAY",
+]);
+
 const UNASSIGNED = "-";
 
 /** A cross-survey integrity check has no responsible field enumerator. */
@@ -64,12 +74,13 @@ export function isCrossSurvey(row: ErrorRow): boolean {
 /**
  * Keep only active single-survey modules for the Error Report:
  * Tracking (baseline + new sample combined in DQA), Household, Girls.
- * Drops Listing / School / Driver and all cross-survey " vs " rows.
+ * Drops Listing / School / Driver, cross-survey " vs " rows, and excluded rules.
  */
 export function scopeErrorReportRows(rows: ErrorRow[]): ErrorRow[] {
   const allowed = new Set<string>(ERROR_REPORT_SURVEYS);
   return rows.filter((r) => {
     if (isCrossSurvey(r)) return false;
+    if (ERROR_REPORT_EXCLUDED_RULE_IDS.has((r.ruleId || "").trim())) return false;
     return allowed.has((r.survey || "").trim());
   });
 }
