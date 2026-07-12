@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, Target, Users } from "lucide-react";
 import { TrackingFiltersPanel } from "@/components/tracking/tracking-filters";
@@ -14,6 +14,7 @@ import { HhGirlsMonitoringKpis } from "@/components/monitoring/hh-girls-monitori
 import { HhGirlsMonitoringCharts } from "@/components/monitoring/hh-girls-monitoring-charts";
 import { HhGirlsMonitoringEnumeratorTable } from "@/components/monitoring/hh-girls-monitoring-enumerator-table";
 import { ModeToggle, PageHero, SectionHeader } from "@/components/ui/page-hero";
+import { useFieldPeriod } from "@/components/filters/field-period-provider";
 import {
   applyTrackingFilters,
   computeMonitoringMetrics,
@@ -43,23 +44,29 @@ import {
 type MonitoringMode = "tracking" | "hh-girls";
 
 export default function MonitoringPage() {
+  const { dateFrom: fieldDateFrom } = useFieldPeriod();
   const [mode, setMode] = useState<MonitoringMode>("tracking");
 
   const [trackingFilters, setTrackingFilters] = useState<TrackingFilters>(() =>
-    defaultMonitoringFilters()
+    defaultMonitoringFilters(fieldDateFrom)
   );
   const deferredTrackingFilters = useDeferredValue(trackingFilters);
 
   const [hhFilters, setHhFilters] = useState<HhGirlsMonitoringFilters>(() =>
-    defaultHhGirlsMonitoringFilters()
+    defaultHhGirlsMonitoringFilters(fieldDateFrom)
   );
   const deferredHhFilters = useDeferredValue(hhFilters);
+
+  useEffect(() => {
+    setTrackingFilters((prev) => ({ ...prev, dateFrom: fieldDateFrom }));
+    setHhFilters((prev) => ({ ...prev, dateFrom: fieldDateFrom }));
+  }, [fieldDateFrom]);
 
   const setHhMonitoringFilters = (
     next: HhGirlsFilters | HhGirlsMonitoringFilters
   ) => {
     setHhFilters({
-      ...defaultHhGirlsMonitoringFilters(),
+      ...defaultHhGirlsMonitoringFilters(fieldDateFrom),
       ...next,
       todayOnly: "todayOnly" in next ? Boolean(next.todayOnly) : false,
     });
@@ -220,13 +227,13 @@ export default function MonitoringPage() {
             filters={trackingFilters}
             onChange={setTrackingFilters}
             showTodayToggle
-            resetFilters={defaultMonitoringFilters}
+            resetFilters={() => defaultMonitoringFilters(fieldDateFrom)}
           />
           <TrackingActiveFilters
             filters={trackingFilters}
             onChange={setTrackingFilters}
             filterOptions={trackingQuery.data?.filterOptions}
-            resetFilters={defaultMonitoringFilters}
+            resetFilters={() => defaultMonitoringFilters(fieldDateFrom)}
           />
           <SectionHeader
             title="Enumerator performance"
@@ -283,13 +290,13 @@ export default function MonitoringPage() {
             filters={hhFilters}
             onChange={setHhMonitoringFilters}
             showTodayToggle
-            resetFilters={defaultHhGirlsMonitoringFilters}
+            resetFilters={() => defaultHhGirlsMonitoringFilters(fieldDateFrom)}
           />
           <HhGirlsActiveFilters
             filters={hhFilters}
             onChange={setHhMonitoringFilters}
             filterOptions={hhQuery.data?.filterOptions}
-            resetFilters={defaultHhGirlsMonitoringFilters}
+            resetFilters={() => defaultHhGirlsMonitoringFilters(fieldDateFrom)}
           />
           <SectionHeader
             title="HH enumerator performance"

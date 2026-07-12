@@ -62,6 +62,12 @@ export const defaultDashboardFilters: DashboardFilters = {
   dateTo: "",
 };
 
+export function createDefaultDashboardFilters(
+  dateFrom = ""
+): DashboardFilters {
+  return { ...defaultDashboardFilters, dateFrom };
+}
+
 /** Toggle filter values from chart clicks - click again to clear. */
 export function toggleDashboardFilters(
   current: DashboardFilters,

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { useState } from "react";
 import { FirmProvider } from "@/components/brand/firm-provider";
+import { FieldPeriodProvider } from "@/components/filters/field-period-provider";
 import type { ServerAuthState } from "@/lib/auth/server-auth";
 
 export function Providers({
@@ -34,7 +35,9 @@ export function Providers({
         enableSystem
         disableTransitionOnChange={false}
       >
-        <FirmProvider initialAuth={initialAuth}>{children}</FirmProvider>
+        <FirmProvider initialAuth={initialAuth}>
+          <FieldPeriodProvider>{children}</FieldPeriodProvider>
+        </FirmProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

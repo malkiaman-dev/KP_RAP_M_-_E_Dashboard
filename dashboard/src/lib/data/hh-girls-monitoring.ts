@@ -134,13 +134,15 @@ export function applyHhGirlsMonitoringFilters(
   return { household: hh, girls: gs };
 }
 
-export function defaultHhGirlsMonitoringFilters(): HhGirlsMonitoringFilters {
+export function defaultHhGirlsMonitoringFilters(
+  dateFrom = ""
+): HhGirlsMonitoringFilters {
   return {
     surveyType: "all",
     district: "all",
     enumerator: "all",
     village: "all",
-    dateFrom: "",
+    dateFrom,
     dateTo: "",
     todayOnly: false,
   };

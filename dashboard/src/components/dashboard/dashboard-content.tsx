@@ -1,20 +1,19 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChartsSection } from "@/components/dashboard/charts-section";
 import { DashboardActiveFilters } from "@/components/dashboard/dashboard-active-filters";
 import { DataTable } from "@/components/dashboard/data-table";
-import {
-  defaultFilters,
-  FiltersPanel,
-} from "@/components/dashboard/filters-panel";
+import { FiltersPanel } from "@/components/dashboard/filters-panel";
 import { DashboardHero } from "@/components/dashboard/hero";
 import { KpiCards } from "@/components/dashboard/kpi-cards";
 import { ModulePulse } from "@/components/dashboard/module-pulse";
+import { useFieldPeriod } from "@/components/filters/field-period-provider";
 import {
   applyFilters,
   computeMetrics,
+  createDefaultDashboardFilters,
   type DashboardFilters,
 } from "@/lib/data/survey-metrics";
 import {
@@ -24,8 +23,15 @@ import {
 } from "@/lib/queries/app-data";
 
 export function DashboardContent() {
-  const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
+  const { dateFrom: fieldDateFrom, enabled } = useFieldPeriod();
+  const [filters, setFilters] = useState<DashboardFilters>(() =>
+    createDefaultDashboardFilters(fieldDateFrom)
+  );
   const deferredFilters = useDeferredValue(filters);
+
+  useEffect(() => {
+    setFilters((prev) => ({ ...prev, dateFrom: fieldDateFrom }));
+  }, [fieldDateFrom, enabled]);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: [...DASHBOARD_METRICS_QUERY_KEY],
@@ -75,6 +81,7 @@ export function DashboardContent() {
         filterOptions={data?.filterOptions}
         filters={filters}
         onChange={setFilters}
+        resetFilters={() => createDefaultDashboardFilters(fieldDateFrom)}
       />
       <DashboardActiveFilters
         filters={filters}

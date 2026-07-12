@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { School, Target, Users } from "lucide-react";
 import { TrackingFiltersPanel } from "@/components/tracking/tracking-filters";
@@ -13,10 +13,11 @@ import { TrackingCharts } from "@/components/tracking/tracking-charts";
 import { TrackingCohortOverview } from "@/components/tracking/tracking-cohort-overview";
 import { TrackingCohortSection } from "@/components/tracking/tracking-cohort-section";
 import { PageHero, SectionHeader } from "@/components/ui/page-hero";
+import { useFieldPeriod } from "@/components/filters/field-period-provider";
 import {
   applyTrackingFilters,
   computeTrackingMetrics,
-  defaultTrackingFilters,
+  createDefaultTrackingFilters,
   resolveActiveCohort,
   trackingFiltersEqual,
   type TrackingFilters,
@@ -62,8 +63,15 @@ function targetsForFilters(filters: TrackingFilters): TrackingTargets {
 }
 
 export default function TrackingPage() {
-  const [filters, setFilters] = useState<TrackingFilters>(defaultTrackingFilters);
+  const { dateFrom: fieldDateFrom } = useFieldPeriod();
+  const [filters, setFilters] = useState<TrackingFilters>(() =>
+    createDefaultTrackingFilters(fieldDateFrom)
+  );
   const deferredFilters = useDeferredValue(filters);
+
+  useEffect(() => {
+    setFilters((prev) => ({ ...prev, dateFrom: fieldDateFrom }));
+  }, [fieldDateFrom]);
 
   const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: [...TRACKING_METRICS_QUERY_KEY],
@@ -84,7 +92,11 @@ export default function TrackingPage() {
   const display = useMemo(() => {
     if (!data?.allSubmissions) return undefined;
 
-    if (trackingFiltersEqual(deferredFilters, defaultTrackingFilters)) {
+    const emptyDefaults = createDefaultTrackingFilters("");
+    if (
+      !deferredFilters.dateFrom &&
+      trackingFiltersEqual(deferredFilters, emptyDefaults)
+    ) {
       return data;
     }
 
@@ -179,12 +191,14 @@ export default function TrackingPage() {
         filters={filters}
         onChange={onFiltersChange}
         showTodayToggle
+        resetFilters={() => createDefaultTrackingFilters(fieldDateFrom)}
       />
 
       <TrackingActiveFilters
         filters={filters}
         onChange={onFiltersChange}
         filterOptions={data?.filterOptions}
+        resetFilters={() => createDefaultTrackingFilters(fieldDateFrom)}
       />
 
       <SectionHeader

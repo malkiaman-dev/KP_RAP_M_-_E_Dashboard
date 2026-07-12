@@ -20,18 +20,12 @@ import type {
   DashboardFilters,
   FilterOptions,
 } from "@/lib/data/survey-metrics";
+import { createDefaultDashboardFilters } from "@/lib/data/survey-metrics";
 
-export const defaultFilters: DashboardFilters = {
-  district: "all",
-  surveyType: "all",
-  enumerator: "all",
-  status: "all",
-  dateFrom: "",
-  dateTo: "",
-};
+export const defaultFilters: DashboardFilters = createDefaultDashboardFilters();
 
 const presets: { id: string; label: string; filters: Partial<DashboardFilters> }[] = [
-  { id: "all", label: "All Data", filters: defaultFilters },
+  { id: "all", label: "All Data", filters: {} },
   { id: "tracking", label: "Tracking Only", filters: { surveyType: "tracking" } },
   { id: "complete", label: "Completed", filters: { status: "complete" } },
   { id: "revisits", label: "Revisits", filters: { status: "revisit" } },
@@ -43,6 +37,8 @@ interface FiltersPanelProps {
   onChange: (filters: DashboardFilters) => void;
   /** Quick preset chips (All Data, Tracking Only, etc.). Default true. */
   showPresets?: boolean;
+  /** Filters restored on Reset / All Data preset. */
+  resetFilters?: () => DashboardFilters;
 }
 
 export function FiltersPanel({
@@ -50,9 +46,12 @@ export function FiltersPanel({
   filters,
   onChange,
   showPresets = true,
+  resetFilters = createDefaultDashboardFilters,
 }: FiltersPanelProps) {
   const [expanded, setExpanded] = useCollapsedOnMobile();
   const [activePreset, setActivePreset] = useState("all");
+
+  const baseFilters = () => resetFilters();
 
   const update = (partial: Partial<DashboardFilters>) => {
     onChange({ ...filters, ...partial });
@@ -63,7 +62,7 @@ export function FiltersPanel({
     const preset = presets.find((p) => p.id === presetId);
     if (!preset) return;
     setActivePreset(presetId);
-    onChange({ ...defaultFilters, ...preset.filters });
+    onChange({ ...baseFilters(), ...preset.filters });
   };
 
   const districtOptions = [
@@ -200,7 +199,7 @@ export function FiltersPanel({
               <button
                 onClick={() => {
                   setActivePreset("all");
-                  onChange(defaultFilters);
+                  onChange(baseFilters());
                 }}
                 className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
               >

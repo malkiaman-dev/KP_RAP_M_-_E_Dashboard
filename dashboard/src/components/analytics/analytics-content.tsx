@@ -1,17 +1,15 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, Home, Target, Timer } from "lucide-react";
 import { AnalyticsCharts } from "@/components/analytics/analytics-charts";
 import { AnalyticsKpis } from "@/components/analytics/analytics-kpis";
 import { AnalyticsProtocol } from "@/components/analytics/analytics-protocol";
 import { DashboardActiveFilters } from "@/components/dashboard/dashboard-active-filters";
-import {
-  defaultFilters,
-  FiltersPanel,
-} from "@/components/dashboard/filters-panel";
+import { FiltersPanel } from "@/components/dashboard/filters-panel";
 import { PageHero, SectionHeader } from "@/components/ui/page-hero";
+import { useFieldPeriod } from "@/components/filters/field-period-provider";
 import {
   buildHhCompletionTrend,
   computePaceInsight,
@@ -20,19 +18,20 @@ import {
 import {
   applyHhGirlsDataFilters,
   computeHhGirlsMetrics,
-  defaultHhGirlsFilters,
+  createDefaultHhGirlsFilters,
   type HhGirlsFilters,
 } from "@/lib/data/hh-girls-metrics";
 import { PROTOCOL } from "@/lib/data/protocol";
 import {
   applyFilters,
   computeMetrics,
+  createDefaultDashboardFilters,
   type DashboardFilters,
 } from "@/lib/data/survey-metrics";
 import {
   applyTrackingFilters,
   computeTrackingMetrics,
-  defaultTrackingFilters,
+  createDefaultTrackingFilters,
   type TrackingFilters,
 } from "@/lib/data/tracking-metrics";
 import {
@@ -47,7 +46,7 @@ import {
 
 function toTrackingFilters(filters: DashboardFilters): TrackingFilters {
   return {
-    ...defaultTrackingFilters,
+    ...createDefaultTrackingFilters(filters.dateFrom),
     district: filters.district,
     enumerator: filters.enumerator,
     dateFrom: filters.dateFrom,
@@ -57,7 +56,7 @@ function toTrackingFilters(filters: DashboardFilters): TrackingFilters {
 
 function toHhGirlsFilters(filters: DashboardFilters): HhGirlsFilters {
   return {
-    ...defaultHhGirlsFilters,
+    ...createDefaultHhGirlsFilters(filters.dateFrom),
     district: filters.district,
     enumerator: filters.enumerator,
     dateFrom: filters.dateFrom,
@@ -66,8 +65,15 @@ function toHhGirlsFilters(filters: DashboardFilters): HhGirlsFilters {
 }
 
 export function AnalyticsContent() {
-  const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
+  const { dateFrom: fieldDateFrom } = useFieldPeriod();
+  const [filters, setFilters] = useState<DashboardFilters>(() =>
+    createDefaultDashboardFilters(fieldDateFrom)
+  );
   const deferredFilters = useDeferredValue(filters);
+
+  useEffect(() => {
+    setFilters((prev) => ({ ...prev, dateFrom: fieldDateFrom }));
+  }, [fieldDateFrom]);
 
   const dashboardQuery = useQuery({
     queryKey: [...DASHBOARD_METRICS_QUERY_KEY],
@@ -232,6 +238,7 @@ export function AnalyticsContent() {
         filters={filters}
         onChange={setFilters}
         showPresets={false}
+        resetFilters={() => createDefaultDashboardFilters(fieldDateFrom)}
       />
       <DashboardActiveFilters
         filters={filters}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardCheck, Home, Target, Users } from "lucide-react";
 import { HhGirlsFiltersPanel } from "@/components/hh-girls/hh-girls-filters";
@@ -13,10 +13,11 @@ import { HhGirlsDuplicateSection } from "@/components/hh-girls/hh-girls-duplicat
 import { HhGirlsMissingSection } from "@/components/hh-girls/hh-girls-missing-section";
 import { HhGirlsRevisitSection } from "@/components/hh-girls/hh-girls-revisit-section";
 import { PageHero, SectionHeader } from "@/components/ui/page-hero";
+import { useFieldPeriod } from "@/components/filters/field-period-provider";
 import {
   applyHhGirlsDataFilters,
   computeHhGirlsMetrics,
-  defaultHhGirlsFilters,
+  createDefaultHhGirlsFilters,
   hhGirlsFiltersEqual,
   type HhGirlsFilters,
 } from "@/lib/data/hh-girls-metrics";
@@ -31,8 +32,15 @@ import {
 } from "@/lib/queries/app-data";
 
 export default function HhGirlsSurveyPage() {
-  const [filters, setFilters] = useState<HhGirlsFilters>(defaultHhGirlsFilters);
+  const { dateFrom: fieldDateFrom } = useFieldPeriod();
+  const [filters, setFilters] = useState<HhGirlsFilters>(() =>
+    createDefaultHhGirlsFilters(fieldDateFrom)
+  );
   const deferredFilters = useDeferredValue(filters);
+
+  useEffect(() => {
+    setFilters((prev) => ({ ...prev, dateFrom: fieldDateFrom }));
+  }, [fieldDateFrom]);
 
   const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: [...HH_GIRLS_METRICS_QUERY_KEY],
@@ -49,22 +57,23 @@ export default function HhGirlsSurveyPage() {
   const display = useMemo(() => {
     if (!data?.allHousehold) return undefined;
 
-    let metrics =
-      hhGirlsFiltersEqual(deferredFilters, defaultHhGirlsFilters)
-        ? data
-        : (() => {
-            const { household, girls } = applyHhGirlsDataFilters(
-              data.allHousehold,
-              data.allGirls,
-              deferredFilters
-            );
-            return computeHhGirlsMetrics(household, girls);
-          })();
+    const unfiltered = createDefaultHhGirlsFilters("");
+    const isUnfiltered =
+      !deferredFilters.dateFrom &&
+      hhGirlsFiltersEqual(deferredFilters, unfiltered);
 
-    if (
-      exports &&
-      hhGirlsFiltersEqual(deferredFilters, defaultHhGirlsFilters)
-    ) {
+    let metrics = isUnfiltered
+      ? data
+      : (() => {
+          const { household, girls } = applyHhGirlsDataFilters(
+            data.allHousehold,
+            data.allGirls,
+            deferredFilters
+          );
+          return computeHhGirlsMetrics(household, girls);
+        })();
+
+    if (exports && isUnfiltered) {
       metrics = mergeHhGirlsExportLists(metrics, exports);
     }
 
@@ -137,12 +146,14 @@ export default function HhGirlsSurveyPage() {
         filterOptions={data?.filterOptions}
         filters={filters}
         onChange={setFilters}
+        resetFilters={() => createDefaultHhGirlsFilters(fieldDateFrom)}
       />
 
       <HhGirlsActiveFilters
         filters={filters}
         onChange={setFilters}
         filterOptions={data?.filterOptions}
+        resetFilters={() => createDefaultHhGirlsFilters(fieldDateFrom)}
       />
 
       <SectionHeader

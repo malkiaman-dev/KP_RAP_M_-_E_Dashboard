@@ -77,6 +77,10 @@ export const defaultHhGirlsFilters: HhGirlsFilters = {
   dateTo: "",
 };
 
+export function createDefaultHhGirlsFilters(dateFrom = ""): HhGirlsFilters {
+  return { ...defaultHhGirlsFilters, dateFrom };
+}
+
 export const HH_GIRLS_SURVEY_FILTER_OPTIONS: {
   value: HhGirlsSurveyFilter;
   label: string;

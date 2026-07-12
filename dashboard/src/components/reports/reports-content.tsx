@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Layers, Target } from "lucide-react";
 import { TrackingFiltersPanel } from "@/components/tracking/tracking-filters";
@@ -12,6 +12,7 @@ import { TrackingProgressReportCard } from "@/components/reports/tracking-progre
 import { HhGirlsStatusReportCard } from "@/components/reports/hh-girls-status-report-card";
 import { HhGirlsProgressReportCard } from "@/components/reports/hh-girls-progress-report-card";
 import { ModeToggle, PageHero, SectionHeader } from "@/components/ui/page-hero";
+import { useFieldPeriod } from "@/components/filters/field-period-provider";
 import {
   defaultMonitoringFilters,
   type TrackingFilters,
@@ -33,21 +34,27 @@ type SurveyModule = "tracking" | "hh-girls";
 type ReportMode = "operations" | "progress";
 
 export function ReportsContent() {
+  const { dateFrom: fieldDateFrom } = useFieldPeriod();
   const [surveyModule, setSurveyModule] = useState<SurveyModule>("tracking");
   const [reportMode, setReportMode] = useState<ReportMode>("operations");
 
   const [trackingFilters, setTrackingFilters] = useState<TrackingFilters>(() =>
-    defaultMonitoringFilters()
+    defaultMonitoringFilters(fieldDateFrom)
   );
   const [hhFilters, setHhFilters] = useState<HhGirlsMonitoringFilters>(() =>
-    defaultHhGirlsMonitoringFilters()
+    defaultHhGirlsMonitoringFilters(fieldDateFrom)
   );
+
+  useEffect(() => {
+    setTrackingFilters((prev) => ({ ...prev, dateFrom: fieldDateFrom }));
+    setHhFilters((prev) => ({ ...prev, dateFrom: fieldDateFrom }));
+  }, [fieldDateFrom]);
 
   const setHhReportFilters = (
     next: HhGirlsFilters | HhGirlsMonitoringFilters
   ) => {
     setHhFilters({
-      ...defaultHhGirlsMonitoringFilters(),
+      ...defaultHhGirlsMonitoringFilters(fieldDateFrom),
       ...next,
       todayOnly: "todayOnly" in next ? Boolean(next.todayOnly) : false,
     });
@@ -168,13 +175,13 @@ export function ReportsContent() {
             filters={trackingFilters}
             onChange={setTrackingFilters}
             showTodayToggle
-            resetFilters={defaultMonitoringFilters}
+            resetFilters={() => defaultMonitoringFilters(fieldDateFrom)}
           />
           <TrackingActiveFilters
             filters={trackingFilters}
             onChange={setTrackingFilters}
             filterOptions={trackingQuery.data?.filterOptions}
-            resetFilters={defaultMonitoringFilters}
+            resetFilters={() => defaultMonitoringFilters(fieldDateFrom)}
           />
           <div className="mt-6 space-y-4">
             {reportMode === "progress" ? (
@@ -201,13 +208,13 @@ export function ReportsContent() {
             filters={hhFilters}
             onChange={setHhReportFilters}
             showTodayToggle
-            resetFilters={defaultHhGirlsMonitoringFilters}
+            resetFilters={() => defaultHhGirlsMonitoringFilters(fieldDateFrom)}
           />
           <HhGirlsActiveFilters
             filters={hhFilters}
             onChange={setHhReportFilters}
             filterOptions={hhQuery.data?.filterOptions}
-            resetFilters={defaultHhGirlsMonitoringFilters}
+            resetFilters={() => defaultHhGirlsMonitoringFilters(fieldDateFrom)}
           />
           <div className="mt-6 space-y-4">
             {reportMode === "progress" ? (

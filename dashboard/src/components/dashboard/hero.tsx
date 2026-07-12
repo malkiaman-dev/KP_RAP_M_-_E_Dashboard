@@ -11,6 +11,7 @@ import {
   Target,
   Users,
 } from "lucide-react";
+import { FieldPeriodToggle } from "@/components/filters/field-period-toggle";
 import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { useFirm } from "@/components/brand/firm-provider";
 import { PROTOCOL } from "@/lib/data/protocol";
@@ -186,6 +187,7 @@ export function DashboardHero({ metrics, loading }: DashboardHeroProps) {
                 </strong>
               </span>
             </div>
+            <FieldPeriodToggle className="backdrop-blur-sm" />
             {!loading && metrics?.lastSubmissionDate && (
               <div className="rounded-xl border border-border/60 bg-card/70 px-3 py-2 text-xs text-muted-foreground backdrop-blur-sm">
                 Last submission{" "}

@@ -127,9 +127,13 @@ export const defaultTrackingFilters: TrackingFilters = {
   girlLabel: "",
 };
 
+export function createDefaultTrackingFilters(dateFrom = ""): TrackingFilters {
+  return { ...defaultTrackingFilters, dateFrom };
+}
+
 /** Shared filter defaults - Today toggle off. */
-export function defaultMonitoringFilters(): TrackingFilters {
-  return { ...defaultTrackingFilters };
+export function defaultMonitoringFilters(dateFrom = ""): TrackingFilters {
+  return createDefaultTrackingFilters(dateFrom);
 }
 
 export function trackingFiltersEqual(
