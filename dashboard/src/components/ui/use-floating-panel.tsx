@@ -95,9 +95,12 @@ export function PortalDropdownPanel({
   className?: string;
   width?: number;
 }) {
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(
-    null
-  );
+  const [coords, setCoords] = useState<{
+    top?: number;
+    bottom?: number;
+    left: number;
+    maxHeight: number;
+  } | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -121,16 +124,21 @@ export function PortalDropdownPanel({
       }
       left = Math.max(margin, left);
 
-      const estimatedHeight = 360;
-      let top = rect.bottom + 6;
-      if (
-        top + estimatedHeight > window.innerHeight - margin &&
-        rect.top > estimatedHeight
-      ) {
-        top = Math.max(margin, rect.top - estimatedHeight - 6);
-      }
+      const spaceBelow = window.innerHeight - rect.bottom - margin - 6;
+      const spaceAbove = rect.top - margin - 6;
+      const preferBelow =
+        spaceBelow >= Math.min(280, spaceAbove) || spaceBelow >= spaceAbove;
+      const maxHeight = Math.max(160, preferBelow ? spaceBelow : spaceAbove);
 
-      setCoords({ top, left });
+      if (preferBelow) {
+        setCoords({ top: rect.bottom + 6, left, maxHeight });
+      } else {
+        setCoords({
+          bottom: window.innerHeight - rect.top + 6,
+          left,
+          maxHeight,
+        });
+      }
     };
 
     update();
@@ -150,8 +158,12 @@ export function PortalDropdownPanel({
       style={{
         position: "fixed",
         top: coords.top,
+        bottom: coords.bottom,
         left: coords.left,
         width,
+        maxHeight: coords.maxHeight,
+        // Expose available height so list menus can fill the viewport without nested clipping.
+        ["--panel-max-height" as string]: `${coords.maxHeight}px`,
         zIndex: 9999,
       }}
       className={cn(className)}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   addMonths,
   eachDayOfInterval,
@@ -21,7 +21,6 @@ import {
 import { cn, DISPLAY_DATE_PLACEHOLDER, formatDisplayDate, toIsoDateString } from "@/lib/utils";
 import { Calendar, Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import {
-  DropdownPanel,
   PortalDropdownPanel,
   useCloseOnNavigation,
   useDismissiblePanel,
@@ -59,6 +58,7 @@ export function FilterSelect({
 }: FilterSelectProps) {
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(-1);
+  const [panelWidth, setPanelWidth] = useState(240);
   const anchorRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const listId = useId();
@@ -73,6 +73,11 @@ export function FilterSelect({
 
   useDismissiblePanel(open, close, anchorRef, panelRef);
   useCloseOnNavigation(close);
+
+  useLayoutEffect(() => {
+    if (!open || !anchorRef.current) return;
+    setPanelWidth(Math.max(240, anchorRef.current.getBoundingClientRect().width));
+  }, [open]);
 
   const selectOption = (optionValue: string) => {
     if (disabled) return;
@@ -147,11 +152,16 @@ export function FilterSelect({
         />
       </button>
 
-      <DropdownPanel open={open} panelRef={panelRef} minWidth={240}>
+      <PortalDropdownPanel
+        open={open}
+        anchorRef={anchorRef}
+        panelRef={panelRef}
+        width={panelWidth}
+      >
         <ul
           id={listId}
           role="listbox"
-          className="max-h-60 overflow-auto rounded-xl border border-border/70 bg-card p-1 shadow-lg shadow-black/10 dark:shadow-black/30"
+          className="max-h-[var(--panel-max-height,70vh)] overflow-auto rounded-xl border border-border/70 bg-card p-1 shadow-lg shadow-black/10 dark:shadow-black/30"
         >
           {options.map((option, index) => {
             const isSelected = option.value === value;
@@ -183,7 +193,7 @@ export function FilterSelect({
             );
           })}
         </ul>
-      </DropdownPanel>
+      </PortalDropdownPanel>
     </div>
   );
 }
