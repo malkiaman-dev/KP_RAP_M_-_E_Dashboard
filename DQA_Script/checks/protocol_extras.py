@@ -143,6 +143,14 @@ def _clip(val: Any, n: int = 220) -> str:
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
+def _fmt_hours(minutes: float) -> str:
+    """Format minutes as compact hours, e.g. 3hr or 2.4hr."""
+    hrs = float(minutes) / 60.0
+    if abs(hrs - round(hrs)) < 0.05:
+        return f"{int(round(hrs))}hr"
+    return f"{hrs:.1f}hr"
+
+
 def run_household_protocol(
     df: pd.DataFrame,
     col: dict,
@@ -357,9 +365,12 @@ def run_household_protocol(
                 "CRITICAL",
                 "HH_CR_LONG_DURATION",
                 "Long survey duration (critical)",
-                f"Interview duration is {dur_min:.0f} minutes (critical threshold {crit_mins:.0f} min).",
+                (
+                    f"Interview duration is {dur_min:.0f} minutes ({_fmt_hours(dur_min)}) "
+                    f"(critical threshold {crit_mins:.0f} min / {_fmt_hours(crit_mins)})."
+                ),
                 f"{start_col},{end_col},{duration_col}",
-                f"duration_minutes={dur_min:.1f}",
+                f"duration_minutes={dur_min:.1f}; duration_hours={_fmt_hours(dur_min)}",
             )
         elif dur_min is not None and dur_min >= warn_mins:
             _emit(
@@ -367,9 +378,12 @@ def run_household_protocol(
                 "FLAG",
                 "HH_QF_LONG_DURATION_WARN",
                 "Long survey duration (warning)",
-                f"Interview duration is {dur_min:.0f} minutes (warning threshold {warn_mins:.0f} min).",
+                (
+                    f"Interview duration is {dur_min:.0f} minutes ({_fmt_hours(dur_min)}) "
+                    f"(warning threshold {warn_mins:.0f} min / {_fmt_hours(warn_mins)})."
+                ),
                 f"{start_col},{end_col},{duration_col}",
-                f"duration_minutes={dur_min:.1f}",
+                f"duration_minutes={dur_min:.1f}; duration_hours={_fmt_hours(dur_min)}",
             )
 
         # --- 5. Dummy alt / neighbour phones ---
