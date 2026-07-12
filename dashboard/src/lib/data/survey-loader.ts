@@ -3,6 +3,7 @@ import {
   applyFilters,
   computeMetrics,
   createDefaultDashboardFilters,
+  getFilterOptions,
   type SurveyRow,
 } from "./survey-metrics";
 import { loadTrackingSurvey } from "./tracking-loader";
@@ -71,11 +72,11 @@ export function loadDashboardMetrics() {
 
 /**
  * Client dashboard payload: aggregates for the default field period,
- * plus full-row arrays for further client-side filtering.
+ * plus full-row arrays and full-span filter options for client filtering.
  */
 export function loadDashboardMetricsForClient() {
-  const signature = `v2-fp|${FIELD_PERIOD_START}|${filesSignature(surveyFilePaths())}`;
-  return getCached("dashboard-metrics-client-v2", signature, () => {
+  const signature = `v3-fp|${FIELD_PERIOD_START}|${filesSignature(surveyFilePaths())}`;
+  return getCached("dashboard-metrics-client-v3", signature, () => {
     const allRows = loadAllSurveys();
     const fieldPeriodRows = applyFilters(
       allRows,
@@ -84,7 +85,10 @@ export function loadDashboardMetricsForClient() {
     const metrics = computeMetrics(fieldPeriodRows, { allRows });
     return {
       ...metrics,
+      // Full calendar span so users can select March (and earlier) dates.
+      filterOptions: getFilterOptions(allRows),
       allSubmissions: allRows,
     };
   });
 }
+

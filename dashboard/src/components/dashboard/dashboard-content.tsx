@@ -25,15 +25,32 @@ import {
 } from "@/lib/queries/app-data";
 
 export function DashboardContent() {
-  const { dateFrom: fieldDateFrom, enabled } = useFieldPeriod();
+  const {
+    dateFrom: fieldDateFrom,
+    enabled: fieldPeriodEnabled,
+    setEnabled: setFieldPeriodEnabled,
+  } = useFieldPeriod();
   const [filters, setFilters] = useState<DashboardFilters>(() =>
     createDefaultDashboardFilters(fieldDateFrom)
   );
   const deferredFilters = useDeferredValue(filters);
 
+  // Keep filters in sync when the field-period toggle changes.
   useEffect(() => {
     setFilters((prev) => ({ ...prev, dateFrom: fieldDateFrom }));
-  }, [fieldDateFrom, enabled]);
+  }, [fieldDateFrom, fieldPeriodEnabled]);
+
+  const onFiltersChange = (next: DashboardFilters) => {
+    // Manual date edits take priority over the field-period toggle.
+    if (fieldPeriodEnabled) {
+      const leftFieldPeriod =
+        !next.dateFrom || next.dateFrom !== FIELD_PERIOD_START;
+      if (leftFieldPeriod) {
+        setFieldPeriodEnabled(false);
+      }
+    }
+    setFilters(next);
+  };
 
   const { data, isLoading, isError } = useQuery({
     queryKey: [...DASHBOARD_METRICS_QUERY_KEY],
@@ -104,12 +121,12 @@ export function DashboardContent() {
       <FiltersPanel
         filterOptions={data?.filterOptions}
         filters={filters}
-        onChange={setFilters}
+        onChange={onFiltersChange}
         resetFilters={() => createDefaultDashboardFilters(fieldDateFrom)}
       />
       <DashboardActiveFilters
         filters={filters}
-        onChange={setFilters}
+        onChange={onFiltersChange}
         filterOptions={data?.filterOptions}
       />
       {displayMetrics && (
@@ -118,19 +135,19 @@ export function DashboardContent() {
             metrics={displayMetrics}
             loading={isLoading}
             filters={filters}
-            onFilterChange={setFilters}
+            onFilterChange={onFiltersChange}
           />
           <ModulePulse
             metrics={displayMetrics}
             loading={isLoading}
             filters={filters}
-            onFilterChange={setFilters}
+            onFilterChange={onFiltersChange}
           />
           <ChartsSection
             metrics={displayMetrics}
             loading={isLoading}
             filters={filters}
-            onFilterChange={setFilters}
+            onFilterChange={onFiltersChange}
           />
         </>
       )}

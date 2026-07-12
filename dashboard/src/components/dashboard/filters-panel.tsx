@@ -25,7 +25,8 @@ import { createDefaultDashboardFilters } from "@/lib/data/survey-metrics";
 export const defaultFilters: DashboardFilters = createDefaultDashboardFilters();
 
 const presets: { id: string; label: string; filters: Partial<DashboardFilters> }[] = [
-  { id: "all", label: "All Data", filters: {} },
+  // Explicitly clear dates so "All Data" is not stuck on the field-period start.
+  { id: "all", label: "All Data", filters: { dateFrom: "", dateTo: "" } },
   { id: "tracking", label: "Tracking Only", filters: { surveyType: "tracking" } },
   { id: "complete", label: "Completed", filters: { status: "complete" } },
   { id: "revisits", label: "Revisits", filters: { status: "revisit" } },

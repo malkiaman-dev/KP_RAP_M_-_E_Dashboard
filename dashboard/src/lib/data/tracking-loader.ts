@@ -152,19 +152,42 @@ export function loadTrackingSurvey(): TrackingRow[] {
 
 /** Fast path for tracking UI — field-period aggregates, no Excel row arrays. */
 export function loadTrackingMetricsForClient() {
-  const signature = `v4-fp|${FIELD_PERIOD_START}|${filesSignature(trackingFilePaths())}`;
-  return getCached("tracking-metrics-light-v4", signature, () => {
+  const signature = `v6-fp|${FIELD_PERIOD_START}|${filesSignature(trackingFilePaths())}`;
+  return getCached("tracking-metrics-light-v6", signature, () => {
     const allRows = loadTrackingSurvey();
     const fieldPeriodRows = applyTrackingFilters(
       allRows,
       createDefaultTrackingFilters(FIELD_PERIOD_START)
     );
-    return computeTrackingMetrics(
+    const metrics = computeTrackingMetrics(
       fieldPeriodRows,
       DEFAULT_TRACKING_TARGETS,
       allRows,
       { includeExportLists: false }
     );
+
+    // Date picker must span the full dataset (incl. March baseline), not only
+    // the field-period window used for default KPI aggregates.
+    const allDates = allRows
+      .map((r) => {
+        const d = new Date(r.SubmissionDate || "");
+        return Number.isNaN(d.getTime()) ? null : d;
+      })
+      .filter((d): d is Date => d !== null)
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    return {
+      ...metrics,
+      // Full frame so clearing the date filter can include pre–field-period rows.
+      allSubmissions: allRows,
+      filterOptions: {
+        ...metrics.filterOptions,
+        dateRange: {
+          start: allDates[0]?.toISOString().slice(0, 10) || "",
+          end: allDates[allDates.length - 1]?.toISOString().slice(0, 10) || "",
+        },
+      },
+    };
   });
 }
 

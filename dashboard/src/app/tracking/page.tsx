@@ -44,7 +44,11 @@ function targetsForFilters(filters: TrackingFilters): TrackingTargets {
 }
 
 export default function TrackingPage() {
-  const { dateFrom: fieldDateFrom } = useFieldPeriod();
+  const {
+    dateFrom: fieldDateFrom,
+    enabled: fieldPeriodEnabled,
+    setEnabled: setFieldPeriodEnabled,
+  } = useFieldPeriod();
   const [filters, setFilters] = useState<TrackingFilters>(() =>
     createDefaultTrackingFilters(fieldDateFrom)
   );
@@ -52,7 +56,18 @@ export default function TrackingPage() {
 
   useEffect(() => {
     setFilters((prev) => ({ ...prev, dateFrom: fieldDateFrom }));
-  }, [fieldDateFrom]);
+  }, [fieldDateFrom, fieldPeriodEnabled]);
+
+  const onFiltersChange = (next: TrackingFilters) => {
+    if (fieldPeriodEnabled) {
+      const leftFieldPeriod =
+        !next.dateFrom || next.dateFrom !== FIELD_PERIOD_START;
+      if (leftFieldPeriod) {
+        setFieldPeriodEnabled(false);
+      }
+    }
+    setFilters(next);
+  };
 
   const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: [...TRACKING_METRICS_QUERY_KEY],
@@ -114,12 +129,6 @@ export default function TrackingPage() {
       data.allSubmissions,
       { includeExportLists: true }
     );
-  };
-
-  const onFiltersChange = (next: TrackingFilters) => {
-    // Update filter state immediately so the date picker / chips stay in sync.
-    // Heavy metric recompute is already deferred via useDeferredValue(filters).
-    setFilters(next);
   };
 
   const showLoading = isLoading || (isFetching && !display);
