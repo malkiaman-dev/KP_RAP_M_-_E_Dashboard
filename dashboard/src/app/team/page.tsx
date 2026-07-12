@@ -1,3 +1,5 @@
+"use client";
+
 import { Users, Shield } from "lucide-react";
 import { TeamCredentialsPanel } from "@/components/team/team-credentials-panel";
 import { TeamPermissionsPanel } from "@/components/team/team-permissions-panel";
