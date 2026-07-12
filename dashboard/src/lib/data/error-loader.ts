@@ -3,7 +3,7 @@ import path from "path";
 import * as XLSX from "xlsx";
 import {
   computeErrorMetrics,
-  excludeCrossSurveyChecks,
+  scopeErrorReportRows,
   type ErrorRow,
   type ErrorSeverity,
 } from "./error-metrics";
@@ -14,6 +14,8 @@ export {
   applyErrorFilters,
   defaultErrorFilters,
   excludeCrossSurveyChecks,
+  scopeErrorReportRows,
+  ERROR_REPORT_SURVEYS,
   toggleErrorFilters,
 } from "./error-metrics";
 
@@ -93,6 +95,6 @@ export function loadErrorRows(): ErrorRow[] {
 }
 
 export function loadErrorMetrics() {
-  const rows = excludeCrossSurveyChecks(loadErrorRows());
+  const rows = scopeErrorReportRows(loadErrorRows());
   return computeErrorMetrics(rows);
 }

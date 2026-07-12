@@ -40,6 +40,9 @@ export const defaultErrorFilters: ErrorFilters = {
   ruleId: "all",
 };
 
+/** Surveys shown on the Error Report (enumerator-attributable field checks). */
+export const ERROR_REPORT_SURVEYS = ["Tracking", "Household", "Girls"] as const;
+
 const UNASSIGNED = "-";
 
 /** A cross-survey integrity check has no responsible field enumerator. */
@@ -58,7 +61,20 @@ export function isCrossSurvey(row: ErrorRow): boolean {
   return / vs /i.test(row.survey || "");
 }
 
-/** Drop cross-survey integrity checks (survey name contains " vs "). */
+/**
+ * Keep only active single-survey modules for the Error Report:
+ * Tracking (baseline + new sample combined in DQA), Household, Girls.
+ * Drops Listing / School / Driver and all cross-survey " vs " rows.
+ */
+export function scopeErrorReportRows(rows: ErrorRow[]): ErrorRow[] {
+  const allowed = new Set<string>(ERROR_REPORT_SURVEYS);
+  return rows.filter((r) => {
+    if (isCrossSurvey(r)) return false;
+    return allowed.has((r.survey || "").trim());
+  });
+}
+
+/** @deprecated Prefer scopeErrorReportRows — kept for callers that only drop cross-survey. */
 export function excludeCrossSurveyChecks(rows: ErrorRow[]): ErrorRow[] {
   return rows.filter((r) => !isCrossSurvey(r));
 }
@@ -213,9 +229,10 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
   const topQualityRules = ruleAgg("FLAG");
 
   // ---- Per-enumerator aggregation (named enumerators only) ----
+  // `id` is the identity slug used by filters; `name` is the display label.
   const enumMap = new Map<
     string,
-    { name: string; district: string; critical: number; flag: number }
+    { id: string; name: string; district: string; critical: number; flag: number }
   >();
   for (const r of attributable) {
     const key = enumeratorIdentityKey({
@@ -225,6 +242,7 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
     if (!key || key === "unknown") continue;
     if (!enumMap.has(key)) {
       enumMap.set(key, {
+        id: key,
         name: displayEnumeratorLabel(key),
         district: r.district,
         critical: 0,
@@ -245,13 +263,19 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
     .filter((e) => e.critical > 0)
     .sort((a, b) => b.critical - a.critical)
     .slice(0, 15)
-    .map((e) => ({ name: e.name, district: e.district, count: e.critical }));
+    .map((e) => ({
+      id: e.id,
+      name: e.name,
+      district: e.district,
+      count: e.critical,
+    }));
 
   // Lowest scores first = enumerators needing the most attention.
   const enumeratorQuality = [...enumerators]
     .sort((a, b) => a.score - b.score || b.total - a.total)
     .slice(0, 15)
     .map((e) => ({
+      id: e.id,
       name: e.name,
       district: e.district,
       score: e.score,

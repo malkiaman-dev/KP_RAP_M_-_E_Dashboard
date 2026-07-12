@@ -1,0 +1,10 @@
+# Local DQA inputs/outputs (dashboard uses ../Error_log and ../Surveys)
+data_raw/
+outputs/
+.vscode/
+__pycache__/
+*.pyc
+.Python
+*.egg-info/
+.venv/
+venv/

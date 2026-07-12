@@ -41,7 +41,7 @@ export function ErrorFiltersPanel({
     },
     {
       key: "survey" as const,
-      label: "Survey / Check",
+      label: "Survey",
       icon: ClipboardList,
       options: [
         { value: "all", label: "All" },

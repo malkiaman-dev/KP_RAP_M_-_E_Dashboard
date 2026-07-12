@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Search, ShieldAlert, Flag } from "lucide-react";
+import { Download, Search, ShieldAlert, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ErrorMetrics, ErrorRow } from "@/lib/data/error-metrics";
+import { downloadErrorReportExcel } from "@/lib/export/error-report-excel";
 
 const PAGE_SIZE = 50;
 
@@ -41,6 +42,11 @@ export function ErrorTable({
 
   const shown = rows.slice(0, visible);
 
+  const handleDownload = () => {
+    const date = new Date().toISOString().slice(0, 10);
+    downloadErrorReportExcel(rows, `error-report-${date}.xlsx`);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -54,18 +60,29 @@ export function ErrorTable({
             Showing {shown.length.toLocaleString()} of {rows.length.toLocaleString()} issues
           </p>
         </div>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setVisible(PAGE_SIZE);
-            }}
-            placeholder="Search rule, title, enumerator…"
-            className="w-full rounded-lg border border-border/60 bg-background py-1.5 pl-8 pr-3 text-xs outline-none focus:border-teal sm:w-72"
-            aria-label="Search errors"
-          />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={rows.length === 0}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-teal/30 bg-teal/10 px-3 py-1.5 text-xs font-medium text-teal hover:bg-teal/15 disabled:pointer-events-none disabled:opacity-50"
+          >
+            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            Download error report
+          </button>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setVisible(PAGE_SIZE);
+              }}
+              placeholder="Search rule, title, enumerator…"
+              className="w-full rounded-lg border border-border/60 bg-background py-1.5 pl-8 pr-3 text-xs outline-none focus:border-teal sm:w-72"
+              aria-label="Search errors"
+            />
+          </div>
         </div>
       </div>
 

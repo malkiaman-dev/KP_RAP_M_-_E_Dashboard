@@ -83,7 +83,7 @@ export default function SurveysPage() {
     },
     {
       title: "Error Report",
-      desc: "Data quality issues and enumerator accountability across field modules.",
+      desc: "DQA issues for Tracking (baseline + new sample), Household, and Girls surveys.",
       stats: [
         { label: "Total Errors", value: errors?.totalErrors },
         { label: "Critical", value: errors?.criticalErrors },

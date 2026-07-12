@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { displayEnumeratorLabel } from "@/lib/data/enumerator-identity";
 import { defaultErrorFilters, type ErrorFilters } from "@/lib/data/error-metrics";
 
 const LABELS: Record<keyof ErrorFilters, string> = {
@@ -14,6 +15,9 @@ const LABELS: Record<keyof ErrorFilters, string> = {
 function displayValue(key: keyof ErrorFilters, value: string): string {
   if (key === "severity") {
     return value === "CRITICAL" ? "Critical" : "Quality";
+  }
+  if (key === "enumerator") {
+    return displayEnumeratorLabel(value);
   }
   return value;
 }

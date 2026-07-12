@@ -29,7 +29,7 @@ import {
   ChartCard,
   ChartGridSkeleton,
 } from "@/components/ui/chart-card";
-import { tooltipStyle, ChartGradients } from "@/components/ui/chart-theme";
+import { tooltipStyle, ChartGradients, chartMargin, legendProps } from "@/components/ui/chart-theme";
 import { useFirm } from "@/components/brand/firm-provider";
 import type { FirmPalette } from "@/lib/brand";
 
@@ -38,6 +38,39 @@ function scoreColor(score: number, palette: FirmPalette): string {
   if (score >= 75) return palette.gold;
   return "#EF4444";
 }
+
+type RuleTooltipProps = {
+  active?: boolean;
+  payload?: Array<{
+    value?: number;
+    payload?: { ruleId?: string; title?: string; count?: number };
+  }>;
+};
+
+/** Full rule id + title; parents use allowOverflow so this is not clipped. */
+function RuleErrorTooltip({ active, payload }: RuleTooltipProps) {
+  if (!active || !payload?.[0]?.payload) return null;
+  const row = payload[0].payload;
+  const count = payload[0].value ?? row.count ?? 0;
+  return (
+    <div style={tooltipStyle} className="max-w-[260px]">
+      <p className="break-all font-mono text-[10px] text-muted-foreground">
+        {row.ruleId}
+      </p>
+      <p className="mt-0.5 text-xs font-medium text-foreground">{row.title}</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {Number(count).toLocaleString()} errors
+      </p>
+    </div>
+  );
+}
+
+const escapeTooltipProps = {
+  allowEscapeViewBox: { x: true, y: true } as const,
+  reverseDirection: { x: true, y: false } as const,
+  offset: 16,
+  wrapperStyle: { zIndex: 1000, outline: "none" } as const,
+};
 
 export function ErrorCharts({
   metrics,
@@ -56,7 +89,7 @@ export function ErrorCharts({
     return (
       <ChartGridSkeleton
         count={6}
-        className="grid gap-6 lg:grid-cols-3 lg:grid-rows-[300px_340px_360px]"
+        className="grid gap-6 overflow-visible lg:grid-cols-3 lg:grid-rows-[300px_340px_360px]"
       />
     );
   }
@@ -75,24 +108,24 @@ export function ErrorCharts({
   const ruleActive = (ruleId: string) =>
     filters.ruleId === "all" || filters.ruleId === ruleId;
 
-  const enumActive = (name: string) =>
-    filters.enumerator === "all" || filters.enumerator === name;
+  const enumActive = (id: string) =>
+    filters.enumerator === "all" || filters.enumerator === id;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3 lg:grid-rows-[300px_340px_360px] lg:items-stretch">
+    <div className="grid gap-6 overflow-visible lg:grid-cols-3 lg:grid-rows-[300px_340px_360px] lg:items-stretch">
       <ChartCard
         title="Errors by Severity"
         subtitle={`Critical vs quality flags · ${CHART_CLICK_HINT}`}
         className="lg:col-start-1 lg:row-start-1"
       >
         <ChartArea>
-          <PieChart>
+          <PieChart margin={chartMargin.withLegend}>
             <Pie
               data={metrics.severityBreakdown}
               dataKey="value"
               nameKey="name"
-              innerRadius="55%"
-              outerRadius="80%"
+              innerRadius="48%"
+              outerRadius="68%"
               paddingAngle={2}
               style={pointerBarStyle}
               onClick={(entry) => {
@@ -121,8 +154,8 @@ export function ErrorCharts({
                 );
               })}
             </Pie>
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Tooltip contentStyle={tooltipStyle} {...escapeTooltipProps} />
+            <Legend {...legendProps} />
           </PieChart>
         </ChartArea>
       </ChartCard>
@@ -133,13 +166,13 @@ export function ErrorCharts({
         className="lg:col-span-2 lg:col-start-2 lg:row-start-1"
       >
         <ChartArea>
-          <BarChart data={metrics.byDistrict} margin={{ left: 4, right: 12 }}>
+          <BarChart data={metrics.byDistrict} margin={chartMargin.withLegend}>
             <ChartGradients />
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis dataKey="district" tick={{ fontSize: 10 }} interval={0} />
             <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-            <Tooltip contentStyle={tooltipStyle} cursor={false} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Tooltip contentStyle={tooltipStyle} cursor={false} {...escapeTooltipProps} />
+            <Legend {...legendProps} />
             <Bar
               dataKey="critical"
               name="Critical"
@@ -188,6 +221,7 @@ export function ErrorCharts({
         title="Top Critical Errors"
         subtitle={`Most frequent critical validation rules · ${CHART_CLICK_HINT}`}
         className="lg:col-start-1 lg:row-start-2"
+        allowOverflow
       >
         <ChartArea>
           <BarChart
@@ -200,12 +234,9 @@ export function ErrorCharts({
             <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
             <YAxis type="category" dataKey="ruleId" width={120} interval={0} tick={{ fontSize: 9 }} />
             <Tooltip
-              contentStyle={tooltipStyle}
+              content={RuleErrorTooltip}
               cursor={false}
-              formatter={(value, _n, item) => [
-                value as number,
-                (item?.payload as { title?: string })?.title || "Errors",
-              ]}
+              {...escapeTooltipProps}
             />
             <Bar
               dataKey="count"
@@ -234,6 +265,7 @@ export function ErrorCharts({
         title="Top Quality Errors"
         subtitle={`Most frequent quality-flag rules · ${CHART_CLICK_HINT}`}
         className="lg:col-start-2 lg:row-start-2"
+        allowOverflow
       >
         <ChartArea>
           <BarChart
@@ -246,12 +278,9 @@ export function ErrorCharts({
             <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
             <YAxis type="category" dataKey="ruleId" width={120} interval={0} tick={{ fontSize: 9 }} />
             <Tooltip
-              contentStyle={tooltipStyle}
+              content={RuleErrorTooltip}
               cursor={false}
-              formatter={(value, _n, item) => [
-                value as number,
-                (item?.payload as { title?: string })?.title || "Errors",
-              ]}
+              {...escapeTooltipProps}
             />
             <Bar
               dataKey="count"
@@ -285,14 +314,14 @@ export function ErrorCharts({
           <BarChart
             data={metrics.bySurvey}
             layout="vertical"
-            margin={{ left: 8, right: 16, top: 6, bottom: 6 }}
+            margin={chartMargin.withLegend}
           >
             <ChartGradients />
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
             <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
             <YAxis type="category" dataKey="survey" width={120} interval={0} tick={{ fontSize: 9 }} />
-            <Tooltip contentStyle={tooltipStyle} cursor={false} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Tooltip contentStyle={tooltipStyle} cursor={false} {...escapeTooltipProps} />
+            <Legend {...legendProps} />
             <Bar
               dataKey="critical"
               name="Critical"
@@ -341,6 +370,7 @@ export function ErrorCharts({
         title="Critical Errors by Enumerator"
         subtitle={`Field enumerators with the most critical issues · ${CHART_CLICK_HINT}`}
         className="lg:col-span-1 lg:col-start-1 lg:row-start-3"
+        allowOverflow
       >
         <ChartArea>
           <BarChart
@@ -356,6 +386,7 @@ export function ErrorCharts({
               contentStyle={tooltipStyle}
               cursor={false}
               labelFormatter={enumeratorTooltipLabel}
+              {...escapeTooltipProps}
             />
             <Bar
               dataKey="count"
@@ -365,14 +396,14 @@ export function ErrorCharts({
               style={pointerBarStyle}
               onClick={(data) => {
                 const row = barPayload(data);
-                if (!row?.name) return;
-                pick({ enumerator: row.name, severity: "CRITICAL" });
+                if (!row?.id) return;
+                pick({ enumerator: row.id, severity: "CRITICAL" });
               }}
             >
               {metrics.enumeratorCritical.map((entry) => (
                 <Cell
-                  key={entry.name}
-                  fillOpacity={enumActive(entry.name) ? 1 : 0.35}
+                  key={entry.id}
+                  fillOpacity={enumActive(entry.id) ? 1 : 0.35}
                 />
               ))}
             </Bar>
@@ -384,6 +415,7 @@ export function ErrorCharts({
         title="Enumerator Quality Score"
         subtitle={`Lowest 15 scores · ${CHART_CLICK_HINT}`}
         className="lg:col-span-2 lg:col-start-2 lg:row-start-3"
+        allowOverflow
       >
         <ChartArea>
           <BarChart
@@ -405,6 +437,7 @@ export function ErrorCharts({
               cursor={false}
               labelFormatter={enumeratorTooltipLabel}
               formatter={(value) => [value as number, "Quality score"]}
+              {...escapeTooltipProps}
             />
             <Bar
               dataKey="score"
@@ -413,17 +446,17 @@ export function ErrorCharts({
               style={pointerBarStyle}
               onClick={(data) => {
                 const row = barPayload(data);
-                if (!row?.name) return;
-                pick({ enumerator: row.name });
+                if (!row?.id) return;
+                pick({ enumerator: row.id });
               }}
             >
               {metrics.enumeratorQuality.map((e) => {
-                const selected = filters.enumerator === e.name;
+                const selected = filters.enumerator === e.id;
                 const dim =
                   filters.enumerator !== "all" && !selected;
                 return (
                   <Cell
-                    key={e.name}
+                    key={e.id}
                     fill={scoreColor(e.score, palette)}
                     fillOpacity={dim ? 0.35 : 1}
                     stroke={selected ? palette.selected : undefined}
@@ -438,4 +471,3 @@ export function ErrorCharts({
     </div>
   );
 }
-

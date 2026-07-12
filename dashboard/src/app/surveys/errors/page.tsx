@@ -56,7 +56,7 @@ export default function ErrorReportPage() {
         eyebrow="Data quality surveillance"
         title="Error Report"
         accent="Quality"
-        description="Critical vs quality issues, root causes, and enumerator accountability across KPRAP field surveys. Filter and drill into patterns before they cascade."
+        description="Critical vs quality issues across Tracking (baseline + new sample), Household, and Girls surveys. Filter and drill into enumerator patterns before they cascade."
         loading={isLoading}
         links={[
           { href: "/surveys", label: "All Surveys" },
