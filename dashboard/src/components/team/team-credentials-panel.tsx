@@ -7,10 +7,11 @@ import { Eye, EyeOff, KeyRound, Mail, Save, Shield } from "lucide-react";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import type { Role } from "@/lib/auth/types";
 
-interface PublicUser {
+interface ManageableUser {
   role: Role;
   name: string;
   email: string;
+  password: string;
 }
 
 interface UserFormState {
@@ -20,51 +21,51 @@ interface UserFormState {
   saving: boolean;
   message: string | null;
   error: string | null;
+  /** True after the user edits email/password until a successful save. */
+  dirty: boolean;
 }
 
-async function fetchTeamUsers(): Promise<PublicUser[]> {
-  const res = await fetch("/api/team/credentials");
+async function fetchTeamUsers(): Promise<ManageableUser[]> {
+  const res = await fetch("/api/team/credentials", { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to load team credentials");
   const data = await res.json();
   return data.users;
 }
 
-function emptyFormState(): UserFormState {
+function formFromUser(
+  user: ManageableUser,
+  prev?: UserFormState
+): UserFormState {
   return {
-    email: "",
-    password: "",
-    showPassword: false,
+    email: user.email,
+    password: user.password ?? "",
+    showPassword: prev?.showPassword ?? false,
     saving: false,
-    message: null,
+    message: prev?.message ?? null,
     error: null,
+    dirty: false,
   };
 }
 
 export function TeamCredentialsPanel() {
   const queryClient = useQueryClient();
   const { data: users, isLoading, isError } = useQuery({
-    queryKey: ["team-credentials"],
+    queryKey: ["team-credentials", "v2"],
     queryFn: fetchTeamUsers,
   });
 
-  const [forms, setForms] = useState<Record<Role, UserFormState>>(
-    {} as Record<Role, UserFormState>
-  );
+  const [forms, setForms] = useState<Partial<Record<Role, UserFormState>>>({});
 
   useEffect(() => {
     if (!users) return;
 
     setForms((prev) => {
-      const next = { ...prev };
+      const next: Partial<Record<Role, UserFormState>> = { ...prev };
       for (const user of users) {
-        if (!next[user.role]) {
-          next[user.role] = { ...emptyFormState(), email: user.email };
-        } else if (!next[user.role].saving && !next[user.role].message) {
-          next[user.role] = {
-            ...next[user.role],
-            email: user.email,
-          };
-        }
+        const existing = next[user.role];
+        // Never overwrite while saving, or while the admin is mid-edit.
+        if (existing?.saving || existing?.dirty) continue;
+        next[user.role] = formFromUser(user, existing);
       }
       return next;
     });
@@ -73,11 +74,22 @@ export function TeamCredentialsPanel() {
   function updateForm(role: Role, patch: Partial<UserFormState>) {
     setForms((prev) => ({
       ...prev,
-      [role]: { ...prev[role], ...patch },
+      [role]: {
+        ...(prev[role] ?? {
+          email: "",
+          password: "",
+          showPassword: false,
+          saving: false,
+          message: null,
+          error: null,
+          dirty: false,
+        }),
+        ...patch,
+      },
     }));
   }
 
-  async function handleSave(user: PublicUser) {
+  async function handleSave(user: ManageableUser) {
     const form = forms[user.role];
     if (!form) return;
 
@@ -90,7 +102,7 @@ export function TeamCredentialsPanel() {
         body: JSON.stringify({
           role: user.role,
           email: form.email,
-          password: form.password || undefined,
+          password: form.password.trim() || undefined,
         }),
       });
 
@@ -104,8 +116,7 @@ export function TeamCredentialsPanel() {
         return;
       }
 
-      await queryClient.invalidateQueries({ queryKey: ["team-credentials"] });
-
+      const savedPassword = data.user?.password ?? form.password;
       const baseMessage = data.requiresReLogin
         ? "Saved. Sign in again with your new email."
         : data.published
@@ -114,12 +125,16 @@ export function TeamCredentialsPanel() {
 
       updateForm(user.role, {
         saving: false,
-        password: "",
+        dirty: false,
+        email: data.user?.email ?? form.email,
+        password: savedPassword,
         message: data.publishError
           ? `${baseMessage} (Publish failed: ${data.publishError})`
           : baseMessage,
         error: null,
       });
+
+      await queryClient.invalidateQueries({ queryKey: ["team-credentials"] });
     } catch {
       updateForm(user.role, {
         saving: false,
@@ -149,16 +164,14 @@ export function TeamCredentialsPanel() {
       <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-teal/[0.04] p-6 dark:to-teal/[0.08]">
         <h2 className="text-lg font-semibold text-foreground">Account credentials</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Update login email and password for each role.
+          Current passwords are loaded for every role. Use the eye icon to reveal
+          them, or edit and save.
         </p>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
         {users.map((user, index) => {
-          const form = forms[user.role] ?? {
-            ...emptyFormState(),
-            email: user.email,
-          };
+          const form = forms[user.role] ?? formFromUser(user);
 
           return (
             <motion.div
@@ -190,9 +203,16 @@ export function TeamCredentialsPanel() {
                   <input
                     id={`email-${user.role}`}
                     type="email"
+                    name={`team-email-${user.role}`}
+                    autoComplete="off"
                     value={form.email}
                     onChange={(e) =>
-                      updateForm(user.role, { email: e.target.value, message: null, error: null })
+                      updateForm(user.role, {
+                        email: e.target.value,
+                        dirty: true,
+                        message: null,
+                        error: null,
+                      })
                     }
                     className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-foreground transition-all focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
@@ -204,22 +224,24 @@ export function TeamCredentialsPanel() {
                     className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-foreground"
                   >
                     <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
-                    New password
+                    Password
                   </label>
                   <div className="relative">
                     <input
                       id={`password-${user.role}`}
                       type={form.showPassword ? "text" : "password"}
+                      name={`team-password-${user.role}`}
+                      autoComplete="off"
                       value={form.password}
                       onChange={(e) =>
                         updateForm(user.role, {
                           password: e.target.value,
+                          dirty: true,
                           message: null,
                           error: null,
                         })
                       }
-                      placeholder="Leave blank to keep current password"
-                      className="h-11 w-full rounded-xl border border-border bg-background px-4 pr-11 text-sm text-foreground placeholder:text-muted-foreground transition-all focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className="h-11 w-full rounded-xl border border-border bg-background px-4 pr-11 text-sm text-foreground transition-all focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
                     <button
                       type="button"

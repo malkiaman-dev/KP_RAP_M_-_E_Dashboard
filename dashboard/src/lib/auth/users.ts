@@ -55,6 +55,19 @@ export function getPublicUsers(): Pick<User, "role" | "name" | "email">[] {
   return getUsers().map(({ role, name, email }) => ({ role, name, email }));
 }
 
+/** Malki-only credential management view — includes plaintext passwords. */
+export function getManageableUsers(): Pick<
+  User,
+  "role" | "name" | "email" | "password"
+>[] {
+  return getUsers().map(({ role, name, email, password }) => ({
+    role,
+    name,
+    email,
+    password,
+  }));
+}
+
 export function updateUserCredentials(
   role: Role,
   updates: { email: string; password?: string }

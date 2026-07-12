@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import {
   credentialsPath,
   getCredentialsFileContent,
-  getPublicUsers,
+  getManageableUsers,
   updateUserCredentials,
 } from "@/lib/auth/users";
 import { requireMalki } from "@/lib/auth/guard";
@@ -13,7 +13,7 @@ export async function GET() {
   const auth = await requireMalki();
   if ("error" in auth) return auth.error;
 
-  return NextResponse.json({ users: getPublicUsers() });
+  return NextResponse.json({ users: getManageableUsers() });
 }
 
 export async function PUT(request: Request) {
@@ -56,6 +56,7 @@ export async function PUT(request: Request) {
         role: updated.role,
         name: updated.name,
         email: updated.email,
+        password: updated.password,
       },
       published,
       publishError,
