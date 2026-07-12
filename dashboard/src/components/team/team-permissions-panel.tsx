@@ -154,10 +154,10 @@ export function TeamPermissionsPanel() {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-border bg-card p-6">
+      <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-deep-teal/[0.04] p-6 dark:to-deep-teal/[0.08]">
         <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
-            <LayoutGrid className="h-6 w-6 text-primary" />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-deep-teal/10">
+            <LayoutGrid className="h-6 w-6 text-deep-teal" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-foreground">Tab access</h2>
@@ -179,7 +179,7 @@ export function TeamPermissionsPanel() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.04 }}
-              className="rounded-2xl border border-border bg-card p-6"
+              className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm transition-all hover:border-teal/25 hover:shadow-md hover:shadow-teal/5"
             >
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>

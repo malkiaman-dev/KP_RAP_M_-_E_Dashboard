@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { School, Target, Users } from "lucide-react";
 import { TrackingFiltersPanel } from "@/components/tracking/tracking-filters";
 import { TrackingActiveFilters } from "@/components/tracking/tracking-active-filters";
 import { TrackingKpis } from "@/components/tracking/tracking-kpis";
@@ -12,6 +12,7 @@ import { TrackingDuplicateSection } from "@/components/tracking/tracking-duplica
 import { TrackingCharts } from "@/components/tracking/tracking-charts";
 import { TrackingCohortOverview } from "@/components/tracking/tracking-cohort-overview";
 import { TrackingCohortSection } from "@/components/tracking/tracking-cohort-section";
+import { PageHero, SectionHeader } from "@/components/ui/page-hero";
 import {
   applyTrackingFilters,
   computeTrackingMetrics,
@@ -132,22 +133,46 @@ export default function TrackingPage() {
 
   return (
     <div className={filtering ? "opacity-80 transition-opacity" : undefined}>
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
-      >
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Tracking Survey - Rollout Overview
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {PROTOCOL.GIRLS_TO_TRACK.toLocaleString()} girls assigned (
-          {PROTOCOL.BASELINE_GIRLS_TO_TRACK.toLocaleString()} baseline group +{" "}
-          {PROTOCOL.NEW_SAMPLE_GIRLS_TO_TRACK.toLocaleString()} new sample group) ·
-          Success target: {PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()}{" "}
-          successfully tracked
-        </p>
-      </motion.div>
+      <PageHero
+        eyebrow="Tracking operations live"
+        title="Tracking Survey"
+        accent="Rollout"
+        description={`${PROTOCOL.GIRLS_TO_TRACK.toLocaleString()} girls assigned (${PROTOCOL.BASELINE_GIRLS_TO_TRACK.toLocaleString()} baseline + ${PROTOCOL.NEW_SAMPLE_GIRLS_TO_TRACK.toLocaleString()} new sample). Success target ${PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()} successfully tracked. Click charts and filters to drill into the field picture.`}
+        loading={showLoading}
+        links={[
+          { href: "/analytics", label: "Analytics" },
+          { href: "/monitoring", label: "Monitoring" },
+          { href: "/reports", label: "Reports" },
+        ]}
+        stats={[
+          {
+            label: "Tracked",
+            value: display?.totalTrackedGirls ?? 0,
+            icon: Target,
+            colorClass: "text-teal",
+          },
+          {
+            label: "Success rate",
+            value: display?.successRate ?? 0,
+            icon: Target,
+            colorClass: "text-teal",
+            decimals: 1,
+            suffix: "%",
+          },
+          {
+            label: "Enumerators",
+            value: display?.totalEnumerators ?? 0,
+            icon: Users,
+            colorClass: "text-deep-teal",
+          },
+          {
+            label: "Schools",
+            value: display?.totalSchools ?? 0,
+            icon: School,
+            colorClass: "text-amber-600 dark:text-gold",
+          },
+        ]}
+      />
 
       <TrackingFiltersPanel
         filterOptions={data?.filterOptions}
@@ -162,8 +187,17 @@ export default function TrackingPage() {
         filterOptions={data?.filterOptions}
       />
 
+      <SectionHeader
+        title="Protocol KPIs"
+        subtitle="Assignment pool, tracked girls, and progress to the success target."
+      />
       <TrackingKpis metrics={display} loading={showLoading} />
 
+      <SectionHeader
+        title="Cohort command"
+        subtitle="Baseline and new-sample rollout side by side."
+        className="mt-8"
+      />
       <TrackingCohortOverview metrics={display} loading={showLoading} />
 
       {(activeCohort === "all" || activeCohort === "baseline") && (
@@ -182,6 +216,11 @@ export default function TrackingPage() {
         />
       )}
 
+      <SectionHeader
+        title="Field quality & exports"
+        subtitle="Operational flags, revisits, and duplicate controls."
+        className="mt-8"
+      />
       <TrackingSecondaryKpis
         metrics={display}
         loading={showLoading}
@@ -200,6 +239,11 @@ export default function TrackingPage() {
         buildExportMetrics={buildExportMetrics}
       />
 
+      <SectionHeader
+        title="Interactive intelligence"
+        subtitle="Click charts to cross-filter the tracking picture."
+        className="mt-8"
+      />
       <TrackingCharts
         metrics={display}
         loading={showLoading}

@@ -11,6 +11,7 @@ import {
   Percent,
 } from "lucide-react";
 import { StatCard, StatCardSkeleton } from "@/components/ui/stat-card";
+import { PROTOCOL } from "@/lib/data/protocol";
 import type { TrackingMetrics } from "@/lib/data/tracking-metrics";
 
 const kpiConfig: {
@@ -30,14 +31,21 @@ const kpiConfig: {
   icon: typeof FileStack;
   suffix?: string;
   decimals?: number;
+  hint?: (m: TrackingMetrics) => string;
 }[] = [
   {
     key: "totalSubmissions",
     label: "Total Submissions",
     colorClass: "text-foreground",
     icon: FileStack,
+    hint: (m) => `${m.totalTrackedGirls.toLocaleString()} successfully tracked`,
   },
-  { key: "totalSchools", label: "Total Schools", colorClass: "text-gold", icon: School },
+  {
+    key: "totalSchools",
+    label: "Total Schools",
+    colorClass: "text-gold",
+    icon: School,
+  },
   {
     key: "totalVillages",
     label: "Total Villages",
@@ -55,18 +63,24 @@ const kpiConfig: {
     label: "Assignment Pool",
     colorClass: "text-slate-700 dark:text-slate-200",
     icon: Target,
+    hint: () =>
+      `${PROTOCOL.GIRLS_TO_TRACK.toLocaleString()} girls assigned to track`,
   },
   {
     key: "totalTrackedGirls",
     label: "Successfully Tracked",
     colorClass: "text-teal",
     icon: CheckCircle2,
+    hint: () =>
+      `Target ${PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()}`,
   },
   {
     key: "remainingToSuccessTarget",
     label: "Remaining to Target",
     colorClass: "text-red-600",
     icon: Flag,
+    hint: () =>
+      `Of ${PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()} success target`,
   },
   {
     key: "successRate",
@@ -75,6 +89,8 @@ const kpiConfig: {
     icon: Percent,
     suffix: "%",
     decimals: 1,
+    hint: (m) =>
+      `${m.totalTrackedGirls.toLocaleString()} / ${PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()}`,
   },
 ];
 
@@ -107,6 +123,7 @@ export function TrackingKpis({
           color={kpi.colorClass}
           suffix={kpi.suffix}
           decimals={kpi.decimals}
+          hint={kpi.hint?.(metrics)}
         />
       ))}
     </div>

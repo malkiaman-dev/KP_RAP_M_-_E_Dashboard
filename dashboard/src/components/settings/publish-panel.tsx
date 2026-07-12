@@ -92,12 +92,12 @@ export function PublishPanel() {
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-border bg-card p-6"
+      className="rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-teal/[0.05] p-6 shadow-sm dark:to-teal/[0.08]"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
-            <CloudUpload className="h-6 w-6 text-primary" />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-teal/10">
+            <CloudUpload className="h-6 w-6 text-teal" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-foreground">Publish live</h2>

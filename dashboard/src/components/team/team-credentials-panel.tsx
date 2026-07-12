@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, KeyRound, Mail, Save, Shield, Users } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Mail, Save, Shield } from "lucide-react";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import type { Role } from "@/lib/auth/types";
 
@@ -146,25 +146,7 @@ export function TeamCredentialsPanel() {
 
   return (
     <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-border bg-card p-6"
-      >
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
-            <Users className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Team Management</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Manage login credentials and control which tabs each role can access.
-            </p>
-          </div>
-        </div>
-      </motion.div>
-
-      <div className="rounded-2xl border border-border bg-card p-6">
+      <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-teal/[0.04] p-6 dark:to-teal/[0.08]">
         <h2 className="text-lg font-semibold text-foreground">Account credentials</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Update login email and password for each role.
@@ -184,7 +166,7 @@ export function TeamCredentialsPanel() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="rounded-2xl border border-border bg-card p-6"
+              className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm transition-all hover:border-teal/25 hover:shadow-md hover:shadow-teal/5"
             >
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>

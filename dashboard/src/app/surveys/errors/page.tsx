@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { AlertTriangle, ShieldAlert, Users } from "lucide-react";
 import { ErrorFiltersPanel } from "@/components/errors/error-filters";
 import { ErrorActiveFilters } from "@/components/errors/error-active-filters";
 import { ErrorKpis } from "@/components/errors/error-kpis";
 import { ErrorCharts } from "@/components/errors/error-charts";
 import { ErrorTable } from "@/components/errors/error-table";
+import { PageHero, SectionHeader } from "@/components/ui/page-hero";
 import {
   applyErrorFilters,
   computeErrorMetrics,
@@ -51,19 +52,44 @@ export default function ErrorReportPage() {
 
   return (
     <div>
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
-      >
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Error Report - Rollout Data Quality Overview
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Critical vs quality issues, root causes, and enumerator accountability
-          across KPRAP field surveys
-        </p>
-      </motion.div>
+      <PageHero
+        eyebrow="Data quality surveillance"
+        title="Error Report"
+        accent="Quality"
+        description="Critical vs quality issues, root causes, and enumerator accountability across KPRAP field surveys. Filter and drill into patterns before they cascade."
+        loading={isLoading}
+        links={[
+          { href: "/surveys", label: "All Surveys" },
+          { href: "/monitoring", label: "Monitoring" },
+          { href: "/analytics", label: "Analytics" },
+        ]}
+        stats={[
+          {
+            label: "Total errors",
+            value: display?.totalErrors ?? 0,
+            icon: AlertTriangle,
+            colorClass: "text-amber-600 dark:text-gold",
+          },
+          {
+            label: "Critical",
+            value: display?.criticalErrors ?? 0,
+            icon: ShieldAlert,
+            colorClass: "text-red-600",
+          },
+          {
+            label: "Quality",
+            value: display?.flagErrors ?? 0,
+            icon: AlertTriangle,
+            colorClass: "text-amber-600",
+          },
+          {
+            label: "Enumerators",
+            value: display?.affectedEnumerators ?? 0,
+            icon: Users,
+            colorClass: "text-teal",
+          },
+        ]}
+      />
 
       <ErrorFiltersPanel
         filterOptions={data?.filterOptions}
@@ -73,6 +99,10 @@ export default function ErrorReportPage() {
 
       <ErrorActiveFilters filters={filters} onChange={setFilters} />
 
+      <SectionHeader
+        title="Quality KPIs"
+        subtitle="Critical vs quality volume and enumerator exposure."
+      />
       <ErrorKpis metrics={display} loading={isLoading} />
 
       {display && !isLoading && (
@@ -85,6 +115,11 @@ export default function ErrorReportPage() {
         </p>
       )}
 
+      <SectionHeader
+        title="Pattern intelligence"
+        subtitle="Click charts to filter the error log by cause, severity, or geography."
+        className="mt-6"
+      />
       <div className="mb-6">
         <ErrorCharts
           metrics={display}
@@ -94,6 +129,10 @@ export default function ErrorReportPage() {
         />
       </div>
 
+      <SectionHeader
+        title="Error ledger"
+        subtitle="Row-level audit trail for field and supervisor follow-up."
+      />
       <ErrorTable metrics={display} loading={isLoading} />
     </div>
   );

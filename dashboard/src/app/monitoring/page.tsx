@@ -2,8 +2,7 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { Activity, Target, Users } from "lucide-react";
 import { TrackingFiltersPanel } from "@/components/tracking/tracking-filters";
 import { TrackingActiveFilters } from "@/components/tracking/tracking-active-filters";
 import { HhGirlsFiltersPanel } from "@/components/hh-girls/hh-girls-filters";
@@ -14,6 +13,7 @@ import { MonitoringEnumeratorTable } from "@/components/monitoring/monitoring-en
 import { HhGirlsMonitoringKpis } from "@/components/monitoring/hh-girls-monitoring-kpis";
 import { HhGirlsMonitoringCharts } from "@/components/monitoring/hh-girls-monitoring-charts";
 import { HhGirlsMonitoringEnumeratorTable } from "@/components/monitoring/hh-girls-monitoring-enumerator-table";
+import { ModeToggle, PageHero, SectionHeader } from "@/components/ui/page-hero";
 import {
   applyTrackingFilters,
   computeMonitoringMetrics,
@@ -131,47 +131,87 @@ export default function MonitoringPage() {
 
   return (
     <div>
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
+      <PageHero
+        eyebrow="Enumerator performance live"
+        title="Field Monitoring"
+        accent="Command"
+        description={
+          mode === "tracking"
+            ? `Daily tracking target of ${DAILY_TRACKING_TARGET_PER_ENUMERATOR} girls per enumerator. Live progress, productivity, and target attainment across the field force.`
+            : `Daily HH target of ${DAILY_HH_TARGET_PER_ENUMERATOR} completed households (${DAILY_HH_FORMS_TARGET_PER_ENUMERATOR} forms: mother + father + girls) per enumerator.`
+        }
+        loading={isLoading}
+        links={[
+          { href: "/tracking", label: "Tracking" },
+          { href: "/surveys/hh-girls", label: "HH / Girls" },
+          { href: "/reports", label: "Reports" },
+        ]}
+        stats={
+          mode === "tracking"
+            ? [
+                {
+                  label: "Active enumerators",
+                  value: trackingMonitoring?.activeEnumerators ?? 0,
+                  icon: Users,
+                  colorClass: "text-teal",
+                },
+                {
+                  label: "On track",
+                  value: trackingMonitoring?.enumeratorsOnTrack ?? 0,
+                  icon: Target,
+                  colorClass: "text-teal",
+                },
+                {
+                  label: "Avg tracked / day",
+                  value: trackingMonitoring?.avgTrackedPerEnumeratorPerDay ?? 0,
+                  icon: Activity,
+                  colorClass: "text-deep-teal",
+                  decimals: 1,
+                },
+                {
+                  label: "Daily target",
+                  value: DAILY_TRACKING_TARGET_PER_ENUMERATOR,
+                  icon: Target,
+                  colorClass: "text-amber-600 dark:text-gold",
+                },
+              ]
+            : [
+                {
+                  label: "Active enumerators",
+                  value: hhMonitoring?.activeEnumerators ?? 0,
+                  icon: Users,
+                  colorClass: "text-deep-teal",
+                },
+                {
+                  label: "On track",
+                  value: hhMonitoring?.enumeratorsOnTrack ?? 0,
+                  icon: Target,
+                  colorClass: "text-deep-teal",
+                },
+                {
+                  label: "HH daily target",
+                  value: DAILY_HH_TARGET_PER_ENUMERATOR,
+                  icon: Target,
+                  colorClass: "text-teal",
+                },
+                {
+                  label: "Forms / day",
+                  value: DAILY_HH_FORMS_TARGET_PER_ENUMERATOR,
+                  icon: Activity,
+                  colorClass: "text-amber-600 dark:text-gold",
+                },
+              ]
+        }
       >
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Field Monitoring - Enumerator Performance
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {mode === "tracking"
-            ? `Daily tracking target of ${DAILY_TRACKING_TARGET_PER_ENUMERATOR} girls per enumerator · live progress, productivity and target attainment`
-            : `Daily HH target of ${DAILY_HH_TARGET_PER_ENUMERATOR} completed households (${DAILY_HH_FORMS_TARGET_PER_ENUMERATOR} forms: 3 mother + 3 father + 3 girls) per enumerator`}
-        </p>
-      </motion.div>
-
-      <div className="mb-6 inline-flex rounded-xl border border-border/60 bg-muted/30 p-1">
-        <button
-          type="button"
-          onClick={() => setMode("tracking")}
-          className={cn(
-            "rounded-lg px-4 py-2 text-xs font-medium transition-colors",
-            mode === "tracking"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Tracking
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("hh-girls")}
-          className={cn(
-            "rounded-lg px-4 py-2 text-xs font-medium transition-colors",
-            mode === "hh-girls"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          HH / Girls
-        </button>
-      </div>
+        <ModeToggle
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: "tracking", label: "Tracking" },
+            { value: "hh-girls", label: "HH / Girls" },
+          ]}
+        />
+      </PageHero>
 
       {mode === "tracking" ? (
         <>
@@ -187,6 +227,10 @@ export default function MonitoringPage() {
             onChange={setTrackingFilters}
             filterOptions={trackingQuery.data?.filterOptions}
             resetFilters={defaultMonitoringFilters}
+          />
+          <SectionHeader
+            title="Enumerator performance"
+            subtitle="Daily target attainment, productivity, and field force status."
           />
           <MonitoringKpis
             metrics={trackingMonitoring}
@@ -207,11 +251,23 @@ export default function MonitoringPage() {
               )}
             </p>
           )}
+
+          <SectionHeader
+            title="Enumerator roster"
+            subtitle="Sortable performance ledger for supervisors."
+            className="mt-6"
+          />
           <MonitoringEnumeratorTable
             metrics={trackingMonitoring}
             loading={isLoading}
             filters={trackingFilters}
             districtOptions={trackingQuery.data?.filterOptions?.districts}
+          />
+
+          <SectionHeader
+            title="Performance intelligence"
+            subtitle="Click charts to focus filters on geography or date windows."
+            className="mt-8"
           />
           <MonitoringCharts
             metrics={trackingMonitoring}
@@ -235,6 +291,10 @@ export default function MonitoringPage() {
             filterOptions={hhQuery.data?.filterOptions}
             resetFilters={defaultHhGirlsMonitoringFilters}
           />
+          <SectionHeader
+            title="HH enumerator performance"
+            subtitle="Completed households and form throughput versus daily targets."
+          />
           <HhGirlsMonitoringKpis metrics={hhMonitoring} loading={isLoading} />
           {hhMonitoring && !isLoading && (
             <p className="mb-4 text-xs text-muted-foreground">
@@ -252,11 +312,23 @@ export default function MonitoringPage() {
               )}
             </p>
           )}
+
+          <SectionHeader
+            title="Enumerator roster"
+            subtitle="Sortable HH performance ledger for supervisors."
+            className="mt-6"
+          />
           <HhGirlsMonitoringEnumeratorTable
             metrics={hhMonitoring}
             loading={isLoading}
             filters={hhFilters}
             districtOptions={hhQuery.data?.filterOptions?.districts}
+          />
+
+          <SectionHeader
+            title="Performance intelligence"
+            subtitle="Click charts to focus filters on geography or date windows."
+            className="mt-8"
           />
           <HhGirlsMonitoringCharts
             metrics={hhMonitoring}

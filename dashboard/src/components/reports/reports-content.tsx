@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { FileText, Layers, Target } from "lucide-react";
 import { TrackingFiltersPanel } from "@/components/tracking/tracking-filters";
 import { TrackingActiveFilters } from "@/components/tracking/tracking-active-filters";
 import { HhGirlsFiltersPanel } from "@/components/hh-girls/hh-girls-filters";
@@ -11,7 +11,7 @@ import { TrackingStatusReportCard } from "@/components/reports/tracking-status-r
 import { TrackingProgressReportCard } from "@/components/reports/tracking-progress-report-card";
 import { HhGirlsStatusReportCard } from "@/components/reports/hh-girls-status-report-card";
 import { HhGirlsProgressReportCard } from "@/components/reports/hh-girls-progress-report-card";
-import { cn } from "@/lib/utils";
+import { ModeToggle, PageHero, SectionHeader } from "@/components/ui/page-hero";
 import {
   defaultMonitoringFilters,
   type TrackingFilters,
@@ -90,77 +90,76 @@ export function ReportsContent() {
   const trackingDistricts =
     trackingQuery.data?.filterOptions?.districts ?? [];
   const hhDistricts = hhQuery.data?.filterOptions?.districts ?? [];
+  const districtCount =
+    surveyModule === "tracking"
+      ? trackingDistricts.length
+      : hhDistricts.length;
 
   return (
     <div>
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
+      <PageHero
+        eyebrow="Export & stakeholder briefings"
+        title="Field Reports"
+        accent="Studio"
+        description="Generate district-wise or all-district field operations and programme progress reports for Tracking or combined HH / Girls surveys. Export to PDF or Word for partners and leadership."
+        loading={isLoading}
+        links={[
+          { href: "/tracking", label: "Tracking" },
+          { href: "/surveys/hh-girls", label: "HH / Girls" },
+          { href: "/monitoring", label: "Monitoring" },
+        ]}
+        stats={[
+          {
+            label: "Module",
+            value: surveyModule === "tracking" ? "Tracking" : "HH / Girls",
+            icon: Layers,
+            colorClass: "text-teal",
+          },
+          {
+            label: "Report type",
+            value:
+              reportMode === "operations" ? "Operations" : "Progress",
+            icon: FileText,
+            colorClass: "text-deep-teal",
+          },
+          {
+            label: "Districts in scope",
+            value: districtCount,
+            icon: Target,
+            colorClass: "text-amber-600 dark:text-gold",
+          },
+          {
+            label: "Export formats",
+            value: "PDF · Word",
+            icon: FileText,
+            colorClass: "text-teal",
+          },
+        ]}
       >
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Reports
-        </h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Generate and export field operations or programme progress reports for
-          Tracking or combined HH / Girls surveys. Download district-wise or
-          all-district reports in PDF or Word.
-        </p>
-      </motion.div>
+        <div className="flex flex-wrap gap-3">
+          <ModeToggle
+            value={surveyModule}
+            onChange={setSurveyModule}
+            options={[
+              { value: "tracking", label: "Tracking" },
+              { value: "hh-girls", label: "HH / Girls" },
+            ]}
+          />
+          <ModeToggle
+            value={reportMode}
+            onChange={setReportMode}
+            options={[
+              { value: "operations", label: "Field Operations" },
+              { value: "progress", label: "Progress Summary" },
+            ]}
+          />
+        </div>
+      </PageHero>
 
-      <div className="mb-4 inline-flex rounded-xl border border-border/60 bg-muted/30 p-1">
-        <button
-          type="button"
-          onClick={() => setSurveyModule("tracking")}
-          className={cn(
-            "rounded-lg px-4 py-2 text-xs font-medium transition-colors",
-            surveyModule === "tracking"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Tracking
-        </button>
-        <button
-          type="button"
-          onClick={() => setSurveyModule("hh-girls")}
-          className={cn(
-            "rounded-lg px-4 py-2 text-xs font-medium transition-colors",
-            surveyModule === "hh-girls"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          HH / Girls
-        </button>
-      </div>
-
-      <div className="mb-6 inline-flex rounded-xl border border-border/60 bg-muted/30 p-1">
-        <button
-          type="button"
-          onClick={() => setReportMode("operations")}
-          className={cn(
-            "rounded-lg px-4 py-2 text-xs font-medium transition-colors",
-            reportMode === "operations"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Field Operations
-        </button>
-        <button
-          type="button"
-          onClick={() => setReportMode("progress")}
-          className={cn(
-            "rounded-lg px-4 py-2 text-xs font-medium transition-colors",
-            reportMode === "progress"
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Progress Summary
-        </button>
-      </div>
+      <SectionHeader
+        title="Report scope"
+        subtitle="Narrow filters, then generate and download the briefing package."
+      />
 
       {surveyModule === "tracking" ? (
         <>

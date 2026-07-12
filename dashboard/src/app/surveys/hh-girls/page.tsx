@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { ClipboardCheck, Home, Target, Users } from "lucide-react";
 import { HhGirlsFiltersPanel } from "@/components/hh-girls/hh-girls-filters";
 import { HhGirlsActiveFilters } from "@/components/hh-girls/hh-girls-active-filters";
 import { HhGirlsMainKpis } from "@/components/hh-girls/hh-girls-main-kpis";
@@ -12,6 +12,7 @@ import { HhGirlsCharts } from "@/components/hh-girls/hh-girls-charts";
 import { HhGirlsDuplicateSection } from "@/components/hh-girls/hh-girls-duplicate-section";
 import { HhGirlsMissingSection } from "@/components/hh-girls/hh-girls-missing-section";
 import { HhGirlsRevisitSection } from "@/components/hh-girls/hh-girls-revisit-section";
+import { PageHero, SectionHeader } from "@/components/ui/page-hero";
 import {
   applyHhGirlsDataFilters,
   computeHhGirlsMetrics,
@@ -91,19 +92,46 @@ export default function HhGirlsSurveyPage() {
 
   return (
     <div className={filtering ? "opacity-80 transition-opacity" : undefined}>
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
-      >
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          HH / Girls Survey — Rollout Overview
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {PROTOCOL.HH_SURVEY_TARGET.toLocaleString()} completed households
-          target · Father, mother, and girl surveys combined in one view
-        </p>
-      </motion.div>
+      <PageHero
+        eyebrow="HH / Girls operations live"
+        title="HH / Girls Survey"
+        accent="Rollout"
+        description={`${PROTOCOL.HH_SURVEY_TARGET.toLocaleString()} completed households target. Father, mother, and girl surveys combined in one operational view with revisits, missing forms, and quality checks.`}
+        loading={showLoading}
+        links={[
+          { href: "/monitoring", label: "Monitoring" },
+          { href: "/reports", label: "Reports" },
+          { href: "/analytics", label: "Analytics" },
+        ]}
+        stats={[
+          {
+            label: "Completed HH",
+            value: display?.core.completedHouseholds ?? 0,
+            icon: Home,
+            colorClass: "text-deep-teal",
+          },
+          {
+            label: "Progress",
+            value: display?.core.progressToTarget ?? 0,
+            icon: Target,
+            colorClass: "text-deep-teal",
+            decimals: 1,
+            suffix: "%",
+          },
+          {
+            label: "Girls forms",
+            value: display?.girls.totalSubmissions ?? 0,
+            icon: ClipboardCheck,
+            colorClass: "text-amber-600 dark:text-gold",
+          },
+          {
+            label: "Enumerators",
+            value: display?.core.totalEnumerators ?? 0,
+            icon: Users,
+            colorClass: "text-teal",
+          },
+        ]}
+      />
 
       <HhGirlsFiltersPanel
         filterOptions={data?.filterOptions}
@@ -117,22 +145,41 @@ export default function HhGirlsSurveyPage() {
         filterOptions={data?.filterOptions}
       />
 
+      <SectionHeader
+        title="Rollout pulse"
+        subtitle="Completed households versus protocol target and form mix."
+      />
       <HhGirlsRolloutOverview metrics={display} loading={showLoading} />
 
+      <SectionHeader
+        title="Household & girls KPIs"
+        subtitle="Completion, parental coverage, and girl survey attainment."
+        className="mt-8"
+      />
       <HhGirlsMainKpis metrics={display} loading={showLoading} />
 
       <HhGirlsCoreKpis metrics={display} loading={showLoading} />
 
+      <SectionHeader
+        title="Quality controls"
+        subtitle="Revisits, missing forms, and duplicate detection."
+        className="mt-8"
+      />
       <HhGirlsRevisitSection metrics={display} loading={showLoading} />
 
       <HhGirlsMissingSection metrics={display} loading={showLoading} />
 
       <HhGirlsDuplicateSection metrics={display} loading={showLoading} />
 
+      <SectionHeader
+        title="Interactive intelligence"
+        subtitle="District, velocity, and completion mix across HH and girls."
+        className="mt-8"
+      />
       <HhGirlsCharts metrics={display} loading={showLoading} />
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-gold/20 bg-gold/5 p-5">
+        <div className="rounded-2xl border border-gold/20 bg-gradient-to-br from-gold/5 via-card to-card p-5">
           <p className="text-sm font-medium text-foreground">
             Completed household definition
           </p>
@@ -148,7 +195,7 @@ export default function HhGirlsSurveyPage() {
             mother/caretaker/girl: attempts 2–3).
           </p>
         </div>
-        <div className="rounded-2xl border border-teal/20 bg-teal/5 p-5">
+        <div className="rounded-2xl border border-teal/20 bg-gradient-to-br from-teal/5 via-card to-card p-5">
           <p className="text-sm font-medium text-foreground">
             Duplicate detection rule
           </p>

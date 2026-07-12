@@ -26,7 +26,7 @@ export function ReportCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "rounded-2xl border border-border/60 bg-card shadow-sm",
+        "rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-teal/[0.04] shadow-sm transition-shadow hover:shadow-md hover:shadow-teal/5 dark:to-teal/[0.08]",
         status === "coming-soon" && "opacity-90"
       )}
     >

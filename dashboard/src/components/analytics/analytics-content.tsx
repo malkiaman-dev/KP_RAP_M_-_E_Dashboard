@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { Activity, Home, Target, Timer } from "lucide-react";
 import { AnalyticsCharts } from "@/components/analytics/analytics-charts";
 import { AnalyticsKpis } from "@/components/analytics/analytics-kpis";
 import { AnalyticsProtocol } from "@/components/analytics/analytics-protocol";
@@ -11,6 +11,7 @@ import {
   defaultFilters,
   FiltersPanel,
 } from "@/components/dashboard/filters-panel";
+import { PageHero, SectionHeader } from "@/components/ui/page-hero";
 import {
   buildHhCompletionTrend,
   computePaceInsight,
@@ -182,21 +183,49 @@ export function AnalyticsContent() {
 
   return (
     <div className={filtering ? "opacity-80 transition-opacity" : undefined}>
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
-      >
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Analytics - Cross-Module Insights
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Protocol progress toward{" "}
-          {PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()} tracked girls
-          and {PROTOCOL.HH_SURVEY_TARGET.toLocaleString()} completed households ·
-          cohort comparison, pace, and quality across all survey modules
-        </p>
-      </motion.div>
+      <PageHero
+        eyebrow="Cross-module intelligence"
+        title="Analytics"
+        accent="Insights"
+        description={`Protocol progress toward ${PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()} tracked girls and ${PROTOCOL.HH_SURVEY_TARGET.toLocaleString()} completed households. Cohort comparison, pace, and quality across all survey modules.`}
+        loading={isLoading}
+        links={[
+          { href: "/", label: "Dashboard" },
+          { href: "/tracking", label: "Tracking" },
+          { href: "/surveys/hh-girls", label: "HH / Girls" },
+        ]}
+        stats={[
+          {
+            label: "Tracked vs target",
+            value: progress?.trackingPct ?? 0,
+            icon: Target,
+            colorClass: "text-teal",
+            decimals: 1,
+            suffix: "%",
+          },
+          {
+            label: "Remaining",
+            value: progress?.trackingRemaining ?? 0,
+            icon: Timer,
+            colorClass: "text-amber-600 dark:text-gold",
+          },
+          {
+            label: "HH completed",
+            value: progress?.hhPct ?? 0,
+            icon: Home,
+            colorClass: "text-deep-teal",
+            decimals: 1,
+            suffix: "%",
+          },
+          {
+            label: "7-day pace",
+            value: trackingPace?.dailyRate ?? 0,
+            icon: Activity,
+            colorClass: "text-teal",
+            decimals: 1,
+          },
+        ]}
+      />
 
       <FiltersPanel
         filterOptions={dashboardQuery.data?.filterOptions}
@@ -210,16 +239,32 @@ export function AnalyticsContent() {
         filterOptions={dashboardQuery.data?.filterOptions}
       />
 
+      <SectionHeader
+        title="Pace & protocol KPIs"
+        subtitle="Tracking and household progress against targets with 7-day velocity."
+      />
       <AnalyticsKpis
         progress={progress}
         trackingPace={trackingPace}
         hhPace={hhPace}
         loading={isLoading}
       />
+
+      <SectionHeader
+        title="Protocol pulse"
+        subtitle="Live attainment rings and cohort contribution to the success target."
+        className="mt-8"
+      />
       <AnalyticsProtocol
         progress={progress}
         tracking={tracking}
         loading={isLoading}
+      />
+
+      <SectionHeader
+        title="Cross-module charts"
+        subtitle="Click any series to drill filters across analytics."
+        className="mt-8"
       />
       <AnalyticsCharts
         dashboard={dashboard}
