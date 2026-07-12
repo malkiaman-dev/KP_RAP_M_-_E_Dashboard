@@ -81,21 +81,26 @@ function CohortCard({
         <div className="text-right">
           <p className="text-xs text-muted-foreground">Remaining</p>
           <p className={cn("text-lg font-bold tabular-nums", accentClass)}>
-            <AnimatedCounter value={metrics.remainingToSuccessTarget} />
+            <AnimatedCounter
+              value={Math.max(
+                0,
+                metrics.successTarget - metrics.uniqueGirlsAttempted
+              )}
+            />
           </p>
         </div>
       </div>
 
       <div className="mb-4 space-y-2">
         <div className="flex justify-between text-[11px] text-muted-foreground">
-          <span>Success progress</span>
+          <span>Attempt progress</span>
           <span>
-            {metrics.totalTrackedGirls.toLocaleString()} /{" "}
+            {metrics.uniqueGirlsAttempted.toLocaleString()} /{" "}
             {metrics.successTarget.toLocaleString()}
           </span>
         </div>
         <ProgressBar
-          value={metrics.totalTrackedGirls}
+          value={metrics.uniqueGirlsAttempted}
           max={metrics.successTarget}
           colorClass={barClass}
         />

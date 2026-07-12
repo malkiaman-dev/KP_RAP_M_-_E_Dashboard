@@ -1,4 +1,4 @@
-import { DEFAULT_TRACKING_TARGETS } from "./protocol";
+import { DEFAULT_TRACKING_TARGETS, PROTOCOL } from "./protocol";
 import { toIsoDateString } from "../utils";
 import {
   buildEnumeratorFilterOptions,
@@ -2644,15 +2644,20 @@ export function computeTrackingMetrics(
   const trackedByDistrict = districtIds.map((d) => {
     const districtGirls = girls.filter((g) => g.district === d);
     const tracked = districtGirls.filter((g) => g.tracked).length;
-    // Proportional slice of the protocol pool - informational reference only.
-    const target = Math.round(targets.assignmentPool * districtShare(d));
+    const districtTarget =
+      PROTOCOL.DISTRICT_TRACKING_TARGETS[
+        d as keyof typeof PROTOCOL.DISTRICT_TRACKING_TARGETS
+      ];
+    const target = districtTarget
+      ? districtTarget.baseline + districtTarget.endline
+      : Math.round(targets.assignmentPool * districtShare(d));
     return {
       district: d,
       label: districtLabel(d, districtGirls[0]?.districtLabel),
       tracked,
       // Actual untracked girls present in the (filtered) data, NOT the protocol
-      // gap. Using the protocol gap collapsed the whole 4,860 pool onto a single
-      // district whenever a village/enumerator filter was active.
+      // gap. Using the protocol gap collapsed the whole assignment pool onto a
+      // single district whenever a village/enumerator filter was active.
       untracked: Math.max(0, districtGirls.length - tracked),
       target,
       inData: districtGirls.length,

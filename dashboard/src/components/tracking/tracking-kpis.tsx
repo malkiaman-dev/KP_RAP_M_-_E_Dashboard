@@ -11,7 +11,6 @@ import {
   Percent,
 } from "lucide-react";
 import { StatCard, StatCardSkeleton } from "@/components/ui/stat-card";
-import { PROTOCOL } from "@/lib/data/protocol";
 import type { TrackingMetrics } from "@/lib/data/tracking-metrics";
 
 const kpiConfig: {
@@ -63,24 +62,22 @@ const kpiConfig: {
     label: "Assignment Pool",
     colorClass: "text-slate-700 dark:text-slate-200",
     icon: Target,
-    hint: () =>
-      `${PROTOCOL.GIRLS_TO_TRACK.toLocaleString()} girls assigned to track`,
+    hint: (m) =>
+      `${m.assignmentPool.toLocaleString()} girls in active target pool`,
   },
   {
     key: "totalTrackedGirls",
     label: "Successfully Tracked",
     colorClass: "text-teal",
     icon: CheckCircle2,
-    hint: () =>
-      `Target ${PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()}`,
+    hint: (m) => `Target ${m.successTarget.toLocaleString()}`,
   },
   {
     key: "remainingToSuccessTarget",
     label: "Remaining to Target",
     colorClass: "text-red-600",
     icon: Flag,
-    hint: () =>
-      `Of ${PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()} success target`,
+    hint: (m) => `Of ${m.successTarget.toLocaleString()} success target`,
   },
   {
     key: "successRate",
@@ -90,7 +87,7 @@ const kpiConfig: {
     suffix: "%",
     decimals: 1,
     hint: (m) =>
-      `${m.totalTrackedGirls.toLocaleString()} / ${PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()}`,
+      `${m.totalTrackedGirls.toLocaleString()} / ${m.successTarget.toLocaleString()}`,
   },
 ];
 

@@ -15,6 +15,10 @@ import { TrackingCohortSection } from "@/components/tracking/tracking-cohort-sec
 import { PageHero, SectionHeader } from "@/components/ui/page-hero";
 import { useFieldPeriod } from "@/components/filters/field-period-provider";
 import {
+  PROTOCOL,
+  resolveTrackingTargets,
+} from "@/lib/data/protocol";
+import {
   applyTrackingFilters,
   computeTrackingMetrics,
   createDefaultTrackingFilters,
@@ -29,37 +33,12 @@ import {
   QUERY_STALE_MS,
   TRACKING_METRICS_QUERY_KEY,
 } from "@/lib/queries/app-data";
-import {
-  DEFAULT_TRACKING_TARGETS,
-  PROTOCOL,
-  baselineSuccessTarget,
-  newSampleSuccessTarget,
-} from "@/lib/data/protocol";
 
 function targetsForFilters(filters: TrackingFilters): TrackingTargets {
-  const cohort = resolveActiveCohort(filters);
-
-  if (cohort === "baseline") {
-    return {
-      assignmentPool: PROTOCOL.BASELINE_GIRLS_TO_TRACK,
-      successTarget: baselineSuccessTarget(),
-      baselineAssignment: PROTOCOL.BASELINE_GIRLS_TO_TRACK,
-      newSampleAssignment: PROTOCOL.NEW_SAMPLE_GIRLS_TO_TRACK,
-      baselineSuccessTarget: baselineSuccessTarget(),
-      newSampleSuccessTarget: newSampleSuccessTarget(),
-    };
-  }
-  if (cohort === "new-sample") {
-    return {
-      assignmentPool: PROTOCOL.NEW_SAMPLE_GIRLS_TO_TRACK,
-      successTarget: newSampleSuccessTarget(),
-      baselineAssignment: PROTOCOL.BASELINE_GIRLS_TO_TRACK,
-      newSampleAssignment: PROTOCOL.NEW_SAMPLE_GIRLS_TO_TRACK,
-      baselineSuccessTarget: baselineSuccessTarget(),
-      newSampleSuccessTarget: newSampleSuccessTarget(),
-    };
-  }
-  return { ...DEFAULT_TRACKING_TARGETS };
+  return resolveTrackingTargets({
+    district: filters.district,
+    cohort: resolveActiveCohort(filters),
+  });
 }
 
 export default function TrackingPage() {

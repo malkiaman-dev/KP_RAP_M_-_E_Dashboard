@@ -90,11 +90,11 @@ export function TrackingCohortSection({
 
   const cohortDistricts = cohortData.districtBreakdown;
 
-  const successPct =
+  const attemptPct =
     cohortData.successTarget > 0
       ? Math.min(
           100,
-          (cohortData.totalTrackedGirls / cohortData.successTarget) * 100
+          (cohortData.uniqueGirlsAttempted / cohortData.successTarget) * 100
         )
       : 0;
 
@@ -155,8 +155,11 @@ export function TrackingCohortSection({
               icon={CheckCircle2}
             />
             <StatTile
-              label="Remaining to Target"
-              value={cohortData.remainingToSuccessTarget}
+              label="Remaining to Attempt"
+              value={Math.max(
+                0,
+                cohortData.successTarget - cohortData.uniqueGirlsAttempted
+              )}
               icon={Target}
             />
           </div>
@@ -165,17 +168,17 @@ export function TrackingCohortSection({
             <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5 font-medium">
                 <BarChart3 className="h-3.5 w-3.5 text-teal" aria-hidden="true" />
-                Progress toward {copy.poolLabel} success target
+                Attempt progress toward {copy.poolLabel} target
               </span>
               <span className="tabular-nums">
-                {cohortData.totalTrackedGirls.toLocaleString()} /{" "}
+                {cohortData.uniqueGirlsAttempted.toLocaleString()} /{" "}
                 {cohortData.successTarget.toLocaleString()}
               </span>
             </div>
             <div className="h-3 overflow-hidden rounded-full bg-muted/60">
               <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: `${successPct}%` }}
+                animate={{ width: `${attemptPct}%` }}
                 transition={{ duration: 0.9, ease: "easeOut" }}
                 className="h-full rounded-full bg-teal"
               />
