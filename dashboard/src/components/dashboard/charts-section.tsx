@@ -208,7 +208,7 @@ export function ChartsSection({
 
         <ChartCard
           title="Survey Mix"
-          subtitle="Share of submissions by module"
+          subtitle="Tracking forms · households started · girls forms"
           index={1}
         >
           <div className="flex flex-1 flex-col">
@@ -255,7 +255,9 @@ export function ChartsSection({
                   dominantBaseline="middle"
                   className="fill-foreground text-2xl font-bold"
                 >
-                  {metrics.totalSubmissions.toLocaleString()}
+                  {(
+                    metrics.surveyMixTotal ?? metrics.totalSubmissions
+                  ).toLocaleString()}
                 </text>
                 <text
                   x="50%"

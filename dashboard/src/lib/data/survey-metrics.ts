@@ -335,9 +335,11 @@ export function computeMetrics(
 
   const surveyDistribution = [
     { name: "Tracking", value: tracking.length, color: "#21A1AA" },
-    { name: "Household", value: household.length, color: "#178891" },
+    // Unique households started — not parent form rows (mother+father inflate the count).
+    { name: "Household", value: uniqueHHGirls.size, color: "#178891" },
     { name: "Girls", value: girls.length, color: "#EDCA5C" },
   ];
+  const surveyMixTotal = surveyDistribution.reduce((sum, d) => sum + d.value, 0);
 
   const dates = rows
     .map((r) => parseSubmissionDate(r.SubmissionDate || ""))
@@ -390,6 +392,7 @@ export function computeMetrics(
     allSubmissionsTrend,
     submissionSparkline,
     surveyDistribution,
+    surveyMixTotal,
     reportingPeriod: {
       start: filterOptions.dateRange.start,
       end: filterOptions.dateRange.end,
