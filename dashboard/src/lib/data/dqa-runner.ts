@@ -139,29 +139,12 @@ export async function runDqaNow(): Promise<{ ok: boolean; message: string }> {
 }
 
 /**
- * If survey CSVs are newer than the error log, start a background DQA run.
- * Safe to call on every /api/errors request — concurrent calls share one run.
+ * Context (girl/village/school) is filled live from Surveys CSVs in
+ * `loadErrorMetrics`. Do not auto-spawn the multi-minute Python DQA.
+ * Use `runDqaNow()` / publish to regenerate Daily_Error_Log.xlsx.
  */
 export function scheduleDqaIfStale(): DqaStatus {
-  const status = getDqaStatus();
-  if (status !== "stale" && status !== "missing") return status;
   if (inFlight) return "regenerating";
-
-  // Avoid hammering if the last attempt just failed
-  if (lastRunError && Date.now() - lastRunAt < 60_000) return status;
-
-  inFlight = (async () => {
-    lastRunError = null;
-    await runPythonDqa();
-    lastRunAt = Date.now();
-  })()
-    .catch((err) => {
-      lastRunError = err instanceof Error ? err.message : String(err);
-      console.error("[dqa-runner] background regenerate failed:", lastRunError);
-    })
-    .finally(() => {
-      inFlight = null;
-    });
-
-  return "regenerating";
+  if (!fs.existsSync(ERROR_LOG) && latestSurveyMtimeMs() > 0) return "missing";
+  return "fresh";
 }

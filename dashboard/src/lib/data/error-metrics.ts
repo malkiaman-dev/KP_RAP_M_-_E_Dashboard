@@ -22,6 +22,10 @@ export interface ErrorRow {
   deviceId: string;
   submissionDate: string;
   createdAt: string;
+  /** Live-enriched from Surveys (optional on older payloads). */
+  girlName?: string;
+  villageName?: string;
+  schoolName?: string;
 }
 
 export interface ErrorFilters {

@@ -107,10 +107,37 @@ def _first(row: pd.Series, cols: list[str], *, prefer_text: bool = False) -> str
 
 def _extract_context(row: pd.Series, survey: str) -> dict[str, str]:
     cols = CONTEXT_COLS.get(survey, {})
+    girl_id_cols = (
+        ["girl_id", "girl_id_1", "girl"]
+        if survey == "Tracking"
+        else ["girl", "girl_id"]
+    )
     return {
         "girl_name": _first(row, cols.get("girl_name", [])),
         "village": _first(row, cols.get("village", [])),
         "school": _first(row, cols.get("school", []), prefer_text=True),
+        "girl_id": _first(row, girl_id_cols),
+    }
+
+
+def _merge_ctx(a: dict[str, str] | None, b: dict[str, str]) -> dict[str, str]:
+    if not a:
+        return dict(b)
+    school_a = a.get("school") or ""
+    school_b = b.get("school") or ""
+
+    def _good_school(s: str) -> str:
+        if not s:
+            return ""
+        if s.replace(".", "", 1).isdigit():
+            return ""
+        return s
+
+    return {
+        "girl_name": a.get("girl_name") or b.get("girl_name") or "",
+        "village": a.get("village") or b.get("village") or "",
+        "school": _good_school(school_a) or _good_school(school_b) or school_a or school_b,
+        "girl_id": a.get("girl_id") or b.get("girl_id") or "",
     }
 
 
@@ -128,18 +155,32 @@ def _build_lookup(df: pd.DataFrame, survey: str) -> dict[str, dict[str, str]]:
 
     for _, row in df.iterrows():
         ctx = _extract_context(row, survey)
-        if not any(ctx.values()):
+        if not any(v for k, v in ctx.items() if k != "girl_id" and v):
             continue
         for kc in key_cols:
             k = _norm_key(row.get(kc))
             if k and k not in lookup:
                 lookup[k] = ctx
-            # Also index without uuid: prefix for partial matches
             if k.startswith("uuid:"):
                 short = k.replace("uuid:", "", 1)
                 if short and short not in lookup:
                     lookup[short] = ctx
     return lookup
+
+
+def _build_girl_lookup(dfs: dict[str, pd.DataFrame]) -> dict[str, dict[str, str]]:
+    by_girl: dict[str, dict[str, str]] = {}
+    for raw_name, df in dfs.items():
+        survey = SURVEY_ALIASES.get(raw_name, raw_name)
+        if survey not in CONTEXT_COLS:
+            continue
+        for _, row in df.iterrows():
+            ctx = _extract_context(row, survey)
+            gid = ctx.get("girl_id") or ""
+            if not gid:
+                continue
+            by_girl[gid] = _merge_ctx(by_girl.get(gid), ctx)
+    return by_girl
 
 
 def _value_has_key(value: str, key: str) -> bool:
@@ -187,6 +228,8 @@ def enrich_issues_with_context(issues: list[dict], dfs: dict[str, pd.DataFrame])
             continue
         lookups[survey] = _build_lookup(df, survey)
 
+    by_girl = _build_girl_lookup(dfs)
+
     for it in issues:
         survey = SURVEY_ALIASES.get(str(it.get("survey") or ""), str(it.get("survey") or ""))
         lookup = lookups.get(survey)
@@ -197,7 +240,7 @@ def enrich_issues_with_context(issues: list[dict], dfs: dict[str, pd.DataFrame])
             _norm_key(it.get("record_key")),
             _norm_key(it.get("instance_id")),
         ]
-        ctx = None
+        ctx: dict[str, str] | None = None
         for k in keys:
             if not k:
                 continue
@@ -206,6 +249,16 @@ def enrich_issues_with_context(issues: list[dict], dfs: dict[str, pd.DataFrame])
                 break
         if not ctx:
             continue
+
+        # Cross-survey fill (e.g. Girls missing school → Tracking new_school_label)
+        gid = ctx.get("girl_id") or ""
+        if not gid:
+            # Try parse from existing value evidence
+            m = re.search(r"(?:^|;\s*)girl=([^;]+)", str(it.get("value") or ""))
+            if m:
+                gid = m.group(1).strip()
+        if gid and gid in by_girl:
+            ctx = _merge_ctx(ctx, by_girl[gid])
 
         it["value"] = _append_context_to_value(it.get("value"), ctx)
         it["message"] = _append_context_to_message(it.get("message"), ctx)

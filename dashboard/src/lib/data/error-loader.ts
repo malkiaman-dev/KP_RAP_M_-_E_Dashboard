@@ -7,12 +7,8 @@ import {
   type ErrorRow,
   type ErrorSeverity,
 } from "./error-metrics";
-import {
-  getDqaLastError,
-  getDqaStatus,
-  scheduleDqaIfStale,
-  type DqaStatus,
-} from "./dqa-runner";
+import { enrichErrorRowsLive } from "./error-context";
+import { getDqaLastError, type DqaStatus } from "./dqa-runner";
 
 export type { ErrorRow, ErrorMetrics, ErrorFilters } from "./error-metrics";
 export {
@@ -38,7 +34,6 @@ function readFileResilient(filePath: string): Buffer | null {
   try {
     return fs.readFileSync(filePath);
   } catch {
-    // The file may be locked (open in Excel). Copy to a temp file and read that.
     try {
       const tmp = path.join(
         process.cwd(),
@@ -69,9 +64,6 @@ export function loadErrorRows(): ErrorRow[] {
   const filePath = ERROR_LOG_CANDIDATES.find((p) => fs.existsSync(p));
   if (!filePath) return [];
 
-  // Read the bytes ourselves (with a copy fallback if the workbook is locked,
-  // e.g. open in Excel) instead of XLSX.readFile, which can fail to access the
-  // file directly on Windows.
   const buffer = readFileResilient(filePath);
   if (!buffer) return [];
   const workbook = XLSX.read(buffer, { type: "buffer" });
@@ -102,17 +94,24 @@ export function loadErrorRows(): ErrorRow[] {
   }));
 }
 
+/**
+ * Error Report metrics.
+ *
+ * Girl / village / school are filled live from Surveys/*.csv on every load
+ * (mtime-cached), including cross-survey school lookup by girl ID. This avoids
+ * waiting several minutes for Python DQA just to refresh context fields.
+ *
+ * Full rule regeneration still uses `runDqaNow()` / publish (Python) when you
+ * need a fresh Daily_Error_Log.xlsx from scratch.
+ */
 export function loadErrorMetrics() {
-  // When Surveys/*.csv are newer than the error log, kick off DQA in the
-  // background so the next refresh shows updated issues without blocking this
-  // request for several minutes.
-  const dqaStatus = scheduleDqaIfStale();
-  const rows = scopeErrorReportRows(loadErrorRows());
+  const rows = enrichErrorRowsLive(scopeErrorReportRows(loadErrorRows()));
   const metrics = computeErrorMetrics(rows);
   return {
     ...metrics,
-    dqaStatus: dqaStatus === "stale" ? getDqaStatus() : dqaStatus,
+    dqaStatus: "fresh" as DqaStatus,
     dqaError: getDqaLastError(),
+    dqaMode: "live-surveys" as const,
   };
 }
 

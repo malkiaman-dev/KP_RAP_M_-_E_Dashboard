@@ -11,6 +11,10 @@ import {
 } from "lucide-react";
 import { cn, formatDisplayDate } from "@/lib/utils";
 import type { ErrorMetrics, ErrorRow } from "@/lib/data/error-metrics";
+import {
+  parseErrorValueParts,
+  stripContextFromValue,
+} from "@/lib/data/error-value-parse";
 import { downloadErrorReportExcel } from "@/lib/export/error-report-excel";
 
 const PAGE_SIZE = 50;
@@ -27,6 +31,21 @@ function displayOrDash(value?: string): string {
 function displayDateOnly(value?: string): string {
   const formatted = formatDisplayDate((value || "").trim());
   return formatted || "—";
+}
+
+function contextFields(e: ErrorRow): {
+  girlName: string;
+  village: string;
+  school: string;
+  valueEntered: string;
+} {
+  const parts = parseErrorValueParts(e.value);
+  return {
+    girlName: e.girlName || parts.girl_name || parts.girlname || "",
+    village: e.villageName || parts.village || "",
+    school: e.schoolName || parts.school || "",
+    valueEntered: stripContextFromValue(e.value) || e.value || "",
+  };
 }
 
 export function ErrorTable({
@@ -54,7 +73,10 @@ export function ErrorTable({
         e.district.toLowerCase().includes(q) ||
         e.recordKey.toLowerCase().includes(q) ||
         e.field.toLowerCase().includes(q) ||
-        e.value.toLowerCase().includes(q)
+        e.value.toLowerCase().includes(q) ||
+        (e.girlName || "").toLowerCase().includes(q) ||
+        (e.villageName || "").toLowerCase().includes(q) ||
+        (e.schoolName || "").toLowerCase().includes(q)
     );
   }, [metrics, query]);
 
@@ -79,78 +101,60 @@ export function ErrorTable({
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mb-6 rounded-2xl border border-border/60 bg-card shadow-sm"
+      className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm"
     >
-      <div className="flex flex-col gap-4 border-b border-border/60 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-4">
         <div>
           <h3 className="text-sm font-semibold text-foreground">
             Error Detail Log
           </h3>
           <p className="text-xs text-muted-foreground">
-            Showing {shown.length.toLocaleString()} of{" "}
+            Showing {Math.min(visible, rows.length).toLocaleString()} of{" "}
             {rows.length.toLocaleString()} issues
           </p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden="true"
-            />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
                 setVisible(PAGE_SIZE);
-                setExpanded({});
               }}
               placeholder="Search records..."
-              className="h-9 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm sm:w-56"
-              aria-label="Search errors"
+              className="h-9 w-48 rounded-xl border border-border bg-background pl-9 pr-3 text-xs outline-none focus:border-teal/40 sm:w-64"
             />
           </div>
           <button
             type="button"
             onClick={handleDownload}
-            disabled={rows.length === 0}
-            className="flex h-9 items-center gap-1.5 rounded-xl border border-border px-3 text-xs font-medium text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-            aria-label="Download error report"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border px-3 text-xs font-medium text-muted-foreground hover:bg-muted"
           >
-            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            <Download className="h-3.5 w-3.5" />
             Download
           </button>
         </div>
       </div>
 
-      <div className="max-h-[560px] overflow-auto">
-        <table className="w-full min-w-[1020px] text-left" role="table">
-          <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
-            <tr className="border-b border-border/60">
-              <th className="w-10 px-5 py-3" aria-label="Details" />
-              <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Enumerator
-              </th>
-              <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                District
-              </th>
-              <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Rule
-              </th>
-              <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Title
-              </th>
-              <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Survey
-              </th>
-              <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Severity
-              </th>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] text-left">
+          <thead>
+            <tr className="border-b border-border/60 bg-muted/30 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <th className="w-10 px-5 py-3" />
+              <th className="px-5 py-3">Enumerator</th>
+              <th className="px-5 py-3">District</th>
+              <th className="px-5 py-3">Rule</th>
+              <th className="px-5 py-3">Title</th>
+              <th className="px-5 py-3">Survey</th>
+              <th className="px-5 py-3">Severity</th>
             </tr>
           </thead>
           <tbody>
             {shown.map((e: ErrorRow, i) => {
               const key = rowKey(e, i);
               const isOpen = Boolean(expanded[key]);
+              const ctx = contextFields(e);
               return (
                 <Fragment key={key}>
                   <motion.tr
@@ -221,8 +225,20 @@ export function ErrorTable({
                       <td colSpan={7} className="px-5 py-4">
                         <div className="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
                           <Detail
+                            label="Girl name"
+                            value={displayOrDash(ctx.girlName)}
+                          />
+                          <Detail
+                            label="Village"
+                            value={displayOrDash(ctx.village)}
+                          />
+                          <Detail
+                            label="School"
+                            value={displayOrDash(ctx.school)}
+                          />
+                          <Detail
                             label="Value entered"
-                            value={displayOrDash(e.value)}
+                            value={displayOrDash(ctx.valueEntered)}
                           />
                           <Detail
                             label="Field"
@@ -281,13 +297,11 @@ export function ErrorTable({
   );
 }
 
-function Detail({ label, value }: { label: string; value?: string }) {
+function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <span className="text-muted-foreground">{label}: </span>
-      <span className="break-all font-medium text-foreground">
-        {value || "—"}
-      </span>
+      <p className="text-muted-foreground">{label}</p>
+      <p className="mt-0.5 break-all font-medium text-foreground">{value}</p>
     </div>
   );
 }
@@ -296,14 +310,14 @@ function SeverityBadge({ severity }: { severity: ErrorRow["severity"] }) {
   if (severity === "CRITICAL") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-600">
-        <ShieldAlert className="h-3 w-3" aria-hidden="true" />
+        <ShieldAlert className="h-3 w-3" />
         Critical
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-600">
-      <Flag className="h-3 w-3" aria-hidden="true" />
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-gold">
+      <Flag className="h-3 w-3" />
       Quality
     </span>
   );
