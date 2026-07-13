@@ -11,6 +11,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  type TooltipContentProps,
 } from "recharts";
 import {
   toggleErrorFilters,
@@ -39,18 +40,16 @@ function scoreColor(score: number, palette: FirmPalette): string {
   return "#EF4444";
 }
 
-type RuleTooltipProps = {
-  active?: boolean;
-  payload?: Array<{
-    value?: number;
-    payload?: { ruleId?: string; title?: string; count?: number };
-  }>;
+type RuleErrorPoint = {
+  ruleId?: string;
+  title?: string;
+  count?: number;
 };
 
 /** Full rule id + title; parents use allowOverflow so this is not clipped. */
-function RuleErrorTooltip({ active, payload }: RuleTooltipProps) {
+function RuleErrorTooltip({ active, payload }: TooltipContentProps) {
   if (!active || !payload?.[0]?.payload) return null;
-  const row = payload[0].payload;
+  const row = payload[0].payload as RuleErrorPoint;
   const count = payload[0].value ?? row.count ?? 0;
   return (
     <div style={tooltipStyle} className="max-w-[260px]">
