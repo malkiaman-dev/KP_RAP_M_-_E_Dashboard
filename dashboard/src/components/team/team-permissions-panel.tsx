@@ -78,7 +78,9 @@ export function TeamPermissionsPanel() {
     const current = forms[role]?.routes ?? [];
     const isEnabled = current.includes(href);
     const isMalkiRequired = role === "malki" && href === "/team";
-    const isDistrictRequired = role === "district" && href === "/field";
+    const isDistrictRequired =
+      role === "district" &&
+      (href === "/field" || href === "/field/analytics");
 
     if ((isMalkiRequired || isDistrictRequired) && isEnabled) return;
 
@@ -209,7 +211,8 @@ export function TeamPermissionsPanel() {
                           const enabled = form.routes.includes(tab.href);
                           const lockedForMalki = role === "malki" && tab.href === "/team";
                           const lockedForDistrict =
-                            role === "district" && tab.href === "/field";
+                            role === "district" &&
+                            (tab.href === "/field" || tab.href === "/field/analytics");
                           const lockedTab = lockedForMalki || lockedForDistrict;
 
                           return (

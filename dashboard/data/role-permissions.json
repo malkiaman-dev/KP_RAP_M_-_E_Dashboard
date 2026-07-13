@@ -25,7 +25,8 @@
       "/tracking"
     ],
     "district": [
-      "/field"
+      "/field",
+      "/field/analytics"
     ]
   }
 }

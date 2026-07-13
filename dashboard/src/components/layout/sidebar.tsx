@@ -52,6 +52,7 @@ const TAB_ICONS: Record<string, LucideIcon> = {
   "/surveys/hh-girls": ClipboardList,
   "/surveys/errors": AlertTriangle,
   "/field": AlertTriangle,
+  "/field/analytics": BarChart3,
   "/monitoring": Activity,
   "/team": UserCog,
   "/settings": Settings,
@@ -134,8 +135,8 @@ export function Sidebar({
       <nav className="flex-1 overflow-y-auto px-3 py-4" role="navigation">
         {navSections.map((section) => {
           const visibleItems = section.items.filter((item) => {
-            // Field Errors is only for district accounts — never show locked to stakeholders.
-            if (item.href === "/field") {
+            // Field tabs are only for district accounts — never show locked to stakeholders.
+            if (item.href === "/field" || item.href === "/field/analytics") {
               return canAccess(item.href);
             }
             if (user?.role === "district") {

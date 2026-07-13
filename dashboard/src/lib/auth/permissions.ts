@@ -35,7 +35,7 @@ const DEFAULT_PERMISSIONS: PermissionsFile = {
     pidc: ["/tracking", "/monitoring", "/surveys/errors"],
     "world-bank": ["/tracking"],
     piu: ["/tracking"],
-    district: ["/field"],
+    district: ["/field", "/field/analytics"],
   },
 };
 
@@ -110,8 +110,12 @@ export function updateRoleTabAccess(role: Role, routes: string[]): string[] {
     }
   }
 
-  if (role === "district" && !validated.includes("/field")) {
-    validated = [...validated, "/field"];
+  if (role === "district") {
+    for (const required of ["/field", "/field/analytics"] as const) {
+      if (!validated.includes(required)) {
+        validated = [...validated, required];
+      }
+    }
   }
 
   permissions.roles[role] = validated;

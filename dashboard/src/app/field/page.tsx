@@ -81,6 +81,9 @@ export default function FieldErrorsPage() {
         accent="Field"
         description="Review critical and quality issues for your district. Filter by enumerator to open each person’s error log."
         loading={isLoading}
+        links={[
+          { href: "/field/analytics", label: "Error Analytics" },
+        ]}
         stats={[
           {
             label: "Total errors",

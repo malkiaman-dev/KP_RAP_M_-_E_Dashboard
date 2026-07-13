@@ -34,6 +34,12 @@ export const NAV_TABS: NavTab[] = [
     section: "Surveys",
     apis: ["/api/errors"],
   },
+  {
+    href: "/field/analytics",
+    label: "Error Analytics",
+    section: "Surveys",
+    apis: ["/api/errors"],
+  },
   { href: "/monitoring", label: "Monitoring", section: "Surveys", apis: ["/api/tracking"] },
   {
     href: "/team",
@@ -49,7 +55,7 @@ export const NAV_SECTIONS = [...new Set(NAV_TABS.map((tab) => tab.section))];
 export const ALL_TAB_HREFS = NAV_TABS.map((tab) => tab.href);
 
 /** Hub routes that highlight only on an exact path match, not child routes. */
-const EXACT_MATCH_HREFS = new Set(["/surveys"]);
+const EXACT_MATCH_HREFS = new Set(["/surveys", "/field"]);
 
 /** Whether a nav tab should appear active for the current pathname. */
 export function isNavTabActive(pathname: string, href: string): boolean {
