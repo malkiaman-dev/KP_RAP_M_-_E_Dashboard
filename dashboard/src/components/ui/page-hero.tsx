@@ -134,7 +134,7 @@ export function PageHero({
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.28 }}
-            className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+            className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4"
           >
             {stats.map((stat) => {
               const Icon = stat.icon;

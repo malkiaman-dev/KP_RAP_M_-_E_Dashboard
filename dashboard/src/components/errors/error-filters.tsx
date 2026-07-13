@@ -145,8 +145,8 @@ export function ErrorFiltersPanel({
                 <FilterDateRange
                   dateFrom={filters.dateFrom}
                   dateTo={filters.dateTo}
-                  min={filterOptions?.dateRange.start}
-                  max={filterOptions?.dateRange.end}
+                  min={filterOptions?.dateRange?.start}
+                  max={filterOptions?.dateRange?.end}
                   onChange={(range) =>
                     onChange({
                       ...filters,

@@ -93,12 +93,12 @@ export const FIRM_PALETTES: Record<FirmId, FirmPalette> = {
 export const FIRMS: Record<FirmId, FirmBrand> = {
   alliance: {
     id: "alliance",
-    name: "Alliance of Excellence",
-    shortName: "AOE",
+    name: "KP-RAP Project",
+    shortName: "KP-RAP",
     tagline: "Monitoring & Evaluation Intelligence",
-    logo: "/alliance-logo.png",
-    logoMark: "/alliance-logo.png",
-    favicon: "/alliance-favicon.png",
+    logo: "/kprap-logo.png",
+    logoMark: "/kprap-logo.png",
+    favicon: "/kprap-favicon.png",
     palette: ALLIANCE_PALETTE,
   },
   pidc: {
