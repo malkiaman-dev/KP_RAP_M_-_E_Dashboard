@@ -189,8 +189,9 @@ export function ErrorCharts({
                     activeDot={{
                       r: 5,
                       style: pointerBarStyle,
-                      onClick: (_: unknown, payload: { payload?: { date?: string } }) => {
-                        const date = payload?.payload?.date;
+                      onClick: (props) => {
+                        const date = (props as { payload?: { date?: string } }).payload
+                          ?.date;
                         if (date) pickDate(date);
                       },
                     }}
@@ -206,8 +207,9 @@ export function ErrorCharts({
                     activeDot={{
                       r: 5,
                       style: pointerBarStyle,
-                      onClick: (_: unknown, payload: { payload?: { date?: string } }) => {
-                        const date = payload?.payload?.date;
+                      onClick: (props) => {
+                        const date = (props as { payload?: { date?: string } }).payload
+                          ?.date;
                         if (date) pickDate(date);
                       },
                     }}

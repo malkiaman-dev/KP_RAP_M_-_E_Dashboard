@@ -290,7 +290,7 @@ export async function downloadErrorDqaReportDocx(
   const generated =
     formatDisplayDate(input.generatedAt.toISOString().slice(0, 10)) || "—";
 
-  const children = [
+  const children: (Paragraph | Table)[] = [
     p("KP-RAP Project", { bold: true, size: 16, color: COLOR.brand }),
     p("Error Quality Report", { bold: true, size: 32, color: COLOR.ink }),
     p(`${input.scopeLabel} · ${input.dateRangeLabel}`, {
