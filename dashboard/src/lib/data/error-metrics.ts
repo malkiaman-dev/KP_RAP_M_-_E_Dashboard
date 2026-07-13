@@ -34,6 +34,10 @@ export interface ErrorFilters {
   severity: string;
   enumerator: string;
   ruleId: string;
+  dateFrom: string;
+  dateTo: string;
+  /** When true, only submissions from today are included. */
+  todayOnly: boolean;
 }
 
 export const defaultErrorFilters: ErrorFilters = {
@@ -42,6 +46,9 @@ export const defaultErrorFilters: ErrorFilters = {
   severity: "all",
   enumerator: "all",
   ruleId: "all",
+  dateFrom: "",
+  dateTo: "",
+  todayOnly: false,
 };
 
 /** Surveys shown on the Error Report (enumerator-attributable field checks). */
@@ -100,20 +107,41 @@ export function toggleErrorFilters(
   patch: Partial<ErrorFilters>
 ): ErrorFilters {
   const next = { ...current };
-  for (const [key, value] of Object.entries(patch) as [
-    keyof ErrorFilters,
-    string,
-  ][]) {
-    if (!value || value === "all") continue;
-    next[key] = current[key] === value ? "all" : value;
+  const keys = Object.keys(patch) as (keyof ErrorFilters)[];
+  for (const key of keys) {
+    if (key === "dateFrom" || key === "dateTo" || key === "todayOnly") continue;
+    const value = patch[key];
+    if (typeof value !== "string" || !value || value === "all") continue;
+    const currentValue = current[key];
+    if (typeof currentValue !== "string") continue;
+    next[key] = currentValue === value ? "all" : value;
   }
   return next;
+}
+
+function errorSubmissionDay(raw: string): Date | null {
+  if (!raw) return null;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return null;
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
+}
+
+function todayIsoLocal(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 export function applyErrorFilters(
   rows: ErrorRow[],
   filters: ErrorFilters
 ): ErrorRow[] {
+  const dateFrom = filters.todayOnly ? todayIsoLocal() : filters.dateFrom;
+  const dateTo = filters.todayOnly ? todayIsoLocal() : filters.dateTo;
+
   return rows.filter((r) => {
     if (filters.district !== "all" && r.district !== filters.district)
       return false;
@@ -136,6 +164,20 @@ export function applyErrorFilters(
         return false;
       }
     }
+
+    if (dateFrom || dateTo) {
+      const subDate = errorSubmissionDay(r.submissionDate);
+      if (!subDate) return false;
+      if (dateFrom) {
+        const from = errorSubmissionDay(dateFrom);
+        if (from && subDate < from) return false;
+      }
+      if (dateTo) {
+        const to = errorSubmissionDay(dateTo);
+        if (to && subDate > to) return false;
+      }
+    }
+
     return true;
   });
 }
@@ -321,6 +363,16 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
     }))
   );
 
+  let dateStart = "";
+  let dateEnd = "";
+  for (const r of rows) {
+    const day = errorSubmissionDay(r.submissionDate);
+    if (!day) continue;
+    const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+    if (!dateStart || iso < dateStart) dateStart = iso;
+    if (!dateEnd || iso > dateEnd) dateEnd = iso;
+  }
+
   return {
     totalErrors,
     criticalErrors,
@@ -350,6 +402,7 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
         { value: "CRITICAL", label: "Critical" },
         { value: "FLAG", label: "Quality" },
       ],
+      dateRange: { start: dateStart, end: dateEnd },
     },
   };
 }

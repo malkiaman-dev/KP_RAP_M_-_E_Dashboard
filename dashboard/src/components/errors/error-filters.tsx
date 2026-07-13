@@ -8,11 +8,12 @@ import {
   ClipboardList,
   ShieldAlert,
   Users,
+  Calendar,
   ChevronDown,
   X,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { FilterSelect } from "@/components/ui/filter-select";
+import { cn, toIsoDateString } from "@/lib/utils";
+import { FilterDateRange, FilterSelect } from "@/components/ui/filter-select";
 import type { ErrorFilters, ErrorMetrics } from "@/lib/data/error-metrics";
 import { defaultErrorFilters } from "@/lib/data/error-metrics";
 
@@ -22,6 +23,8 @@ interface ErrorFiltersPanelProps {
   onChange: (filters: ErrorFilters) => void;
   /** Hide district dropdown (field accounts are already district-scoped). */
   hideDistrict?: boolean;
+  /** Show the Today toggle after the date range. */
+  showTodayToggle?: boolean;
 }
 
 export function ErrorFiltersPanel({
@@ -29,6 +32,7 @@ export function ErrorFiltersPanel({
   filters,
   onChange,
   hideDistrict = false,
+  showTodayToggle = true,
 }: ErrorFiltersPanelProps) {
   const [expanded, setExpanded] = useCollapsedOnMobile();
 
@@ -75,8 +79,11 @@ export function ErrorFiltersPanel({
     },
   ];
 
-  const resetFilters = hideDistrict
-    ? { ...defaultErrorFilters, district: filters.district }
+  const resetFilters: ErrorFilters = hideDistrict
+    ? {
+        ...defaultErrorFilters,
+        district: filters.district,
+      }
     : defaultErrorFilters;
 
   return (
@@ -109,7 +116,7 @@ export function ErrorFiltersPanel({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-visible"
           >
-            <div className={`grid gap-4 p-5 sm:grid-cols-2 ${hideDistrict ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>
+            <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {fields.map((field) => {
                 const Icon = field.icon;
                 return (
@@ -129,6 +136,71 @@ export function ErrorFiltersPanel({
                   </div>
                 );
               })}
+
+              <div className="sm:col-span-2">
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Calendar className="h-3 w-3" aria-hidden="true" />
+                  Submission Date Range
+                </label>
+                <FilterDateRange
+                  dateFrom={filters.dateFrom}
+                  dateTo={filters.dateTo}
+                  min={filterOptions?.dateRange.start}
+                  max={filterOptions?.dateRange.end}
+                  onChange={(range) =>
+                    onChange({
+                      ...filters,
+                      dateFrom: range.dateFrom,
+                      dateTo: range.dateTo,
+                      todayOnly: false,
+                    })
+                  }
+                  aria-label="Submission date range"
+                />
+              </div>
+
+              {showTodayToggle && (
+                <div className="flex flex-col justify-end">
+                  <label className="mb-1.5 text-xs font-medium text-muted-foreground">
+                    Today
+                  </label>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={filters.todayOnly}
+                    aria-label="Filter to today only"
+                    onClick={() => {
+                      if (filters.todayOnly) {
+                        onChange({
+                          ...filters,
+                          todayOnly: false,
+                          dateFrom: "",
+                          dateTo: "",
+                        });
+                      } else {
+                        const today = toIsoDateString(new Date());
+                        onChange({
+                          ...filters,
+                          todayOnly: true,
+                          dateFrom: today,
+                          dateTo: today,
+                        });
+                      }
+                    }}
+                    className={cn(
+                      "relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200",
+                      filters.todayOnly ? "bg-green-500" : "bg-muted"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-200",
+                        filters.todayOnly && "translate-x-5"
+                      )}
+                    />
+                  </button>
+                </div>
+              )}
             </div>
             <div className="flex justify-end border-t border-border/60 px-5 py-3">
               <button

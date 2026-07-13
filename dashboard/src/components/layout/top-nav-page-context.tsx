@@ -22,12 +22,16 @@ function getPageContext(pathname: string) {
   );
 }
 
-const JUMP_TO_HREFS = [
+/** Stakeholder quick links (filtered by role permissions). */
+const STAKEHOLDER_JUMP_HREFS = [
   "/surveys",
   "/surveys/errors",
   "/monitoring",
   "/reports",
 ] as const;
+
+/** District field quick links. */
+const FIELD_JUMP_HREFS = ["/field", "/field/analytics"] as const;
 
 function isJumpLinkActive(pathname: string, href: string): boolean {
   return isNavTabActive(pathname, href);
@@ -35,15 +39,18 @@ function isJumpLinkActive(pathname: string, href: string): boolean {
 
 export function TopNavPageContext() {
   const pathname = usePathname();
-  const { allowedRoutes } = useAuth();
+  const { allowedRoutes, user } = useAuth();
   const current = getPageContext(pathname);
 
-  const quickLinks = JUMP_TO_HREFS.map((href) =>
-    NAV_TABS.find((tab) => tab.href === href)
-  ).filter(
-    (tab): tab is (typeof NAV_TABS)[number] =>
-      tab != null && isPathAllowed(allowedRoutes, tab.href)
-  );
+  const jumpHrefs =
+    user?.role === "district" ? FIELD_JUMP_HREFS : STAKEHOLDER_JUMP_HREFS;
+
+  const quickLinks = jumpHrefs
+    .map((href) => NAV_TABS.find((tab) => tab.href === href))
+    .filter(
+      (tab): tab is (typeof NAV_TABS)[number] =>
+        tab != null && isPathAllowed(allowedRoutes, tab.href)
+    );
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
@@ -56,45 +63,47 @@ export function TopNavPageContext() {
         </p>
       </div>
 
-      <div className="hidden min-w-0 flex-1 items-center justify-center md:flex">
-        <div className="flex max-w-full flex-wrap items-center justify-center gap-1.5 overflow-hidden rounded-xl border border-border/60 bg-card/40 px-2 py-1">
-          <span className="shrink-0 px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Jump to
-          </span>
-          {quickLinks.map((tab, index) => {
-            const active = isJumpLinkActive(pathname, tab.href);
+      {quickLinks.length > 0 && (
+        <div className="hidden min-w-0 flex-1 items-center justify-center md:flex">
+          <div className="flex max-w-full flex-wrap items-center justify-center gap-1.5 overflow-hidden rounded-xl border border-border/60 bg-card/40 px-2 py-1">
+            <span className="shrink-0 px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Jump to
+            </span>
+            {quickLinks.map((tab, index) => {
+              const active = isJumpLinkActive(pathname, tab.href);
 
-            return (
-              <span key={tab.href} className="flex min-w-0 items-center">
-                {index > 0 && (
-                  <ChevronRight
-                    className="mx-0.5 h-3 w-3 shrink-0 text-muted-foreground/35"
-                    aria-hidden="true"
-                  />
-                )}
-                {active ? (
-                  <span
-                    className="truncate rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary"
-                    aria-current="page"
-                  >
-                    {tab.label}
-                  </span>
-                ) : (
-                  <Link
-                    href={tab.href}
-                    className={cn(
-                      "truncate rounded-md px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors",
-                      "hover:bg-primary/10 hover:text-primary"
-                    )}
-                  >
-                    {tab.label}
-                  </Link>
-                )}
-              </span>
-            );
-          })}
+              return (
+                <span key={tab.href} className="flex min-w-0 items-center">
+                  {index > 0 && (
+                    <ChevronRight
+                      className="mx-0.5 h-3 w-3 shrink-0 text-muted-foreground/35"
+                      aria-hidden="true"
+                    />
+                  )}
+                  {active ? (
+                    <span
+                      className="truncate rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary"
+                      aria-current="page"
+                    >
+                      {tab.label}
+                    </span>
+                  ) : (
+                    <Link
+                      href={tab.href}
+                      className={cn(
+                        "truncate rounded-md px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors",
+                        "hover:bg-primary/10 hover:text-primary"
+                      )}
+                    >
+                      {tab.label}
+                    </Link>
+                  )}
+                </span>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
