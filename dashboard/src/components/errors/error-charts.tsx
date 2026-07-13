@@ -76,11 +76,14 @@ export function ErrorCharts({
   loading,
   filters,
   onFilterChange,
+  lockDistrict = false,
 }: {
   metrics?: ErrorMetrics;
   loading?: boolean;
   filters: ErrorFilters;
   onFilterChange: (filters: ErrorFilters) => void;
+  /** Field accounts: ignore district toggles from chart clicks. */
+  lockDistrict?: boolean;
 }) {
   const { palette } = useFirm();
 
@@ -95,8 +98,11 @@ export function ErrorCharts({
 
   if (!metrics) return null;
 
-  const pick = (patch: Partial<ErrorFilters>) =>
-    onFilterChange(toggleErrorFilters(filters, patch));
+  const pick = (patch: Partial<ErrorFilters>) => {
+    const next = { ...patch };
+    if (lockDistrict) delete next.district;
+    onFilterChange(toggleErrorFilters(filters, next));
+  };
 
   const districtActive = (district: string) =>
     filters.district === "all" || filters.district === district;

@@ -181,14 +181,14 @@ export function applyFirmTheme(firmId: FirmId) {
 }
 
 export function getDefaultFirmForRole(
-  role: "malki" | "pidc" | "world-bank" | "piu" | null | undefined
+  role: "malki" | "pidc" | "world-bank" | "piu" | "district" | null | undefined
 ): FirmId {
   if (role === "pidc" || role === "piu") return "pidc";
   return "alliance";
 }
 
 export function canRoleSwitchFirm(
-  role: "malki" | "pidc" | "world-bank" | "piu" | null | undefined
+  role: "malki" | "pidc" | "world-bank" | "piu" | "district" | null | undefined
 ): boolean {
   // Before sign-in, allow branding preview; after sign-in only Malki can switch.
   if (role == null) return true;

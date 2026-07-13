@@ -28,6 +28,12 @@ export const NAV_TABS: NavTab[] = [
     section: "Surveys",
     apis: ["/api/errors"],
   },
+  {
+    href: "/field",
+    label: "Field Errors",
+    section: "Surveys",
+    apis: ["/api/errors"],
+  },
   { href: "/monitoring", label: "Monitoring", section: "Surveys", apis: ["/api/tracking"] },
   {
     href: "/team",

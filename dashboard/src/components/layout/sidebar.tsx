@@ -51,6 +51,7 @@ const TAB_ICONS: Record<string, LucideIcon> = {
   "/tracking": MapPin,
   "/surveys/hh-girls": ClipboardList,
   "/surveys/errors": AlertTriangle,
+  "/field": AlertTriangle,
   "/monitoring": Activity,
   "/team": UserCog,
   "/settings": Settings,
@@ -131,7 +132,20 @@ export function Sidebar({
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4" role="navigation">
-        {navSections.map((section) => (
+        {navSections.map((section) => {
+          const visibleItems = section.items.filter((item) => {
+            // Field Errors is only for district accounts — never show locked to stakeholders.
+            if (item.href === "/field") {
+              return canAccess(item.href);
+            }
+            if (user?.role === "district") {
+              return canAccess(item.href);
+            }
+            return true;
+          });
+          if (visibleItems.length === 0) return null;
+
+          return (
           <div key={section.label} className="mb-6">
             <AnimatePresence>
               {!effectiveCollapsed && (
@@ -146,7 +160,7 @@ export function Sidebar({
               )}
             </AnimatePresence>
             <ul className="space-y-1">
-              {section.items.map((item) => {
+              {visibleItems.map((item) => {
                 const isActive = isNavTabActive(pathname, item.href);
                 const Icon = item.icon;
                 const allowed = canAccess(item.href);
@@ -237,7 +251,8 @@ export function Sidebar({
               })}
             </ul>
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       <div className="border-t border-border p-4">
@@ -251,7 +266,11 @@ export function Sidebar({
             <div>
               <p className="text-xs font-medium text-foreground">KPRAP Project</p>
               <p className="mt-0.5 text-[10px] text-muted-foreground">
-                {user ? ROLE_LABELS[user.role] : "SurveyCTO Live Data"}
+                {user
+                  ? user.role === "district" && user.district
+                    ? user.district
+                    : ROLE_LABELS[user.role]
+                  : "SurveyCTO Live Data"}
               </p>
               <div className="mt-2 flex items-center gap-1.5">
                 <span className="relative flex h-2 w-2">

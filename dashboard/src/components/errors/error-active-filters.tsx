@@ -25,15 +25,24 @@ function displayValue(key: keyof ErrorFilters, value: string): string {
 export function ErrorActiveFilters({
   filters,
   onChange,
+  hideDistrict = false,
 }: {
   filters: ErrorFilters;
   onChange: (filters: ErrorFilters) => void;
+  hideDistrict?: boolean;
 }) {
   const active = (Object.keys(filters) as (keyof ErrorFilters)[]).filter(
-    (key) => filters[key] !== "all"
+    (key) => {
+      if (hideDistrict && key === "district") return false;
+      return filters[key] !== "all";
+    }
   );
 
   if (active.length === 0) return null;
+
+  const clearAll = hideDistrict
+    ? { ...defaultErrorFilters, district: filters.district }
+    : defaultErrorFilters;
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -53,7 +62,7 @@ export function ErrorActiveFilters({
       ))}
       <button
         type="button"
-        onClick={() => onChange(defaultErrorFilters)}
+        onClick={() => onChange(clearAll)}
         className="text-[11px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
       >
         Clear all

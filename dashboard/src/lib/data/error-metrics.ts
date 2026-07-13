@@ -140,6 +140,14 @@ export function applyErrorFilters(
   });
 }
 
+/** Restrict error rows to a district field account's district. */
+export function scopeErrorsToDistrict(
+  rows: ErrorRow[],
+  district: string
+): ErrorRow[] {
+  return rows.filter((r) => r.district === district);
+}
+
 function rate(part: number, whole: number): number {
   return whole > 0 ? (part / whole) * 100 : 0;
 }

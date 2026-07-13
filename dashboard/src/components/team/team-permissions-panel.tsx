@@ -78,8 +78,9 @@ export function TeamPermissionsPanel() {
     const current = forms[role]?.routes ?? [];
     const isEnabled = current.includes(href);
     const isMalkiRequired = role === "malki" && href === "/team";
+    const isDistrictRequired = role === "district" && href === "/field";
 
-    if (isMalkiRequired && isEnabled) return;
+    if ((isMalkiRequired || isDistrictRequired) && isEnabled) return;
 
     const routes = isEnabled
       ? current.filter((route) => route !== href)
@@ -207,6 +208,9 @@ export function TeamPermissionsPanel() {
                         .map((tab) => {
                           const enabled = form.routes.includes(tab.href);
                           const lockedForMalki = role === "malki" && tab.href === "/team";
+                          const lockedForDistrict =
+                            role === "district" && tab.href === "/field";
+                          const lockedTab = lockedForMalki || lockedForDistrict;
 
                           return (
                             <label
@@ -215,7 +219,7 @@ export function TeamPermissionsPanel() {
                                 enabled
                                   ? "border-primary/30 bg-primary/5"
                                   : "border-border bg-background"
-                              } ${lockedForMalki ? "opacity-80" : "cursor-pointer hover:bg-muted/40"}`}
+                              } ${lockedTab ? "opacity-80" : "cursor-pointer hover:bg-muted/40"}`}
                             >
                               <span className="text-sm font-medium text-foreground">
                                 {tab.label}
@@ -223,7 +227,7 @@ export function TeamPermissionsPanel() {
                               <input
                                 type="checkbox"
                                 checked={enabled}
-                                disabled={lockedForMalki}
+                                disabled={lockedTab}
                                 onChange={() => toggleTab(role, tab.href)}
                                 className="h-4 w-4 rounded border-border text-primary focus:ring-primary/30 disabled:cursor-not-allowed"
                               />

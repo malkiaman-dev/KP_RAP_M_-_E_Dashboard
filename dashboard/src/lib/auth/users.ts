@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
+import { isFieldDistrict, type FieldDistrict } from "./districts";
 import type { Role, User } from "./types";
 
 interface CredentialsFile {
@@ -51,32 +52,49 @@ export function findUser(email: string, password: string): User | null {
   );
 }
 
-export function getPublicUsers(): Pick<User, "role" | "name" | "email">[] {
-  return getUsers().map(({ role, name, email }) => ({ role, name, email }));
+export function getPublicUsers(): Pick<User, "role" | "name" | "email" | "district">[] {
+  return getUsers().map(({ role, name, email, district }) => ({
+    role,
+    name,
+    email,
+    district,
+  }));
 }
 
 /** Malki-only credential management view — includes plaintext passwords. */
 export function getManageableUsers(): Pick<
   User,
-  "role" | "name" | "email" | "password"
+  "role" | "name" | "email" | "password" | "district"
 >[] {
-  return getUsers().map(({ role, name, email, password }) => ({
+  return getUsers().map(({ role, name, email, password, district }) => ({
     role,
     name,
     email,
     password,
+    district,
   }));
 }
 
 export function updateUserCredentials(
   role: Role,
-  updates: { email: string; password?: string }
+  updates: { email: string; password?: string; district?: FieldDistrict }
 ): User {
   const users = getUsers();
-  const index = users.findIndex((user) => user.role === role);
+  const index =
+    role === "district"
+      ? users.findIndex(
+          (user) =>
+            user.role === "district" &&
+            user.district === updates.district
+        )
+      : users.findIndex((user) => user.role === role);
 
   if (index === -1) {
     throw new Error("User not found");
+  }
+
+  if (role === "district" && !isFieldDistrict(updates.district)) {
+    throw new Error("District is required for field accounts");
   }
 
   const email = updates.email.trim();

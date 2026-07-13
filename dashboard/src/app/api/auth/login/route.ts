@@ -26,6 +26,7 @@ export async function POST(request: Request) {
       email: user.email,
       role: user.role,
       name: user.name,
+      ...(user.district ? { district: user.district } : {}),
     };
 
     const token = await signSession(session);

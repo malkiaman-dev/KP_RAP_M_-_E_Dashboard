@@ -5,6 +5,15 @@ export const ROLE_LABELS: Record<Role, string> = {
   pidc: "PIDC",
   "world-bank": "World Bank",
   piu: "PIU",
+  district: "Field Team",
 };
 
-export const ALL_ROLES: Role[] = ["malki", "pidc", "world-bank", "piu"];
+/** Stakeholder roles with one account each (excludes multi-account district). */
+export const STAKEHOLDER_ROLES: Role[] = [
+  "malki",
+  "pidc",
+  "world-bank",
+  "piu",
+];
+
+export const ALL_ROLES: Role[] = [...STAKEHOLDER_ROLES, "district"];

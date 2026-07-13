@@ -23,6 +23,9 @@
     ],
     "piu": [
       "/tracking"
+    ],
+    "district": [
+      "/field"
     ]
   }
 }

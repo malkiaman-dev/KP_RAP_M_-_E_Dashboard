@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { loadErrorMetrics } from "@/lib/data/error-loader";
+import {
+  computeErrorMetrics,
+  scopeErrorsToDistrict,
+} from "@/lib/data/error-metrics";
 import { requireApiAccess } from "@/lib/auth/guard";
+import { isFieldDistrict } from "@/lib/auth/districts";
 
 export const dynamic = "force-dynamic";
 /** DQA may still be regenerating in the background; allow a long request budget. */
@@ -12,6 +17,26 @@ export async function GET() {
 
   try {
     const metrics = loadErrorMetrics();
+
+    if (auth.session.role === "district") {
+      const district = auth.session.district;
+      if (!isFieldDistrict(district)) {
+        return NextResponse.json(
+          { error: "District scope missing from session" },
+          { status: 403 }
+        );
+      }
+
+      const scopedRows = scopeErrorsToDistrict(metrics.allErrors, district);
+      const scoped = computeErrorMetrics(scopedRows);
+      return NextResponse.json({
+        ...scoped,
+        dqaStatus: metrics.dqaStatus,
+        dqaError: metrics.dqaError,
+        dqaMode: metrics.dqaMode,
+      });
+    }
+
     return NextResponse.json(metrics);
   } catch (error) {
     console.error("Failed to load error log:", error);
