@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, statSync, writeFileSync } from "fs";
 import { join } from "path";
 import { isFieldDistrict, type FieldDistrict } from "./districts";
 import type { Role, User } from "./types";
@@ -8,6 +8,9 @@ interface CredentialsFile {
 }
 
 let cachedUsers: User[] | null = null;
+let cachedMtimeMs: number | null = null;
+/** True when memory was updated but the filesystem write failed (e.g. serverless). */
+let cacheAheadOfDisk = false;
 
 export function credentialsPath(): string {
   return join(process.cwd(), "data", "credentials.json");
@@ -19,12 +22,23 @@ function serializeUsers(users: User[]): string {
 }
 
 export function getUsers(): User[] {
-  if (cachedUsers) return cachedUsers;
+  // Prefer in-memory updates that could not be persisted yet.
+  if (cachedUsers && cacheAheadOfDisk) return cachedUsers;
 
-  const raw = readFileSync(credentialsPath(), "utf-8");
-  const data = JSON.parse(raw) as CredentialsFile;
-  cachedUsers = data.users;
-  return cachedUsers;
+  try {
+    const mtimeMs = statSync(credentialsPath()).mtimeMs;
+    if (cachedUsers && cachedMtimeMs === mtimeMs) return cachedUsers;
+
+    const raw = readFileSync(credentialsPath(), "utf-8");
+    const data = JSON.parse(raw) as CredentialsFile;
+    cachedUsers = data.users;
+    cachedMtimeMs = mtimeMs;
+    cacheAheadOfDisk = false;
+    return cachedUsers;
+  } catch {
+    if (cachedUsers) return cachedUsers;
+    throw new Error("Unable to load credentials");
+  }
 }
 
 export function getCredentialsFileContent(): string {
@@ -37,17 +51,22 @@ export function saveUsers(users: User[]): void {
   cachedUsers = users;
   try {
     writeFileSync(credentialsPath(), serializeUsers(users), "utf-8");
+    cachedMtimeMs = statSync(credentialsPath()).mtimeMs;
+    cacheAheadOfDisk = false;
   } catch {
     // Read-only filesystem: persistence is handled by committing to GitHub.
+    cacheAheadOfDisk = true;
   }
 }
 
 export function findUser(email: string, password: string): User | null {
   const normalizedEmail = email.trim().toLowerCase();
+  const normalizedPassword = password.trim();
   return (
     getUsers().find(
       (user) =>
-        user.email.toLowerCase() === normalizedEmail && user.password === password
+        user.email.toLowerCase() === normalizedEmail &&
+        user.password === normalizedPassword
     ) ?? null
   );
 }

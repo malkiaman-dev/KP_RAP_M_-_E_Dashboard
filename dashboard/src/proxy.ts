@@ -4,14 +4,10 @@ import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
 
 const PUBLIC_PATHS = ["/login"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (PUBLIC_PATHS.includes(pathname)) {
-    return NextResponse.next();
-  }
-
-  if (pathname === "/api/auth/login") {
+  if (PUBLIC_PATHS.includes(pathname) || pathname === "/api/auth/login") {
     return NextResponse.next();
   }
 
