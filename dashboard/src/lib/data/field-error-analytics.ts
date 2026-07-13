@@ -159,7 +159,7 @@ export function computeFieldErrorAnalytics(
         shareOfTotal: rate(entry.count, totalErrors),
         survey: topSurvey,
         focus: guidance.focus,
-        avoid: guidance.avoid,
+        avoid: toEnumeratorAdvice(guidance.avoid),
         topEnumerators,
       };
     });
@@ -205,9 +205,13 @@ export function computeFieldErrorAnalytics(
       const topRuleId = top?.[0] ?? "";
       const topRuleTitle = top?.[1].title ?? "";
       const topRuleCount = top?.[1].count ?? 0;
-      const tip = topRuleId
-        ? getRuleGuidance(topRuleId).avoid
-        : "Review their open critical errors with them before the next field day.";
+      const tip =
+        (topRuleId
+          ? focusRules.find((r) => r.ruleId === topRuleId)?.avoid
+          : undefined) ??
+        (topRuleId
+          ? toEnumeratorAdvice(getRuleGuidance(topRuleId).avoid)
+          : "Dear enumerators, please review your open critical errors with your supervisor before the next field day.");
 
       return {
         id: e.id,
@@ -252,9 +256,39 @@ function buildTeamChecklist(focusRules: FocusRuleInsight[]): string[] {
 
   if (items.length === 0) {
     items.push(
-      "No open errors in scope — keep verifying phones, roster order, and HH linkage on every visit."
+      "Dear enumerators, please keep verifying phones, roster order, and household linkage on every visit."
     );
   }
 
   return items.slice(0, 5);
+}
+
+/** Turn guidance into a direct note from the advisor to enumerators. */
+function toEnumeratorAdvice(avoid: string): string {
+  const trimmed = avoid.trim().replace(/\s+/g, " ");
+  if (!trimmed) {
+    return "Dear enumerators, please double-check your forms carefully before submitting.";
+  }
+
+  // Already written in the advisor voice.
+  if (/^dear enumerators/i.test(trimmed)) return trimmed;
+
+  let body = trimmed;
+  // Soften leading imperatives into "please …"
+  body = body
+    .replace(/^(Always|Never|Do not|Don't|Take|Search|Compare|Confirm|Write|When|Ask|Include|Follow|Complete|Stay|Plan|Enter|Give|Open)\b/i, (m) =>
+      m.toLowerCase() === "always"
+        ? "please always"
+        : m.toLowerCase() === "never"
+          ? "please never"
+          : m.toLowerCase() === "do not" || m.toLowerCase() === "don't"
+            ? "please do not"
+            : `please ${m.toLowerCase()}`
+    );
+
+  if (!/^please\b/i.test(body)) {
+    body = `please ${body.charAt(0).toLowerCase()}${body.slice(1)}`;
+  }
+
+  return `Dear enumerators, ${body}`;
 }

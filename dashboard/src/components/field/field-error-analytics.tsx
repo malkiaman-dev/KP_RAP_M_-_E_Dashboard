@@ -86,12 +86,12 @@ export function FieldErrorAnalyticsPanel({
             <div className="mb-3 flex items-center gap-2">
               <Lightbulb className="h-4 w-4 text-teal" aria-hidden="true" />
               <h2 className="text-sm font-semibold text-foreground">
-                Team focus checklist
+                Message for enumerators
               </h2>
             </div>
             <p className="mb-4 text-sm text-muted-foreground">
-              Share these points in the morning briefing so enumerators know what
-              to avoid today.
+              Dear enumerators, please read these points carefully and follow them
+              in the field today.
             </p>
             <ol className="space-y-3">
               {analytics.teamChecklist.map((item, index) => (
@@ -210,8 +210,8 @@ export function FieldErrorAnalyticsPanel({
                 Enumerator coaching priorities
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Lowest quality scores first — use their top rule as the coaching
-                topic.
+                Lowest quality scores first — each row includes a direct note for
+                that enumerator’s main issue.
               </p>
             </div>
             <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
