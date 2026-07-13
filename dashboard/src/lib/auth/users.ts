@@ -1,5 +1,6 @@
 import { readFileSync, statSync, writeFileSync } from "fs";
 import { join } from "path";
+import bundledCredentials from "../../../data/credentials.json";
 import { isFieldDistrict, type FieldDistrict } from "./districts";
 import type { Role, User } from "./types";
 
@@ -21,9 +22,20 @@ function serializeUsers(users: User[]): string {
   return `${JSON.stringify(data, null, 2)}\n`;
 }
 
+function bundledUsers(): User[] {
+  return (bundledCredentials as CredentialsFile).users;
+}
+
 export function getUsers(): User[] {
   // Prefer in-memory updates that could not be persisted yet.
   if (cachedUsers && cacheAheadOfDisk) return cachedUsers;
+
+  // On Vercel/serverless, always use the build-time credentials so deploys
+  // cannot keep serving a stale traced copy of credentials.json.
+  if (process.env.NODE_ENV === "production") {
+    if (!cachedUsers) cachedUsers = bundledUsers();
+    return cachedUsers;
+  }
 
   try {
     const mtimeMs = statSync(credentialsPath()).mtimeMs;
@@ -37,7 +49,8 @@ export function getUsers(): User[] {
     return cachedUsers;
   } catch {
     if (cachedUsers) return cachedUsers;
-    throw new Error("Unable to load credentials");
+    cachedUsers = bundledUsers();
+    return cachedUsers;
   }
 }
 
