@@ -11,6 +11,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  ResponsiveContainer,
   type TooltipContentProps,
 } from "recharts";
 import {
@@ -33,6 +34,7 @@ import {
 import { tooltipStyle, ChartGradients, chartMargin, legendProps } from "@/components/ui/chart-theme";
 import { useFirm } from "@/components/brand/firm-provider";
 import type { FirmPalette } from "@/lib/brand";
+import { formatDisplayDate } from "@/lib/utils";
 
 function scoreColor(score: number, palette: FirmPalette): string {
   if (score >= 90) return palette.teal;
@@ -71,6 +73,15 @@ const escapeTooltipProps = {
   wrapperStyle: { zIndex: 1000, outline: "none" } as const,
 };
 
+function dateTick(value: string): string {
+  return formatDisplayDate(value) || value;
+}
+
+function dateLabel(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return formatDisplayDate(value) || value;
+}
+
 export function ErrorCharts({
   metrics,
   loading,
@@ -89,10 +100,13 @@ export function ErrorCharts({
 
   if (loading) {
     return (
-      <ChartGridSkeleton
-        count={6}
-        className="grid gap-6 overflow-visible lg:grid-cols-3 lg:grid-rows-[300px_340px_360px]"
-      />
+      <div className="space-y-6">
+        <div className="skeleton h-[300px] rounded-2xl" />
+        <ChartGridSkeleton
+          count={6}
+          className="grid gap-6 overflow-visible lg:grid-cols-3 lg:grid-rows-[300px_340px_360px]"
+        />
+      </div>
     );
   }
 
@@ -102,6 +116,19 @@ export function ErrorCharts({
     const next = { ...patch };
     if (lockDistrict) delete next.district;
     onFilterChange(toggleErrorFilters(filters, next));
+  };
+
+  const pickDate = (date: string) => {
+    const already =
+      !filters.todayOnly &&
+      filters.dateFrom === date &&
+      filters.dateTo === date;
+    onFilterChange({
+      ...filters,
+      todayOnly: false,
+      dateFrom: already ? "" : date,
+      dateTo: already ? "" : date,
+    });
   };
 
   const districtActive = (district: string) =>
@@ -116,8 +143,84 @@ export function ErrorCharts({
   const enumActive = (id: string) =>
     filters.enumerator === "all" || filters.enumerator === id;
 
+  const trend = metrics.errorTrend ?? [];
+
   return (
-    <div className="grid gap-6 overflow-visible lg:grid-cols-3 lg:grid-rows-[300px_340px_360px] lg:items-stretch">
+    <div className="space-y-6">
+      <ChartCard
+        title="Error trend over time"
+        subtitle={`Daily critical vs quality flags · ${CHART_CLICK_HINT}`}
+        className="!min-h-0 h-auto"
+        allowOverflow
+      >
+        {trend.length === 0 ? (
+          <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
+            No dated errors in the current filter scope.
+          </div>
+        ) : (
+          <>
+            <div className="h-[280px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height={280} debounce={50}>
+                <BarChart data={trend} margin={chartMargin.withLegend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 10 }}
+                    tickFormatter={dateTick}
+                    minTickGap={20}
+                  />
+                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    cursor={false}
+                    labelFormatter={dateLabel}
+                    {...escapeTooltipProps}
+                  />
+                  <Legend {...legendProps} />
+                  <Bar
+                    dataKey="critical"
+                    name="Critical"
+                    stackId="errors"
+                    fill="#EF4444"
+                    maxBarSize={36}
+                    isAnimationActive={false}
+                    style={pointerBarStyle}
+                    onClick={(data) => {
+                      const row = barPayload(data);
+                      if (!row?.date) return;
+                      pickDate(String(row.date));
+                    }}
+                  />
+                  <Bar
+                    dataKey="flag"
+                    name="Quality"
+                    stackId="errors"
+                    fill={palette.gold}
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={36}
+                    isAnimationActive={false}
+                    style={pointerBarStyle}
+                    onClick={(data) => {
+                      const row = barPayload(data);
+                      if (!row?.date) return;
+                      pickDate(String(row.date));
+                    }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Click a day to filter the error log to that submission date
+              {filters.dateFrom && filters.dateFrom === filters.dateTo
+                ? ` · filtered to ${formatDisplayDate(filters.dateFrom) || filters.dateFrom}`
+                : ""}
+              .
+            </p>
+          </>
+        )}
+      </ChartCard>
+
+      <div className="grid gap-6 overflow-visible lg:grid-cols-3 lg:grid-rows-[300px_340px_360px] lg:items-stretch">
       <ChartCard
         title="Errors by Severity"
         subtitle={`Critical vs quality flags · ${CHART_CLICK_HINT}`}
@@ -473,6 +576,7 @@ export function ErrorCharts({
           </BarChart>
         </ChartArea>
       </ChartCard>
+      </div>
     </div>
   );
 }

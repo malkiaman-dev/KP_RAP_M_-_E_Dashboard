@@ -349,6 +349,60 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
       total: e.total,
     }));
 
+  // ---- Daily trend (critical vs quality by submission date) ----
+  const dayMap = new Map<string, { critical: number; flag: number }>();
+  for (const r of rows) {
+    const day = errorSubmissionDay(r.submissionDate);
+    if (!day) continue;
+    const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+    if (!dayMap.has(iso)) dayMap.set(iso, { critical: 0, flag: 0 });
+    const e = dayMap.get(iso)!;
+    if (r.severity === "CRITICAL") e.critical += 1;
+    else e.flag += 1;
+  }
+
+  const sortedDays = [...dayMap.keys()].sort();
+  const errorTrend: {
+    date: string;
+    critical: number;
+    flag: number;
+    total: number;
+  }[] = [];
+
+  if (sortedDays.length > 0) {
+    const start = errorSubmissionDay(sortedDays[0])!;
+    const end = errorSubmissionDay(sortedDays[sortedDays.length - 1])!;
+    const cursor = new Date(start);
+    // Cap fill at ~120 days so sparse long ranges stay readable.
+    const maxFillDays = 120;
+    const spanDays =
+      Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+
+    if (spanDays <= maxFillDays) {
+      while (cursor <= end) {
+        const iso = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
+        const v = dayMap.get(iso) ?? { critical: 0, flag: 0 };
+        errorTrend.push({
+          date: iso,
+          critical: v.critical,
+          flag: v.flag,
+          total: v.critical + v.flag,
+        });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    } else {
+      for (const iso of sortedDays) {
+        const v = dayMap.get(iso)!;
+        errorTrend.push({
+          date: iso,
+          critical: v.critical,
+          flag: v.flag,
+          total: v.critical + v.flag,
+        });
+      }
+    }
+  }
+
   // ---- Filter options (computed from whatever set is passed) ----
   const districts = [...new Set(rows.map((r) => r.district).filter(Boolean))]
     .sort()
@@ -393,6 +447,7 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
     topQualityRules,
     enumeratorCritical,
     enumeratorQuality,
+    errorTrend,
     allErrors: rows,
     filterOptions: {
       districts,
