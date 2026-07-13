@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  LineChart,
+  Line,
   BarChart,
   Bar,
   PieChart,
@@ -161,7 +163,7 @@ export function ErrorCharts({
           <>
             <div className="h-[280px] w-full min-w-0">
               <ResponsiveContainer width="100%" height={280} debounce={50}>
-                <BarChart data={trend} margin={chartMargin.withLegend}>
+                <LineChart data={trend} margin={chartMargin.withLegend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis
                     dataKey="date"
@@ -172,41 +174,46 @@ export function ErrorCharts({
                   <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                   <Tooltip
                     contentStyle={tooltipStyle}
-                    cursor={false}
+                    cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
                     labelFormatter={dateLabel}
                     {...escapeTooltipProps}
                   />
                   <Legend {...legendProps} />
-                  <Bar
+                  <Line
+                    type="monotone"
                     dataKey="critical"
                     name="Critical"
-                    stackId="errors"
-                    fill="#EF4444"
-                    maxBarSize={36}
-                    isAnimationActive={false}
-                    style={pointerBarStyle}
-                    onClick={(data) => {
-                      const row = barPayload(data);
-                      if (!row?.date) return;
-                      pickDate(String(row.date));
+                    stroke="#EF4444"
+                    strokeWidth={2.5}
+                    dot={{ r: 3, fill: "#EF4444", strokeWidth: 0 }}
+                    activeDot={{
+                      r: 5,
+                      style: pointerBarStyle,
+                      onClick: (_: unknown, payload: { payload?: { date?: string } }) => {
+                        const date = payload?.payload?.date;
+                        if (date) pickDate(date);
+                      },
                     }}
+                    isAnimationActive={false}
                   />
-                  <Bar
+                  <Line
+                    type="monotone"
                     dataKey="flag"
                     name="Quality"
-                    stackId="errors"
-                    fill={palette.gold}
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={36}
-                    isAnimationActive={false}
-                    style={pointerBarStyle}
-                    onClick={(data) => {
-                      const row = barPayload(data);
-                      if (!row?.date) return;
-                      pickDate(String(row.date));
+                    stroke={palette.gold}
+                    strokeWidth={2.5}
+                    dot={{ r: 3, fill: palette.gold, strokeWidth: 0 }}
+                    activeDot={{
+                      r: 5,
+                      style: pointerBarStyle,
+                      onClick: (_: unknown, payload: { payload?: { date?: string } }) => {
+                        const date = payload?.payload?.date;
+                        if (date) pickDate(date);
+                      },
                     }}
+                    isAnimationActive={false}
                   />
-                </BarChart>
+                </LineChart>
               </ResponsiveContainer>
             </div>
             <p className="mt-1 text-[10px] text-muted-foreground">
