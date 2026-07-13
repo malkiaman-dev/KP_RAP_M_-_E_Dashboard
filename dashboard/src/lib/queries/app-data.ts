@@ -10,6 +10,7 @@ export const TRACKING_GAPS_QUERY_KEY = ["tracking-gaps"] as const;
 export const DASHBOARD_METRICS_QUERY_KEY = ["dashboard-metrics"] as const;
 export const HH_GIRLS_METRICS_QUERY_KEY = ["hh-girls-metrics", "v9"] as const;
 export const HH_GIRLS_EXPORTS_QUERY_KEY = ["hh-girls-exports", "v2"] as const;
+export const ERROR_METRICS_QUERY_KEY = ["error-metrics", "v2"] as const;
 
 export interface TrackingExportPayload {
   operationalKpiLists: TrackingMetrics["operationalKpiLists"];
@@ -46,6 +47,14 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
 export async function fetchHhGirlsMetrics(): Promise<HhGirlsMetrics> {
   const res = await fetch("/api/hh-girls");
   if (!res.ok) throw new Error("Failed to load HH/Girls data");
+  return res.json();
+}
+
+export async function fetchErrorMetrics(): Promise<
+  import("@/lib/data/error-metrics").ErrorMetrics
+> {
+  const res = await fetch("/api/errors");
+  if (!res.ok) throw new Error("Failed to load error log");
   return res.json();
 }
 
@@ -102,6 +111,11 @@ export function prefetchRouteData(queryClient: QueryClient, href: string) {
     href === "/reports"
   ) {
     warm(TRACKING_METRICS_QUERY_KEY, fetchTrackingMetrics);
+  }
+
+  if (href === "/reports") {
+    idle(() => warm(ERROR_METRICS_QUERY_KEY, fetchErrorMetrics));
+    idle(() => warm(HH_GIRLS_METRICS_QUERY_KEY, fetchHhGirlsMetrics));
   }
 
   if (href === "/monitoring") {

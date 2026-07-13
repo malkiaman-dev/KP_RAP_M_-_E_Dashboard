@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Layers, Target } from "lucide-react";
+import { AlertTriangle, FileText, Layers, Target } from "lucide-react";
 import { TrackingFiltersPanel } from "@/components/tracking/tracking-filters";
 import { TrackingActiveFilters } from "@/components/tracking/tracking-active-filters";
 import { HhGirlsFiltersPanel } from "@/components/hh-girls/hh-girls-filters";
 import { HhGirlsActiveFilters } from "@/components/hh-girls/hh-girls-active-filters";
+import { ErrorFiltersPanel } from "@/components/errors/error-filters";
+import { ErrorActiveFilters } from "@/components/errors/error-active-filters";
 import { TrackingStatusReportCard } from "@/components/reports/tracking-status-report-card";
 import { TrackingProgressReportCard } from "@/components/reports/tracking-progress-report-card";
 import { HhGirlsStatusReportCard } from "@/components/reports/hh-girls-status-report-card";
 import { HhGirlsProgressReportCard } from "@/components/reports/hh-girls-progress-report-card";
+import { ErrorReportCard } from "@/components/reports/error-report-card";
 import { ModeToggle, PageHero, SectionHeader } from "@/components/ui/page-hero";
 import { useFieldPeriod } from "@/components/filters/field-period-provider";
 import {
@@ -23,6 +26,12 @@ import {
 } from "@/lib/data/hh-girls-monitoring";
 import type { HhGirlsFilters } from "@/lib/data/hh-girls-metrics";
 import {
+  defaultErrorFilters,
+  type ErrorFilters,
+} from "@/lib/data/error-metrics";
+import {
+  ERROR_METRICS_QUERY_KEY,
+  fetchErrorMetrics,
   fetchHhGirlsMetrics,
   fetchTrackingMetrics,
   HH_GIRLS_METRICS_QUERY_KEY,
@@ -30,7 +39,7 @@ import {
   TRACKING_METRICS_QUERY_KEY,
 } from "@/lib/queries/app-data";
 
-type SurveyModule = "tracking" | "hh-girls";
+type SurveyModule = "tracking" | "hh-girls" | "errors";
 type ReportMode = "operations" | "progress";
 
 export function ReportsContent() {
@@ -44,6 +53,8 @@ export function ReportsContent() {
   const [hhFilters, setHhFilters] = useState<HhGirlsMonitoringFilters>(() =>
     defaultHhGirlsMonitoringFilters(fieldDateFrom)
   );
+  const [errorFilters, setErrorFilters] =
+    useState<ErrorFilters>(defaultErrorFilters);
 
   useEffect(() => {
     setTrackingFilters((prev) => ({ ...prev, dateFrom: fieldDateFrom }));
@@ -74,10 +85,25 @@ export function ReportsContent() {
     enabled: surveyModule === "hh-girls",
   });
 
+  const errorQuery = useQuery({
+    queryKey: [...ERROR_METRICS_QUERY_KEY],
+    queryFn: fetchErrorMetrics,
+    staleTime: QUERY_STALE_MS,
+    enabled: surveyModule === "errors",
+  });
+
   const isError =
-    surveyModule === "tracking" ? trackingQuery.isError : hhQuery.isError;
+    surveyModule === "tracking"
+      ? trackingQuery.isError
+      : surveyModule === "hh-girls"
+        ? hhQuery.isError
+        : errorQuery.isError;
   const isLoading =
-    surveyModule === "tracking" ? trackingQuery.isLoading : hhQuery.isLoading;
+    surveyModule === "tracking"
+      ? trackingQuery.isLoading
+      : surveyModule === "hh-girls"
+        ? hhQuery.isLoading
+        : errorQuery.isLoading;
 
   if (isError) {
     return (
@@ -87,7 +113,9 @@ export function ReportsContent() {
           <p className="mt-1 text-sm text-muted-foreground">
             {surveyModule === "tracking"
               ? "Ensure tracking survey CSV files are available in the Surveys folder."
-              : "Ensure Household_Survey.csv and Girls_Survey.csv are available in the Surveys folder."}
+              : surveyModule === "hh-girls"
+                ? "Ensure Household_Survey.csv and Girls_Survey.csv are available in the Surveys folder."
+                : "Ensure Daily_Error_Log.xlsx exists in the Error_log folder."}
           </p>
         </div>
       </div>
@@ -97,10 +125,20 @@ export function ReportsContent() {
   const trackingDistricts =
     trackingQuery.data?.filterOptions?.districts ?? [];
   const hhDistricts = hhQuery.data?.filterOptions?.districts ?? [];
+  const errorDistricts = errorQuery.data?.filterOptions?.districts ?? [];
   const districtCount =
     surveyModule === "tracking"
       ? trackingDistricts.length
-      : hhDistricts.length;
+      : surveyModule === "hh-girls"
+        ? hhDistricts.length
+        : errorDistricts.length;
+
+  const moduleLabel =
+    surveyModule === "tracking"
+      ? "Tracking"
+      : surveyModule === "hh-girls"
+        ? "HH / Girls"
+        : "Errors";
 
   return (
     <div>
@@ -108,24 +146,28 @@ export function ReportsContent() {
         eyebrow="Export & stakeholder briefings"
         title="Field Reports"
         accent="Studio"
-        description="Generate district-wise or all-district field operations and programme progress reports for Tracking or combined HH / Girls surveys. Export to PDF or Word for partners and leadership."
+        description="Generate district-wise or all-district reports for Tracking, HH / Girls, or Error quality. Export to PDF or Word for partners and leadership."
         loading={isLoading}
         links={[
           { href: "/tracking", label: "Tracking" },
           { href: "/surveys/hh-girls", label: "HH / Girls" },
-          { href: "/monitoring", label: "Monitoring" },
+          { href: "/surveys/errors", label: "Error Report" },
         ]}
         stats={[
           {
             label: "Module",
-            value: surveyModule === "tracking" ? "Tracking" : "HH / Girls",
-            icon: Layers,
+            value: moduleLabel,
+            icon: surveyModule === "errors" ? AlertTriangle : Layers,
             colorClass: "text-teal",
           },
           {
             label: "Report type",
             value:
-              reportMode === "operations" ? "Operations" : "Progress",
+              surveyModule === "errors"
+                ? "Quality"
+                : reportMode === "operations"
+                  ? "Operations"
+                  : "Progress",
             icon: FileText,
             colorClass: "text-deep-teal",
           },
@@ -150,16 +192,19 @@ export function ReportsContent() {
             options={[
               { value: "tracking", label: "Tracking" },
               { value: "hh-girls", label: "HH / Girls" },
+              { value: "errors", label: "Errors" },
             ]}
           />
-          <ModeToggle
-            value={reportMode}
-            onChange={setReportMode}
-            options={[
-              { value: "operations", label: "Field Operations" },
-              { value: "progress", label: "Progress Summary" },
-            ]}
-          />
+          {surveyModule !== "errors" && (
+            <ModeToggle
+              value={reportMode}
+              onChange={setReportMode}
+              options={[
+                { value: "operations", label: "Field Operations" },
+                { value: "progress", label: "Progress Summary" },
+              ]}
+            />
+          )}
         </div>
       </PageHero>
 
@@ -201,7 +246,7 @@ export function ReportsContent() {
             )}
           </div>
         </>
-      ) : (
+      ) : surveyModule === "hh-girls" ? (
         <>
           <HhGirlsFiltersPanel
             filterOptions={hhQuery.data?.filterOptions}
@@ -234,6 +279,27 @@ export function ReportsContent() {
                 loading={isLoading}
               />
             )}
+          </div>
+        </>
+      ) : (
+        <>
+          <ErrorFiltersPanel
+            filterOptions={errorQuery.data?.filterOptions}
+            filters={errorFilters}
+            onChange={setErrorFilters}
+            showTodayToggle
+          />
+          <ErrorActiveFilters
+            filters={errorFilters}
+            onChange={setErrorFilters}
+          />
+          <div className="mt-6 space-y-4">
+            <ErrorReportCard
+              allErrors={errorQuery.data?.allErrors}
+              filters={errorFilters}
+              districtOptions={errorDistricts}
+              loading={isLoading}
+            />
           </div>
         </>
       )}
