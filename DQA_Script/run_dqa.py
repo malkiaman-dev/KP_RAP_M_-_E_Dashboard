@@ -16,6 +16,7 @@ from utils.stats import (
     survey_issue_summary,
     enumerator_error_percentage_all_surveys,
 )
+from utils.context_enrich import enrich_issues_with_context
 
 from checks import (
     tracking,
@@ -180,7 +181,12 @@ def run_all(data_dirs: list[Path], config_dir: Path, out_dirs: list[Path]) -> No
         issues_all.extend(out)
 
     # -------------------------
-    # 4) Write Excel outputs
+    # 4) Attach girl / village / school context for Error Detail Log
+    # -------------------------
+    issues_all = enrich_issues_with_context(issues_all, dfs)
+
+    # -------------------------
+    # 5) Write Excel outputs
     # -------------------------
     print("TOTAL issues:", len(issues_all))
     error_log_raw = issues_to_df(issues_all)
