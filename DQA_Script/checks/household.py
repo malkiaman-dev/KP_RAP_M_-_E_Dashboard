@@ -356,11 +356,22 @@ def _age_to_human(a: float) -> str:
         return str(a)
 
 
-def _duration_minutes(row: pd.Series, start_col: str | None, end_col: str | None) -> float | None:
+def _duration_minutes(
+    row: pd.Series,
+    start_col: str | None,
+    end_col: str | None,
+    duration_col: str | None = None,
+) -> float | None:
     """
     Returns survey duration in minutes.
-    IMPORTANT: Uses starttime/endtime only (ignores any duration column).
+    Prefers SurveyCTO `duration` (active interview seconds); falls back to start/end wall-clock.
     """
+    if duration_col and duration_col in row.index:
+        raw = _to_num(row[duration_col])
+        if raw is not None and raw >= 0:
+            # Seconds if large; otherwise already minutes
+            return float(raw) / 60.0 if float(raw) > 500 else float(raw)
+
     if start_col and end_col and start_col in row.index and end_col in row.index:
         st = _parse_date_any(row[start_col])
         et = _parse_date_any(row[end_col])
@@ -692,7 +703,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     # district column
     district = _col(col, "district", "district")
 
-    # duration should be calculated from start/end only
+    # start/end used for time consistency; fast/long duration prefer SurveyCTO `duration`
     start_col = _find_existing(df, ["starttime", "start_time"])
     end_col = _find_existing(df, ["endtime", "end_time"])
 
@@ -1067,6 +1078,25 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     # =========================================================
     # HH_CR_10: Exact duplicate records (identity + location), ONLY IF SAME RESPONDENT
     # =========================================================
+    def _retain_recommendation(idxs: list) -> str:
+        """Prefer latest SubmissionDate; fall back to latest starttime; include KEY."""
+        best_i = idxs[0]
+        best_dt = None
+        for i in idxs:
+            dt = None
+            if sub and sub in df.columns:
+                dt = _parse_date_any(df.at[i, sub])
+            if dt is None and start_col and start_col in df.columns:
+                dt = _parse_date_any(df.at[i, start_col])
+            if dt is not None and (best_dt is None or dt > best_dt):
+                best_dt = dt
+                best_i = i
+        keep_key = _norm_str(df.at[best_i, key]) if (key and key in df.columns) else ""
+        keep_dt = best_dt.strftime("%Y-%m-%d %H:%M") if best_dt is not None else "(unknown)"
+        if keep_key:
+            return f"Retain KEY={keep_key} (latest SubmissionDate/start={keep_dt}); void or correct other same-respondent duplicates after supervisor review."
+        return f"Retain the latest submission (by SubmissionDate/start={keep_dt}); void or correct other same-respondent duplicates after supervisor review."
+
     sig_cols = [c for c in [district, gid_col, girl_name_label, father_name_label, address_label, landmark_label, village_label] if c and c in df.columns]
     dup_key_cols = list(sig_cols)
 
@@ -1088,16 +1118,69 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                     idxs = list(idxs)
                     if len(idxs) < 2:
                         continue
+                    retain_msg = _retain_recommendation(idxs)
                     for i in idxs:
                         add_issue(
                             i,
                             "CRITICAL",
                             "HH_CR_10",
                             "Exact duplicate record",
-                            "Duplicate household record detected for the same respondent (same identity and location fields, and same respondent code).",
+                            (
+                                "Duplicate household record detected for the same respondent "
+                                "(same identity and location fields, and same respondent code). "
+                                + retain_msg
+                            ),
                             ", ".join(dup_key_cols),
                             "; ".join([f"{c}={_clip(df.at[i, c])}" for c in dup_key_cols[:7]]),
                         )
+
+    # =========================================================
+    # HH_CR_SAME_RESP_MISMATCH: same girl + same respondent, conflicting identity/location
+    # =========================================================
+    if gid_col and gid_col in df.columns and respondent_code_col and respondent_code_col in df.columns:
+        compare_cols = [
+            c
+            for c in [
+                girl_name_label,
+                father_name_label,
+                address_label,
+                landmark_label,
+                village_label,
+                district,
+            ]
+            if c and c in df.columns
+        ]
+        g_resp = df[[gid_col, respondent_code_col]].copy()
+        g_resp["_gid"] = g_resp[gid_col].map(_norm_str)
+        g_resp["_resp"] = g_resp[respondent_code_col].map(_norm_str)
+        keep = (g_resp["_gid"] != "") & (g_resp["_resp"] != "")
+        for (gidv, respv), subg in g_resp[keep].groupby(["_gid", "_resp"], dropna=False):
+            idxs = list(subg.index)
+            if len(idxs) < 2:
+                continue
+            mismatched = []
+            for c in compare_cols:
+                vals = {_norm_str(df.at[i, c]) for i in idxs}
+                vals.discard("")
+                if len(vals) > 1:
+                    mismatched.append(c)
+            if not mismatched:
+                continue
+            retain_msg = _retain_recommendation(idxs)
+            for i in idxs:
+                add_issue(
+                    i,
+                    "CRITICAL",
+                    "HH_CR_SAME_RESP_MISMATCH",
+                    "Same respondent duplicate with conflicting fields",
+                    (
+                        f"Girl ID {gidv} has multiple household submissions for the same respondent code ({respv}), "
+                        f"but key fields differ ({', '.join(mismatched)}). "
+                        + retain_msg
+                    ),
+                    f"{gid_col},{respondent_code_col}",
+                    f"girl={gidv}; respondent={respv}; mismatched={','.join(mismatched)}",
+                )
 
     # =========================================================
     # HH_CR_12: days_school range check (0-12)
@@ -1685,26 +1768,44 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             )
 
     # -------------------------------------------------
-    # HH_QF_07: survey completed too quickly (start/end only)
+    # Fast interview: prefer SurveyCTO duration; CRITICAL <10, FLAG <15
     # -------------------------------------------------
-    MIN_DURATION_MIN = float(col.get("min_survey_duration_minutes", 30) or 30)
+    CRIT_FAST_MIN = float(col.get("critical_fast_duration_minutes", 10) or 10)
+    MIN_DURATION_MIN = float(col.get("min_survey_duration_minutes", 15) or 15)
+    duration_col = _find_existing(df, [col.get("duration") if isinstance(col.get("duration"), str) else None, "duration"])
 
-    if start_col and end_col:
+    if duration_col or (start_col and end_col):
+        field = ",".join([c for c in [duration_col, start_col, end_col] if c])
         for i in df.index:
-            mins = _duration_minutes(df.loc[i], start_col, end_col)
+            mins = _duration_minutes(df.loc[i], start_col, end_col, duration_col)
             if mins is None:
                 continue
 
-            if mins < MIN_DURATION_MIN:
-                field = f"{start_col},{end_col}"
+            if mins < CRIT_FAST_MIN:
+                add_issue(
+                    i,
+                    "CRITICAL",
+                    "HH_CE_FAST_10",
+                    "Survey completed extremely quickly",
+                    (
+                        f"Active interview duration is {round(mins, 1)} minutes "
+                        f"(under {CRIT_FAST_MIN:.0f}). Review for skipped sections or invalid submit."
+                    ),
+                    field,
+                    f"{round(mins, 1)} mins",
+                )
+            elif mins < MIN_DURATION_MIN:
                 add_issue(
                     i,
                     "FLAG",
                     "HH_QF_07",
                     "Survey completed too quickly",
-                    f"Household survey should take at least {MIN_DURATION_MIN} minutes. Observed duration is {round(mins,1)} minutes (<{MIN_DURATION_MIN}).",
+                    (
+                        f"Household survey should take at least {MIN_DURATION_MIN:.0f} minutes. "
+                        f"Observed active duration is {round(mins, 1)} minutes (<{MIN_DURATION_MIN:.0f})."
+                    ),
                     field,
-                    f"{round(mins,1)} mins",
+                    f"{round(mins, 1)} mins",
                 )
 
     # -------------------------------------------------

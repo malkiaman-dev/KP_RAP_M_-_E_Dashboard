@@ -12,6 +12,9 @@ columns:
   girl_age: age
   chores_hours: domestic_chores_hours
   district: district
+  # Prefer SurveyCTO `duration` (active seconds). Wall-clock start/end is fallback only.
+  critical_fast_duration_minutes: 10
+  min_survey_duration_minutes: 15
 dummy_detection:
   min_len: 2
   no_vowel_len: 6

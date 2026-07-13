@@ -434,4 +434,58 @@ def run(household_df: pd.DataFrame, girls_df: pd.DataFrame, col: dict) -> list[d
             )
         )
 
+    # --------------------------
+    # C) Linked HH ↔ Girls identity mismatch (same girl ID, different names)
+    # --------------------------
+    gname_col = cfg(girls_df, "girl_label", "girlname_label", "girl_label", "name")
+    if hgirl and ggirl and hgirl in household_df.columns and ggirl in girls_df.columns:
+        hh_names: dict[str, set[str]] = {}
+        for i in household_df.index:
+            gid = norm_id(household_df.at[i, hgirl])
+            if not gid:
+                continue
+            if hgirl_label and hgirl_label in household_df.columns and not is_missing(household_df.at[i, hgirl_label]):
+                hh_names.setdefault(gid, set()).add(str(clean_scalar(household_df.at[i, hgirl_label])).strip().lower())
+
+        gl_names: dict[str, set[str]] = {}
+        gl_idxs: dict[str, list] = {}
+        for j in girls_df.index:
+            gid = norm_id(girls_df.at[j, ggirl])
+            if not gid:
+                continue
+            gl_idxs.setdefault(gid, []).append(j)
+            if gname_col and gname_col in girls_df.columns and not is_missing(girls_df.at[j, gname_col]):
+                gl_names.setdefault(gid, set()).add(str(clean_scalar(girls_df.at[j, gname_col])).strip().lower())
+
+        for gid, gset in gl_names.items():
+            hset = hh_names.get(gid)
+            if not hset or not gset:
+                continue
+            # Match if any normalized name overlaps; else flag mismatch
+            if gset & hset:
+                continue
+            for j in gl_idxs.get(gid, []):
+                m = girls_meta(j)
+                issues.append(
+                    make_issue(
+                        "Household vs Girls",
+                        "FLAG",
+                        "HVG_QF_IDENTITY_MISMATCH",
+                        "Girl name mismatch between Household and Girls surveys",
+                        (
+                            f"Girl ID {gid} is linked in both surveys, but girl names do not match "
+                            f"(HH={sorted(hset)}; Girls={sorted(gset)}). Verify the correct identity before analysis."
+                        ),
+                        ggirl if ggirl else hgirl,
+                        fmt_kv(GirlID=gid, HH_names=",".join(sorted(hset)), Girls_names=",".join(sorted(gset))),
+                        m["record_key"],
+                        m["instance_id"],
+                        m["enumerator"],
+                        m["enumerator_id"],
+                        m["deviceid"],
+                        m["submission_date"],
+                        m["district"],
+                    )
+                )
+
     return issues

@@ -159,6 +159,10 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
 
     starttime = cfg("starttime", "starttime")
     endtime = cfg("endtime", "endtime")
+    duration_col = cfg("duration", "duration")
+
+    crit_fast_min = float(col.get("critical_fast_duration_minutes", 10) or 10)
+    min_survey_min = float(col.get("min_survey_duration_minutes", 15) or 15)
 
     # Decide once how to call make_issue safely
     _make_issue_sig = None
@@ -219,6 +223,40 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             pass
 
         issues.append(make_issue(*base_args))
+
+    def active_duration_minutes(i) -> float | None:
+        """Prefer SurveyCTO duration (seconds); fall back to start/end wall-clock."""
+        if duration_col and duration_col in df.columns:
+            raw = to_num(pd.Series([df.at[i, duration_col]])).iloc[0]
+            if pd.notna(raw) and float(raw) >= 0:
+                r = float(raw)
+                return r / 60.0 if r > 500 else r
+        if starttime and endtime and starttime in df.columns and endtime in df.columns:
+            st = safe_to_datetime(pd.Series([df.at[i, starttime]], index=[i])).iloc[0]
+            et = safe_to_datetime(pd.Series([df.at[i, endtime]], index=[i])).iloc[0]
+            if pd.notna(st) and pd.notna(et) and et > st:
+                return (et - st).total_seconds() / 60.0
+        return None
+
+    def retain_recommendation(idxs) -> str:
+        """Recommend the latest SubmissionDate (else starttime) KEY among a duplicate group."""
+        idxs = list(idxs)
+        best_i = idxs[0]
+        best_dt = None
+        for i in idxs:
+            dt = None
+            if sub and sub in df.columns:
+                dt = safe_to_datetime(pd.Series([df.at[i, sub]], index=[i])).iloc[0]
+            if (dt is None or pd.isna(dt)) and starttime and starttime in df.columns:
+                dt = safe_to_datetime(pd.Series([df.at[i, starttime]], index=[i])).iloc[0]
+            if dt is not None and not pd.isna(dt) and (best_dt is None or dt > best_dt):
+                best_dt = dt
+                best_i = i
+        keep_key = clean_scalar(df.at[best_i, key]) if (key and key in df.columns) else None
+        keep_dt = best_dt.strftime("%Y-%m-%d %H:%M") if best_dt is not None and not pd.isna(best_dt) else "(unknown)"
+        if keep_key is not None and not is_missing(keep_key):
+            return f"Retain KEY={keep_key} (latest SubmissionDate/start={keep_dt}); void or correct other duplicates after supervisor review."
+        return f"Retain the latest submission (by SubmissionDate/start={keep_dt}); void or correct other duplicates after supervisor review."
 
     # --------------------------
     # Survey columns
@@ -333,16 +371,25 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         g_miss = is_missing_series(df[girl])
 
         dup_mask = (~v_miss) & (~g_miss) & df.duplicated(subset=[village, girl], keep=False)
-        for i in df.index[dup_mask]:
-            add_issue(
-                i,
-                "CRITICAL",
-                "GL_CE_14",
-                "Duplicate girl record in the same village",
-                "The same girl ID appears more than once within the same village. This looks like a duplicate record.",
-                f"{village},{girl}",
-                fmt_kv(Village=df.at[i, village], Girl=df.at[i, girl]),
-            )
+        if dup_mask.any():
+            tmp = df.loc[dup_mask, [village, girl]].copy()
+            for (_, _), subg in tmp.groupby([village, girl], dropna=False):
+                idxs = list(subg.index)
+                retain_msg = retain_recommendation(idxs)
+                for i in idxs:
+                    add_issue(
+                        i,
+                        "CRITICAL",
+                        "GL_CE_14",
+                        "Duplicate girl record in the same village",
+                        (
+                            "The same girl ID appears more than once within the same village. "
+                            "This looks like a duplicate record. "
+                            + retain_msg
+                        ),
+                        f"{village},{girl}",
+                        fmt_kv(Village=df.at[i, village], Girl=df.at[i, girl]),
+                    )
 
         name_cols_for_conflict = [c for c in [girlname_label, name_col] if c and c in df.columns]
         if name_cols_for_conflict:
@@ -383,14 +430,71 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                     i = row["__idx__"]
                     v = df.at[i, village]
                     g = df.at[i, girl]
+                    group_idxs = df.index[(df[village] == v) & (df[girl] == g)].tolist()
+                    retain_msg = retain_recommendation(group_idxs) if group_idxs else ""
                     add_issue(
                         i,
                         "CRITICAL",
                         "GL_CE_ID_CONFLICT",
                         "ID conflict within duplicates",
-                        "Same (village, girl) appears multiple times but identity text differs across records. Please keep only the correct one and fix the rest.",
+                        (
+                            "Same (village, girl) appears multiple times but identity text differs across records. "
+                            "Please keep only the correct one and fix the rest. "
+                            + retain_msg
+                        ),
                         f"{village},{girl}",
                         f"(village={clean_scalar(v)}, girl={clean_scalar(g)}), {row['__conflict_reason__']}",
+                    )
+
+    # --------------------------
+    # 2b) Duplicate girl ID across villages (CRITICAL) + name mismatch
+    # --------------------------
+    if girl and girl in df.columns:
+        g_miss = is_missing_series(df[girl])
+        id_dup = (~g_miss) & df.duplicated(subset=[girl], keep=False)
+        if id_dup.any():
+            compare_cols = [c for c in [girlname_label, name_col, village, village_label, age] if c and c in df.columns]
+            for gid, subg in df.loc[id_dup].groupby(girl, dropna=False):
+                idxs = list(subg.index)
+                if len(idxs) < 2:
+                    continue
+                # Only flag girl-id-only when not already same-village (covered by GL_CE_14)
+                if village and village in df.columns:
+                    villages = {clean_scalar(df.at[i, village]) for i in idxs if not is_missing(df.at[i, village])}
+                    if len(villages) <= 1:
+                        continue
+                mismatched = []
+                for c in compare_cols:
+                    vals = set()
+                    for i in idxs:
+                        v = df.at[i, c]
+                        if is_missing(v):
+                            continue
+                        vals.add(str(clean_scalar(v)).strip().lower())
+                    if len(vals) > 1:
+                        mismatched.append(c)
+                retain_msg = retain_recommendation(idxs)
+                code = "GL_CE_DUP_GIRL_MISMATCH" if mismatched else "GL_CE_DUP_GIRL_ID"
+                title = (
+                    "Duplicate girl ID with conflicting fields"
+                    if mismatched
+                    else "Duplicate girl ID across villages"
+                )
+                desc = (
+                    f"Girl ID {clean_scalar(gid)} appears more than once across different villages"
+                    + (f", and fields differ ({', '.join(mismatched)})" if mismatched else "")
+                    + ". "
+                    + retain_msg
+                )
+                for i in idxs:
+                    add_issue(
+                        i,
+                        "CRITICAL",
+                        code,
+                        title,
+                        desc,
+                        girl,
+                        fmt_kv(Girl=df.at[i, girl], Village=df.at[i, village] if village else None),
                     )
 
     # --------------------------
@@ -530,6 +634,8 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
 
     # --------------------------
     # 6) Time consistency and fast interview (CRITICAL/FLAG)
+    # Prefer SurveyCTO `duration` (active seconds). Wall-clock start/end is fallback.
+    # CRITICAL if under 10 minutes; FLAG if under 15 minutes.
     # --------------------------
     if starttime and endtime and starttime in df.columns and endtime in df.columns:
         st = safe_to_datetime(df[starttime])
@@ -548,17 +654,37 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 fmt_kv(starttime=df.at[i, starttime], endtime=df.at[i, endtime]),
             )
 
-        bad_short = dur_sec.notna() & (dur_sec >= 0) & (dur_sec < 1800)
-        for i in df.index[bad_short]:
-            mins = int(round(dur_sec.loc[i] / 60.0))
+    dur_field = ",".join([c for c in [duration_col, starttime, endtime] if c])
+    for i in df.index:
+        mins = active_duration_minutes(i)
+        if mins is None:
+            continue
+        if mins < crit_fast_min:
+            add_issue(
+                i,
+                "CRITICAL",
+                "GL_CE_FAST_10",
+                "Interview completed extremely quickly",
+                (
+                    f"Active interview duration is {round(mins, 1)} minutes "
+                    f"(under {crit_fast_min:.0f}). The Girls survey includes reading and math modules "
+                    "that should take meaningfully longer — review for skipped sections or invalid submit."
+                ),
+                dur_field or "duration",
+                f"{round(mins, 1)} mins",
+            )
+        elif mins < min_survey_min:
             add_issue(
                 i,
                 "FLAG",
                 "GL_QF_10",
                 "Interview completed too quickly",
-                "The interview duration is under 30 minutes. Please review to ensure data quality.",
-                "duration(start-end)",
-                f"{mins} mins",
+                (
+                    f"Active interview duration is {round(mins, 1)} minutes "
+                    f"(under {min_survey_min:.0f}). Please review to ensure reading/math modules were completed properly."
+                ),
+                dur_field or "duration",
+                f"{round(mins, 1)} mins",
             )
 
     # --------------------------

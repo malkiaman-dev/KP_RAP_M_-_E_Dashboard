@@ -98,9 +98,24 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
       "Confirm the girl’s age and current class with the respondent. Correct typos before submit — age and grade must make sense together.",
   },
   HH_QF_07: {
-    focus: "Household survey completed too quickly.",
+    focus: "Household survey completed too quickly (under 15 minutes active duration).",
     avoid:
       "Read questions fully and verify answers. Very short durations suggest skipped or rushed sections.",
+  },
+  HH_CE_FAST_10: {
+    focus: "Household survey completed extremely quickly (under 10 minutes active duration).",
+    avoid:
+      "Do not skip sections or submit incomplete interviews. Review the case with your supervisor before resubmitting.",
+  },
+  HH_CR_10: {
+    focus: "Exact duplicate household record for the same respondent.",
+    avoid:
+      "Do not re-submit the same respondent interview. If a duplicate exists, keep the latest complete KEY and void the rest after supervisor review.",
+  },
+  HH_CR_SAME_RESP_MISMATCH: {
+    focus: "Same girl + same respondent submitted more than once with conflicting identity/location fields.",
+    avoid:
+      "Never create a second interview for the same respondent. Confirm which KEY to retain (latest complete) and correct conflicting fields with supervisor guidance.",
   },
   HH_CR_13: {
     focus: "Parent age is unrealistically low.",
@@ -112,10 +127,35 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoid:
       "Confirm age and date of birth carefully. If the girl is outside the eligible range, follow supervisor guidance instead of forcing an in-range value.",
   },
-  GL_QF_10: {
-    focus: "Girls interview completed too quickly.",
+  GL_CE_FAST_10: {
+    focus: "Girls interview completed extremely quickly (under 10 minutes) despite reading/math modules.",
     avoid:
-      "Give enough time for each section. Do not rush through sensitive questions.",
+      "Allow enough time for reading passages and math questions. Do not skip test modules or rush consent/demographics.",
+  },
+  GL_QF_10: {
+    focus: "Girls interview completed too quickly (under 15 minutes active duration).",
+    avoid:
+      "Give enough time for each section, especially reading and math. Do not rush through sensitive questions.",
+  },
+  GL_CE_14: {
+    focus: "Duplicate Girls record for the same girl in the same village.",
+    avoid:
+      "Do not submit the same girl twice. Retain the latest complete KEY and void earlier duplicates after supervisor review.",
+  },
+  GL_CE_DUP_GIRL_ID: {
+    focus: "Same girl ID appears in Girls survey more than once across villages.",
+    avoid:
+      "Confirm the correct village and girl ID before submit. Retain one KEY after supervisor review.",
+  },
+  GL_CE_DUP_GIRL_MISMATCH: {
+    focus: "Duplicate girl ID with conflicting name/village/age across Girls submissions.",
+    avoid:
+      "Fix identity fields so one girl ID maps to one identity. Retain the latest correct KEY after supervisor review.",
+  },
+  HVG_QF_IDENTITY_MISMATCH: {
+    focus: "Girl name in Household does not match Girls survey for the same girl ID.",
+    avoid:
+      "Confirm the girl’s name against the tracking list before submit. Align Household and Girls identity fields.",
   },
   GL_QF_13: {
     focus: "A months value is out of the valid range.",
