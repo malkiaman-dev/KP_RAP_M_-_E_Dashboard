@@ -1768,7 +1768,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             )
 
     # -------------------------------------------------
-    # Fast interview: prefer SurveyCTO duration; CRITICAL <10, FLAG <15
+    # Fast interview (one rule HH_CE_FAST_10): prefer SurveyCTO duration; CRITICAL <10, FLAG <15
     # -------------------------------------------------
     CRIT_FAST_MIN = float(col.get("critical_fast_duration_minutes", 10) or 10)
     MIN_DURATION_MIN = float(col.get("min_survey_duration_minutes", 15) or 15)
@@ -1781,12 +1781,13 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             if mins is None:
                 continue
 
+            # One check category: severity by threshold (CRITICAL <10, FLAG <15).
             if mins < CRIT_FAST_MIN:
                 add_issue(
                     i,
                     "CRITICAL",
                     "HH_CE_FAST_10",
-                    "Survey completed extremely quickly",
+                    "Survey completed too quickly",
                     (
                         f"Active interview duration is {round(mins, 1)} minutes "
                         f"(under {CRIT_FAST_MIN:.0f}). Review for skipped sections or invalid submit."
@@ -1798,7 +1799,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 add_issue(
                     i,
                     "FLAG",
-                    "HH_QF_07",
+                    "HH_CE_FAST_10",
                     "Survey completed too quickly",
                     (
                         f"Household survey should take at least {MIN_DURATION_MIN:.0f} minutes. "

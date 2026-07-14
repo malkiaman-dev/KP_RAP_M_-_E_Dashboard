@@ -359,12 +359,13 @@ def run_household_protocol(
             except Exception:
                 dur_min = None
 
+        # One check category: severity by threshold (CRITICAL ≥crit, FLAG ≥warn).
         if dur_min is not None and dur_min >= crit_mins:
             _emit(
                 i,
                 "CRITICAL",
                 "HH_CR_LONG_DURATION",
-                "Long survey duration (critical)",
+                "Long survey duration",
                 (
                     f"Interview duration is {dur_min:.0f} minutes ({_fmt_hours(dur_min)}) "
                     f"(critical threshold {crit_mins:.0f} min / {_fmt_hours(crit_mins)})."
@@ -376,8 +377,8 @@ def run_household_protocol(
             _emit(
                 i,
                 "FLAG",
-                "HH_QF_LONG_DURATION_WARN",
-                "Long survey duration (warning)",
+                "HH_CR_LONG_DURATION",
+                "Long survey duration",
                 (
                     f"Interview duration is {dur_min:.0f} minutes ({_fmt_hours(dur_min)}) "
                     f"(warning threshold {warn_mins:.0f} min / {_fmt_hours(warn_mins)})."

@@ -633,7 +633,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 )
 
     # --------------------------
-    # 6) Time consistency and fast interview (CRITICAL/FLAG)
+    # 6) Time consistency and fast interview (one rule GL_CE_FAST_10)
     # Prefer SurveyCTO `duration` (active seconds). Wall-clock start/end is fallback.
     # CRITICAL if under 10 minutes; FLAG if under 15 minutes.
     # --------------------------
@@ -659,12 +659,13 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         mins = active_duration_minutes(i)
         if mins is None:
             continue
+        # One check category: severity by threshold (CRITICAL <10, FLAG <15).
         if mins < crit_fast_min:
             add_issue(
                 i,
                 "CRITICAL",
                 "GL_CE_FAST_10",
-                "Interview completed extremely quickly",
+                "Interview completed too quickly",
                 (
                     f"Active interview duration is {round(mins, 1)} minutes "
                     f"(under {crit_fast_min:.0f}). The Girls survey includes reading and math modules "
@@ -677,7 +678,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             add_issue(
                 i,
                 "FLAG",
-                "GL_QF_10",
+                "GL_CE_FAST_10",
                 "Interview completed too quickly",
                 (
                     f"Active interview duration is {round(mins, 1)} minutes "

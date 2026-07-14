@@ -73,14 +73,17 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
       "Complete every required module shown in the form. Do not jump ahead or leave transport questions blank when they appear.",
   },
   HH_CR_LONG_DURATION: {
-    focus: "Household interview ran far longer than expected (critical).",
+    focus:
+      "Household interview ran longer than expected (critical ≥180 min, quality ≥120 min).",
     avoid:
       "Stay on protocol, avoid long idle pauses with the form open, and finish modules in one sitting when possible. Pause/resume correctly if interrupted.",
   },
+  // Legacy alias — older error logs may still use the warning-tier rule id.
   HH_QF_LONG_DURATION_WARN: {
-    focus: "Household interview took longer than usual (warning).",
+    focus:
+      "Household interview ran longer than expected (critical ≥180 min, quality ≥120 min).",
     avoid:
-      "Plan the visit, keep respondents focused, and avoid leaving the tablet open unused for long stretches.",
+      "Stay on protocol, avoid long idle pauses with the form open, and finish modules in one sitting when possible. Pause/resume correctly if interrupted.",
   },
   HH_QF_DUMMY_ALT_PHONE: {
     focus: "Alternative contact number looks fake or placeholder.",
@@ -97,15 +100,18 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoid:
       "Confirm the girl’s age and current class with the respondent. Correct typos before submit — age and grade must make sense together.",
   },
-  HH_QF_07: {
-    focus: "Household survey completed too quickly (under 15 minutes active duration).",
-    avoid:
-      "Read questions fully and verify answers. Very short durations suggest skipped or rushed sections.",
-  },
   HH_CE_FAST_10: {
-    focus: "Household survey completed extremely quickly (under 10 minutes active duration).",
+    focus:
+      "Household survey completed too quickly (critical under 10 min, quality under 15 min active duration).",
     avoid:
-      "Do not skip sections or submit incomplete interviews. Review the case with your supervisor before resubmitting.",
+      "Read questions fully and verify answers. Do not skip sections or submit incomplete interviews — review extreme cases with your supervisor.",
+  },
+  // Legacy alias — older error logs may still use the quality-tier rule id.
+  HH_QF_07: {
+    focus:
+      "Household survey completed too quickly (critical under 10 min, quality under 15 min active duration).",
+    avoid:
+      "Read questions fully and verify answers. Do not skip sections or submit incomplete interviews — review extreme cases with your supervisor.",
   },
   HH_CR_10: {
     focus: "Exact duplicate household record for the same respondent.",
@@ -128,14 +134,17 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
       "Confirm age and date of birth carefully. If the girl is outside the eligible range, follow supervisor guidance instead of forcing an in-range value.",
   },
   GL_CE_FAST_10: {
-    focus: "Girls interview completed extremely quickly (under 10 minutes) despite reading/math modules.",
+    focus:
+      "Girls interview completed too quickly (critical under 10 min, quality under 15 min) despite reading/math modules.",
     avoid:
       "Allow enough time for reading passages and math questions. Do not skip test modules or rush consent/demographics.",
   },
+  // Legacy alias — older error logs may still use the quality-tier rule id.
   GL_QF_10: {
-    focus: "Girls interview completed too quickly (under 15 minutes active duration).",
+    focus:
+      "Girls interview completed too quickly (critical under 10 min, quality under 15 min) despite reading/math modules.",
     avoid:
-      "Give enough time for each section, especially reading and math. Do not rush through sensitive questions.",
+      "Allow enough time for reading passages and math questions. Do not skip test modules or rush consent/demographics.",
   },
   GL_CE_14: {
     focus: "Duplicate Girls record for the same girl in the same village.",

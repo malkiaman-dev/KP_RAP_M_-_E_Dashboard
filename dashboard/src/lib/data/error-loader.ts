@@ -60,6 +60,30 @@ function normalizeSeverity(value: unknown): ErrorSeverity {
   return str(value).toUpperCase() === "CRITICAL" ? "CRITICAL" : "FLAG";
 }
 
+/**
+ * Map legacy dual-tier rule IDs onto the consolidated single-check IDs.
+ * Severity is unchanged — only the rule category is unified.
+ */
+const LEGACY_RULE_ID_ALIASES: Record<string, string> = {
+  HH_QF_07: "HH_CE_FAST_10",
+  GL_QF_10: "GL_CE_FAST_10",
+  HH_QF_LONG_DURATION_WARN: "HH_CR_LONG_DURATION",
+};
+
+const LEGACY_RULE_TITLES: Record<string, string> = {
+  HH_CE_FAST_10: "Survey completed too quickly",
+  GL_CE_FAST_10: "Interview completed too quickly",
+  HH_CR_LONG_DURATION: "Long survey duration",
+};
+
+function normalizeRuleId(ruleId: string): string {
+  return LEGACY_RULE_ID_ALIASES[ruleId] ?? ruleId;
+}
+
+function normalizeTitle(ruleId: string, title: string): string {
+  return LEGACY_RULE_TITLES[ruleId] ?? title;
+}
+
 export function loadErrorRows(): ErrorRow[] {
   const filePath = ERROR_LOG_CANDIDATES.find((p) => fs.existsSync(p));
   if (!filePath) return [];
@@ -76,22 +100,25 @@ export function loadErrorRows(): ErrorRow[] {
     raw: false,
   });
 
-  return raw.map((row) => ({
-    survey: str(row["Survey"]),
-    district: str(row["District"]),
-    recordKey: str(row["Record Key"]),
-    severity: normalizeSeverity(row["Severity"]),
-    ruleId: str(row["Rule ID"]),
-    title: str(row["Title"]),
-    message: str(row["Message"]),
-    field: str(row["Field"]),
-    value: str(row["Value"]),
-    enumeratorName: str(row["Enumerator Name"]),
-    enumeratorId: str(row["Enumerator ID"]),
-    deviceId: str(row["Device ID"]),
-    submissionDate: str(row["Submission Date"]),
-    createdAt: str(row["Created At"]),
-  }));
+  return raw.map((row) => {
+    const ruleId = normalizeRuleId(str(row["Rule ID"]));
+    return {
+      survey: str(row["Survey"]),
+      district: str(row["District"]),
+      recordKey: str(row["Record Key"]),
+      severity: normalizeSeverity(row["Severity"]),
+      ruleId,
+      title: normalizeTitle(ruleId, str(row["Title"])),
+      message: str(row["Message"]),
+      field: str(row["Field"]),
+      value: str(row["Value"]),
+      enumeratorName: str(row["Enumerator Name"]),
+      enumeratorId: str(row["Enumerator ID"]),
+      deviceId: str(row["Device ID"]),
+      submissionDate: str(row["Submission Date"]),
+      createdAt: str(row["Created At"]),
+    };
+  });
 }
 
 /**
