@@ -359,29 +359,20 @@ def run_household_protocol(
             except Exception:
                 dur_min = None
 
-        # One check category: severity by threshold (CRITICAL ≥crit, FLAG ≥warn).
-        if dur_min is not None and dur_min >= crit_mins:
+        # Implausible long duration (ANOMALY) — often form left open overnight.
+        if dur_min is not None and dur_min >= warn_mins:
+            sev = "ANOMALY"
+            thr = crit_mins if dur_min >= crit_mins else warn_mins
             _emit(
                 i,
-                "CRITICAL",
-                "HH_CR_LONG_DURATION",
-                "Long survey duration",
+                sev,
+                "HH_AN_LONG_DURATION",
+                "Implausibly long household interview duration",
                 (
                     f"Interview duration is {dur_min:.0f} minutes ({_fmt_hours(dur_min)}) "
-                    f"(critical threshold {crit_mins:.0f} min / {_fmt_hours(crit_mins)})."
-                ),
-                f"{start_col},{end_col},{duration_col}",
-                f"duration_minutes={dur_min:.1f}; duration_hours={_fmt_hours(dur_min)}",
-            )
-        elif dur_min is not None and dur_min >= warn_mins:
-            _emit(
-                i,
-                "FLAG",
-                "HH_CR_LONG_DURATION",
-                "Long survey duration",
-                (
-                    f"Interview duration is {dur_min:.0f} minutes ({_fmt_hours(dur_min)}) "
-                    f"(warning threshold {warn_mins:.0f} min / {_fmt_hours(warn_mins)})."
+                    f"(threshold {thr:.0f} min / {_fmt_hours(thr)}). "
+                    "Durations this long usually mean the tablet form was left open "
+                    "(overnight pause / idle), not continuous interviewing. Verify before coaching."
                 ),
                 f"{start_col},{end_col},{duration_col}",
                 f"duration_minutes={dur_min:.1f}; duration_hours={_fmt_hours(dur_min)}",

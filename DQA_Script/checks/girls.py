@@ -589,48 +589,105 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
 
     # --------------------------
     # 5) Consent checks
-    # IMPORTANT CHANGE YOU REQUESTED:
-    # - Removed GL_CE_CONSENT_CHILD logic completely (no child consent critical)
-    # - Kept parental consent checks
+    # Parental agree is kept (validity). Child consent / schedule / other-specify
+    # are enforced by SurveyCTO required+relevance — not re-checked here.
+    # Status contradictions (refused but Complete) are DQA-critical.
     # --------------------------
+    girl_available_col = cfg("girl_available", "girl_available")
+    survey_status_col = cfg("survey_status", "survey_status")
+    harassment_presence_col = cfg("harassment_presence", "harassment_presence")
+    time_school_hours = cfg("time_school_hours", "time_school_hours")
+    time_school_mins = cfg("time_school_mins", "time_school_mins")
+
+    def _girl_is_available(i) -> bool:
+        if not girl_available_col or girl_available_col not in df.columns:
+            return True
+        return _is_yes(df.at[i, girl_available_col])
+
+    def _codeset(v) -> set[str]:
+        if is_missing(v):
+            return set()
+        return {p.strip() for p in re.split(r"[\s,;]+", str(v).strip()) if p.strip()}
+
     if p_consent_agree and p_consent_agree in df.columns:
-        bad = df[p_consent_agree].apply(lambda v: not _is_yes(v))
-        for i in df.index[bad]:
+        for i in df.index:
+            if not _girl_is_available(i):
+                continue
+            if _is_yes(df.at[i, p_consent_agree]):
+                continue
             add_issue(
                 i,
                 "CRITICAL",
                 "GL_CE_CONSENT_PARENT",
                 "Parental consent not confirmed",
-                "Parental consent (agree) is missing or not accepted. This interview should not be treated as valid without consent confirmation.",
+                (
+                    "Girl is available but parental consent (agree) is missing or not accepted. "
+                    "Interview is not valid without parental consent."
+                ),
                 p_consent_agree,
                 f"parental_consent_agree={clean_scalar(df.at[i, p_consent_agree])}",
             )
 
-        agreed = ~bad
-        if p_consent_understand and p_consent_understand in df.columns:
-            b2 = agreed & df[p_consent_understand].apply(lambda v: is_missing(v))
-            for i in df.index[b2]:
+        for i in df.index:
+            if not _girl_is_available(i):
+                continue
+            if not _is_yes(df.at[i, p_consent_agree]):
+                continue
+            if p_consent_understand and p_consent_understand in df.columns and is_missing(
+                df.at[i, p_consent_understand]
+            ):
                 add_issue(
                     i,
                     "FLAG",
                     "GL_QF_CONSENT_PARENT_UNDERSTAND",
                     "Parental consent understand is missing",
-                    "Parental consent was agreed, but the understanding confirmation is missing. Please verify completeness.",
+                    "Parental consent was agreed, but the understanding confirmation is missing.",
                     p_consent_understand,
                     "missing",
                 )
-        if p_consent_copy and p_consent_copy in df.columns:
-            b3 = agreed & df[p_consent_copy].apply(lambda v: is_missing(v))
-            for i in df.index[b3]:
+            if p_consent_copy and p_consent_copy in df.columns and is_missing(
+                df.at[i, p_consent_copy]
+            ):
                 add_issue(
                     i,
                     "FLAG",
                     "GL_QF_CONSENT_PARENT_COPY",
                     "Parental consent copy is missing",
-                    "Parental consent was agreed, but the consent copy confirmation is missing. Please verify completeness.",
+                    "Parental consent was agreed, but the consent copy confirmation is missing.",
                     p_consent_copy,
                     "missing",
                 )
+
+    if survey_status_col and survey_status_col in df.columns:
+        for i in df.index:
+            if str(clean_scalar(df.at[i, survey_status_col]) or "").strip() != "1":
+                continue
+            parent_no = (
+                p_consent_agree
+                and p_consent_agree in df.columns
+                and (not is_missing(df.at[i, p_consent_agree]))
+                and (not _is_yes(df.at[i, p_consent_agree]))
+            )
+            child_no = (
+                c_consent_agree
+                and c_consent_agree in df.columns
+                and (not is_missing(df.at[i, c_consent_agree]))
+                and (not _is_yes(df.at[i, c_consent_agree]))
+            )
+            if not (parent_no or child_no):
+                continue
+            add_issue(
+                i,
+                "CRITICAL",
+                "GL_CE_CONSENT_REFUSED_COMPLETE",
+                "Consent refused but survey marked complete",
+                (
+                    "Parental and/or child consent was refused, but survey_status is Complete. "
+                    "Instructions require Incomplete when any consent is refused."
+                ),
+                survey_status_col,
+                "survey_status=1 with refused consent",
+            )
 
     # --------------------------
     # 6) Time consistency and fast interview (one rule GL_CE_FAST_10)
@@ -659,30 +716,21 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         mins = active_duration_minutes(i)
         if mins is None:
             continue
-        # One check category: severity by threshold (CRITICAL <10, FLAG <15).
-        if mins < crit_fast_min:
+        # Implausible duration (ANOMALY) — not Critical/Quality.
+        # Filling demographics + learning (72 word items) + math in under 10–15 minutes
+        # is rarely feasible even when skipping; often a duration/device anomaly.
+        if mins < min_survey_min:
+            thr = crit_fast_min if mins < crit_fast_min else min_survey_min
             add_issue(
                 i,
-                "CRITICAL",
-                "GL_CE_FAST_10",
-                "Interview completed too quickly",
+                "ANOMALY",
+                "GL_AN_FAST_DURATION",
+                "Implausibly short Girls interview duration",
                 (
-                    f"Active interview duration is {round(mins, 1)} minutes "
-                    f"(under {crit_fast_min:.0f}). The Girls survey includes reading and math modules "
-                    "that should take meaningfully longer — review for skipped sections or invalid submit."
-                ),
-                dur_field or "duration",
-                f"{round(mins, 1)} mins",
-            )
-        elif mins < min_survey_min:
-            add_issue(
-                i,
-                "FLAG",
-                "GL_CE_FAST_10",
-                "Interview completed too quickly",
-                (
-                    f"Active interview duration is {round(mins, 1)} minutes "
-                    f"(under {min_survey_min:.0f}). Please review to ensure reading/math modules were completed properly."
+                    f"Active duration is {round(mins, 1)} minutes (under {thr:.0f}). "
+                    "The Girls form includes consent, modules, and a reading/math assessment "
+                    "(dozens of items). Completing a submitted interview this quickly is often "
+                    "technically implausible — check tablet duration/clock before treating as rushing."
                 ),
                 dur_field or "duration",
                 f"{round(mins, 1)} mins",
@@ -1105,6 +1153,138 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             )
 
     # --------------------------
+    # 18) Time-use total > 24 hours (FLAG)
+    # --------------------------
+    tu_cols = [
+        ("looking_after_children_hours", "looking_after_children_mins"),
+        ("domestic_chores_hours", "domestic_chores_mins"),
+        ("leisure_hours", "leisure_mins"),
+    ]
+    if any((h in df.columns) for h, _ in tu_cols):
+        for i in df.index:
+            total_mins = 0.0
+            any_filled = False
+            for h_col, m_col in tu_cols:
+                if h_col in df.columns and not is_missing(df.at[i, h_col]):
+                    hv = to_num(pd.Series([df.at[i, h_col]])).iloc[0]
+                    if pd.notna(hv):
+                        any_filled = True
+                        total_mins += float(hv) * 60.0
+                if m_col in df.columns and not is_missing(df.at[i, m_col]):
+                    mv = to_num(pd.Series([df.at[i, m_col]])).iloc[0]
+                    if pd.notna(mv):
+                        any_filled = True
+                        total_mins += float(mv)
+            if not any_filled or total_mins <= 24 * 60 + 1e-6:
+                continue
+            add_issue(
+                i,
+                "FLAG",
+                "GL_QF_TIME_USE_OVER_24",
+                "Yesterday time-use exceeds 24 hours",
+                (
+                    "Looking-after + domestic chores + leisure total more than 24 hours. "
+                    "Verify hours/minutes with the girl."
+                ),
+                ",".join(c for pair in tu_cols for c in pair if c in df.columns),
+                f"total_hours={total_mins / 60.0:.1f}",
+            )
+
+    # --------------------------
+    # 19) Harassment privacy guidance (FLAG)
+    # Form note: harassment must be private; group opens only when presence includes
+    # "No one else present" (code 6). Flag complete consented interviews that were
+    # not alone for this module.
+    # --------------------------
+    if harassment_presence_col and harassment_presence_col in df.columns:
+        for i in df.index:
+            parent_ok = (
+                p_consent_agree
+                and p_consent_agree in df.columns
+                and _is_yes(df.at[i, p_consent_agree])
+            )
+            child_ok = (
+                c_consent_agree
+                and c_consent_agree in df.columns
+                and _is_yes(df.at[i, c_consent_agree])
+            )
+            if not (parent_ok and child_ok):
+                continue
+            presence = df.at[i, harassment_presence_col]
+            if is_missing(presence):
+                continue
+            codes = _codeset(presence)
+            # Also check expanded binary columns
+            if "harassment_presence_6" in df.columns:
+                if str(df.at[i, "harassment_presence_6"]).strip() in {"1", "true", "yes"}:
+                    codes.add("6")
+            if "6" in codes:
+                continue
+            add_issue(
+                i,
+                "FLAG",
+                "GL_QF_HARASSMENT_NOT_PRIVATE",
+                "Harassment section not conducted in private",
+                (
+                    "Form guidance requires the harassment module in private "
+                    "('No one else present'). Room presence was not alone — verify field practice."
+                ),
+                harassment_presence_col,
+                f"harassment_presence={clean_scalar(presence)}",
+            )
+
+    # --------------------------
+    # 20) Travel time vs distance plausibility (FLAG)
+    # --------------------------
+    if how_far and how_far in df.columns and (
+        (time_school_hours and time_school_hours in df.columns)
+        or (time_school_mins and time_school_mins in df.columns)
+    ):
+        for i in df.index:
+            if currently_studying and currently_studying in df.columns:
+                if not _is_yes(df.at[i, currently_studying]):
+                    continue
+            dist = to_num(pd.Series([df.at[i, how_far]])).iloc[0]
+            if pd.isna(dist):
+                continue
+            th = (
+                to_num(pd.Series([df.at[i, time_school_hours]])).iloc[0]
+                if time_school_hours and time_school_hours in df.columns
+                else 0
+            )
+            tm = (
+                to_num(pd.Series([df.at[i, time_school_mins]])).iloc[0]
+                if time_school_mins and time_school_mins in df.columns
+                else 0
+            )
+            th = 0.0 if pd.isna(th) else float(th)
+            tm = 0.0 if pd.isna(tm) else float(tm)
+            mins = th * 60.0 + tm
+            if mins <= 0:
+                continue
+            # ≥3 km but under 5 minutes, or ≤0.5 km but over 90 minutes
+            far_fast = float(dist) >= 3 and mins < 5
+            near_slow = float(dist) <= 0.5 and mins > 90
+            if not (far_fast or near_slow):
+                continue
+            add_issue(
+                i,
+                "FLAG",
+                "GL_QF_TRAVEL_TIME_DISTANCE",
+                "School travel time inconsistent with distance",
+                (
+                    "Reported travel time to school does not match distance. "
+                    "Verify how_far and time_school with the girl."
+                ),
+                ",".join(
+                    c
+                    for c in [how_far, time_school_hours, time_school_mins]
+                    if c and c in df.columns
+                ),
+                f"how_far={float(dist)}; time_mins={mins:.0f}",
+            )
+
+    # --------------------------
     # FINAL STEP: dedupe issues per record, per field
     # --------------------------
     def _get_first_key(d: dict, keys: list[str]):
@@ -1121,8 +1301,10 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     def _sev_rank(v) -> int:
         s = str(v or "").strip().upper()
         if s == "CRITICAL":
-            return 2
+            return 3
         if s == "FLAG":
+            return 2
+        if s == "ANOMALY":
             return 1
         return 0
 

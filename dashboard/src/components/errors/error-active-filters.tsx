@@ -13,11 +13,16 @@ const LABELS: Record<Exclude<ChipKey, "dateFrom" | "dateTo" | "todayOnly" | "dat
   severity: "Severity",
   enumerator: "Enumerator",
   ruleId: "Rule",
+  title: "Title",
 };
 
 function displayValue(key: keyof ErrorFilters, value: string): string {
   if (key === "severity") {
-    return value === "CRITICAL" ? "Critical" : "Quality";
+    return value === "CRITICAL"
+      ? "Critical"
+      : value === "ANOMALY"
+        ? "Implausible"
+        : "Quality";
   }
   if (key === "enumerator") {
     return displayEnumeratorLabel(value);
@@ -37,7 +42,7 @@ export function ErrorActiveFilters({
   const chips: { key: ChipKey; label: string }[] = [];
 
   const categorical = (
-    ["district", "survey", "severity", "enumerator", "ruleId"] as const
+    ["district", "survey", "severity", "title", "enumerator", "ruleId"] as const
   ).filter((key) => {
     if (hideDistrict && key === "district") return false;
     return filters[key] !== "all";

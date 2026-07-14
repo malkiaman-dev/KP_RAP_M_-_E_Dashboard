@@ -22,6 +22,16 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoid:
       "Always capture or update the girl’s phone (or a reliable alternate) during tracking. Do not leave phone fields blank when a contact exists in the household.",
   },
+  TRK_CE_CONSENT_REFUSED_COMPLETE: {
+    focus: "Consent was refused but the tracking form was marked Complete.",
+    avoid:
+      "If the respondent refuses consent, mark survey_status as Incomplete. Never mark a refused-consent visit as Complete.",
+  },
+  TRK_CE_CONSENT_MISSING: {
+    focus: "Girl was found and the form is Complete, but consent is blank.",
+    avoid:
+      "When the girl is found, complete the consent questions before submitting. Do not leave consent empty on a Complete form.",
+  },
   TRK_QF_05: {
     focus: "Tracking surveys completed unusually fast.",
     avoid:
@@ -113,6 +123,56 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoid:
       "Read questions fully and verify answers. Do not skip sections or submit incomplete interviews — review extreme cases with your supervisor.",
   },
+  HH_CE_DAYS_SCHOOL_MISSING: {
+    focus: "Girl is currently attending school but days_school is blank.",
+    avoid:
+      "When the listed girl is currently attending, always enter days attended in the last two weeks (0–12). Do not skip this question.",
+  },
+  HH_SCHED_REQUIRED_MISSING: {
+    focus: "Parent temporarily unavailable but revisit schedule was not recorded.",
+    avoid:
+      "For unavailability reasons 1, 2, or 6, record available days/hours so the team can revisit. Do not leave the schedule blank.",
+  },
+  HH_QF_UNAVAIL_OTHER_NO_SPECIFY: {
+    focus: "Parent unavailability is Other but the specify text is blank.",
+    avoid:
+      "If you select Other, type the real reason. The team needs it to decide revisit vs permanent absence.",
+  },
+  HH_QF_TIME_USE_OVER_24: {
+    focus: "Yesterday’s time-use activities add up to more than 24 hours.",
+    avoid:
+      "Check hours and minutes for looking-after, chores, and leisure. Totals for one day cannot exceed 24 hours.",
+  },
+  HH_QF_WTP_MAX_FEE: {
+    focus: "WTP fee-tier answer conflicts with the stated maximum fee.",
+    avoid:
+      "If the household would use government transport at a given monthly fee, max_fee must be at least that amount. Re-ask both questions carefully.",
+  },
+  HH_QF_WTP_FREE_REFUSE_MAX_FEE: {
+    focus: "Household refused free transport but reported a positive max fee.",
+    avoid:
+      "If they would keep the girl home even when transport is free, max_fee should normally be 0. Confirm both answers with the respondent.",
+  },
+  HH_QF_AGE_HEAPING: {
+    focus: "Many roster ages end in 0 or 5 (possible guessing).",
+    avoid:
+      "Ask exact ages or dates of birth. Do not round ages to the nearest 5 years.",
+  },
+  HH_QF_PHONE_INVALID: {
+    focus: "Phone number is not a valid 11-digit number.",
+    avoid:
+      "Enter phones as 03XXXXXXXXX (11 digits). Do not leave incomplete or malformed numbers.",
+  },
+  HH_QF_ALT_PHONE_INVALID: {
+    focus: "Alternative phone number is not a valid 11-digit number.",
+    avoid:
+      "Enter alternate phones as 03XXXXXXXXX, or leave blank if none exists.",
+  },
+  HH_QF_NEIGHBOR_PHONE_INVALID: {
+    focus: "Neighbour phone number is not a valid 11-digit number.",
+    avoid:
+      "Enter neighbour phones as 03XXXXXXXXX, or leave blank if none exists.",
+  },
   HH_CR_10: {
     focus: "Exact duplicate household record for the same respondent.",
     avoid:
@@ -145,6 +205,61 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
       "Girls interview completed too quickly (critical under 10 min, quality under 15 min) despite reading/math modules.",
     avoid:
       "Allow enough time for reading passages and math questions. Do not skip test modules or rush consent/demographics.",
+  },
+  GL_CE_CONSENT_CHILD: {
+    focus: "Girl is available but child consent was not confirmed.",
+    avoid:
+      "When the girl is home, complete child consent. If she refuses, mark the survey Incomplete — do not continue as Complete.",
+  },
+  GL_CE_CONSENT_REFUSED_COMPLETE: {
+    focus: "Consent was refused but the Girls survey was marked Complete.",
+    avoid:
+      "If parental or child consent is refused, survey_status must be Incomplete per Girls Survey Instructions.",
+  },
+  GL_CE_GRADE_MISSING: {
+    focus: "Girl is currently studying but grade is missing.",
+    avoid:
+      "If currently_studying = Yes, always enter the current grade before submit.",
+  },
+  GL_CE_TRANSPORT_INCOMPLETE: {
+    focus: "Girl is currently studying but distance/transport fields are blank.",
+    avoid:
+      "For girls in school, complete how_far and mode_transport. These are required for commuting analysis.",
+  },
+  GL_SCHED_REQUIRED_MISSING: {
+    focus: "Girl temporarily unavailable but revisit schedule was not recorded.",
+    avoid:
+      "If she is gone to school or temporarily unavailable (reason 1 or 4), record available days/hours for revisit.",
+  },
+  GL_QF_CONSENT_CHILD_UNDERSTAND: {
+    focus: "Child consent agreed but understand confirmation is missing.",
+    avoid:
+      "After agreement, confirm that the girl understood the consent statement.",
+  },
+  GL_QF_CONSENT_CHILD_COPY: {
+    focus: "Child consent agreed but copy confirmation is missing.",
+    avoid:
+      "Record whether a consent copy was offered/accepted after the girl agrees.",
+  },
+  GL_QF_UNAVAIL_OTHER_NO_SPECIFY: {
+    focus: "Girl unavailability is Other but specify text is blank.",
+    avoid:
+      "If reason is Other, type the actual reason so supervisors can decide on revisits.",
+  },
+  GL_QF_TIME_USE_OVER_24: {
+    focus: "Yesterday’s time-use activities add up to more than 24 hours.",
+    avoid:
+      "Check hours and minutes carefully. Looking-after + chores + leisure cannot exceed 24 hours in one day.",
+  },
+  GL_QF_HARASSMENT_NOT_PRIVATE: {
+    focus: "Harassment module was not conducted with only the girl present.",
+    avoid:
+      "Form guidance requires privacy ('No one else present') for harassment questions. Ask others to step out before that section.",
+  },
+  GL_QF_TRAVEL_TIME_DISTANCE: {
+    focus: "Travel time to school does not match reported distance.",
+    avoid:
+      "Re-check how far the school is and how long the trip takes. Extreme mismatches usually mean a typing error.",
   },
   GL_CE_14: {
     focus: "Duplicate Girls record for the same girl in the same village.",

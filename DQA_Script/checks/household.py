@@ -1199,6 +1199,135 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 _norm_str(df.at[i, days_school]),
             )
 
+    # =========================================================
+    # HH_QF_TIME_USE_OVER_24: yesterday time-use activities exceed 24h
+    # =========================================================
+    tu_pairs = [
+        ("looking_after_children_hours", "looking_after_children_mins"),
+        ("domestic_chores_hours", "domestic_chores_mins"),
+        ("leisure_chores_hours", "leisure_chores_mins"),
+    ]
+    if any(h in df.columns for h, _ in tu_pairs):
+        for i in df.index:
+            total_mins = 0.0
+            any_filled = False
+            for h_col, m_col in tu_pairs:
+                h = _to_num(df.at[i, h_col]) if h_col in df.columns else None
+                m = _to_num(df.at[i, m_col]) if m_col in df.columns else None
+                if h is not None:
+                    any_filled = True
+                    total_mins += float(h) * 60.0
+                if m is not None:
+                    any_filled = True
+                    total_mins += float(m)
+            if not any_filled:
+                continue
+            if total_mins <= 24 * 60 + 1e-6:
+                continue
+            add_issue(
+                i,
+                "FLAG",
+                "HH_QF_TIME_USE_OVER_24",
+                "Yesterday time-use exceeds 24 hours",
+                (
+                    "Looking-after + domestic chores + leisure total more than 24 hours. "
+                    "Verify hours/minutes with the respondent."
+                ),
+                ",".join(c for pair in tu_pairs for c in pair if c in df.columns),
+                f"total_hours={total_mins / 60.0:.1f}",
+            )
+
+    # =========================================================
+    # HH_QF_WTP_MAX_FEE: accepted a fee tier but max_fee is below that fee
+    # =========================================================
+    wtp_tiers = [
+        ("PKR750_wtp", 750),
+        ("PKR1500_wtp", 1500),
+        ("PKR2000_wtp", 2000),
+    ]
+    max_fee_col = "max_fee" if "max_fee" in df.columns else None
+    if max_fee_col:
+        for i in df.index:
+            mf = _to_num(df.at[i, max_fee_col])
+            if mf is None:
+                continue
+            for wtp_col, fee in wtp_tiers:
+                if wtp_col not in df.columns:
+                    continue
+                # 1 = Send daughter using Government transport at that fee
+                if _norm_str(df.at[i, wtp_col]) != "1":
+                    continue
+                if mf + 1e-9 >= fee:
+                    continue
+                add_issue(
+                    i,
+                    "FLAG",
+                    "HH_QF_WTP_MAX_FEE",
+                    "WTP fee choice inconsistent with max fee",
+                    (
+                        f"Respondent would send daughter on government transport at {fee} PKR/month, "
+                        f"but max_fee ({mf:.0f}) is lower. Verify willingness-to-pay answers."
+                    ),
+                    f"{wtp_col},{max_fee_col}",
+                    f"{wtp_col}=1; max_fee={mf:.0f}; fee_tier={fee}",
+                )
+                break  # one WTP inconsistency flag per record is enough
+
+        free_col = "free_wtp" if "free_wtp" in df.columns else None
+        if free_col:
+            for i in df.index:
+                # 3 = Keep daughter at home even when free, but max_fee > 0
+                if _norm_str(df.at[i, free_col]) != "3":
+                    continue
+                mf = _to_num(df.at[i, max_fee_col])
+                if mf is None or mf <= 0:
+                    continue
+                add_issue(
+                    i,
+                    "FLAG",
+                    "HH_QF_WTP_FREE_REFUSE_MAX_FEE",
+                    "Refused free transport but reported positive max fee",
+                    (
+                        "Respondent would keep daughter at home even if transport is free, "
+                        "but max_fee is greater than 0. Verify WTP consistency."
+                    ),
+                    f"{free_col},{max_fee_col}",
+                    f"free_wtp=3; max_fee={mf:.0f}",
+                )
+
+    # =========================================================
+    # HH_QF_AGE_HEAPING: roster ages suspiciously rounded to 0/5
+    # =========================================================
+    age_round_ratio = float(col.get("age_round_ratio_threshold", 0.70) or 0.70)
+    age_round_min = int(col.get("age_round_min_members", 5) or 5)
+    roster_age_cols = [c for c in df.columns if re.fullmatch(r"age_\d+", str(c))]
+    if roster_age_cols:
+        for i in df.index:
+            ages = []
+            for c in roster_age_cols:
+                a = _to_num(df.at[i, c])
+                if a is None or a < 0:
+                    continue
+                ages.append(a)
+            if len(ages) < age_round_min:
+                continue
+            rounded = sum(1 for a in ages if int(round(a)) % 5 == 0)
+            ratio = rounded / len(ages)
+            if ratio < age_round_ratio:
+                continue
+            add_issue(
+                i,
+                "FLAG",
+                "HH_QF_AGE_HEAPING",
+                "Roster ages look heavily rounded",
+                (
+                    f"{rounded}/{len(ages)} roster ages end in 0 or 5 (≥{age_round_ratio:.0%} threshold). "
+                    "Verify ages were asked carefully (not guessed in 5-year steps)."
+                ),
+                ",".join(roster_age_cols[:8]),
+                f"rounded_ratio={ratio:.2f}; n={len(ages)}",
+            )
+
     # -------------------------------------------------
     # HH_QF_03: dummy/placeholder names (roster + siblings)
     # -------------------------------------------------
@@ -1768,7 +1897,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             )
 
     # -------------------------------------------------
-    # Fast interview (one rule HH_CE_FAST_10): prefer SurveyCTO duration; CRITICAL <10, FLAG <15
+    # Implausible fast interview (ANOMALY) — prefer SurveyCTO duration; not Critical/Quality
     # -------------------------------------------------
     CRIT_FAST_MIN = float(col.get("critical_fast_duration_minutes", 10) or 10)
     MIN_DURATION_MIN = float(col.get("min_survey_duration_minutes", 15) or 15)
@@ -1781,29 +1910,21 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             if mins is None:
                 continue
 
-            # One check category: severity by threshold (CRITICAL <10, FLAG <15).
-            if mins < CRIT_FAST_MIN:
+            # Implausible duration — not scored as Critical/Quality field error.
+            # A completed HH interview with answers across many modules is unlikely
+            # under these thresholds; often a device/duration technical anomaly.
+            if mins < MIN_DURATION_MIN:
+                thr = CRIT_FAST_MIN if mins < CRIT_FAST_MIN else MIN_DURATION_MIN
                 add_issue(
                     i,
-                    "CRITICAL",
-                    "HH_CE_FAST_10",
-                    "Survey completed too quickly",
+                    "ANOMALY",
+                    "HH_AN_FAST_DURATION",
+                    "Implausibly short household interview duration",
                     (
-                        f"Active interview duration is {round(mins, 1)} minutes "
-                        f"(under {CRIT_FAST_MIN:.0f}). Review for skipped sections or invalid submit."
-                    ),
-                    field,
-                    f"{round(mins, 1)} mins",
-                )
-            elif mins < MIN_DURATION_MIN:
-                add_issue(
-                    i,
-                    "FLAG",
-                    "HH_CE_FAST_10",
-                    "Survey completed too quickly",
-                    (
-                        f"Household survey should take at least {MIN_DURATION_MIN:.0f} minutes. "
-                        f"Observed active duration is {round(mins, 1)} minutes (<{MIN_DURATION_MIN:.0f})."
+                        f"Active duration is {round(mins, 1)} minutes (under {thr:.0f}). "
+                        "A completed household interview with roster, education, and modules "
+                        "filled is rarely possible this quickly — likely a tablet clock/duration "
+                        "glitch or form left/resumed oddly, not simple question-skipping. Verify before coaching."
                     ),
                     field,
                     f"{round(mins, 1)} mins",
@@ -2052,12 +2173,6 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         sched_raw = df.at[i, schedule_date_col] if (schedule_date_col and schedule_date_col in df.columns) else None
         sched_dt = _parse_date_any(sched_raw) if (schedule_date_col and schedule_date_col in df.columns) else None
 
-        schedule_required = False
-        if reason_num_s in {"1", "2"}:
-            schedule_required = True
-        elif reason_num_s == "6" and _is_temp_other_text(other_text):
-            schedule_required = True
-
         schedule_forbidden = reason_num_s in {"3", "4", "5"}
 
         # forbidden scheduling but fields present
@@ -2075,23 +2190,6 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 )
             return
 
-        # (Optional) required scheduling but missing slot/date
-        # left commented as in your original, keeping behavior unchanged:
-        # if schedule_required:
-        #     missing_slot = (_norm_str(slot_raw) == "")
-        #     missing_date = (sched_dt is None)
-        #     if missing_slot or missing_date:
-        #         add_issue(
-        #             i,
-        #             "FLAG",
-        #             "HH_SCHED_REQUIRED_MISSING",
-        #             "Temporary unavailability needs scheduling",
-        #             "Parent is temporarily unavailable, a schedule date and time slot should be recorded for follow up.",
-        #             ",".join([c for c in [reason_col, schedule_date_col, slot_col] if c]),
-        #             f"unavailable_reason={reason_code}; schedule_date={_clip(sched_raw)}; slot={_clip(slot_raw)}",
-        #         )
-        #         return
-
         # missed follow up: schedule date passed and parent survey still missing
         if parent_missing and sched_dt and sched_dt.date() < now.date():
             add_issue(
@@ -2107,9 +2205,6 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         # due soon tracker: today or within 24h AND parent survey missing
         if parent_missing and sched_dt and ((now <= sched_dt <= due_soon_until) or (sched_dt.date() == now.date())):
             _emit_tracker_row(i, parent, reason_raw, sched_dt, slot_raw)
-
-        # (not used now, but kept for clarity)
-        _ = schedule_required
 
     if gid_col and gid_col in df.columns:
         for i in df.index:

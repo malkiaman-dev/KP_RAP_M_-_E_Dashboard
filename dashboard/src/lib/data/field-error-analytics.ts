@@ -1,5 +1,6 @@
 import { getRuleGuidance } from "./error-guidance";
 import {
+  actualErrorRows,
   isEnumeratorAttributable,
   type ErrorMetrics,
   type ErrorRow,
@@ -63,6 +64,8 @@ export function computeFieldErrorAnalytics(
   rows: ErrorRow[],
   metrics?: ErrorMetrics
 ): FieldErrorAnalytics {
+  // Coaching focuses on real Critical/Quality issues — not duration anomalies.
+  rows = actualErrorRows(rows);
   const totalErrors = rows.length;
   const criticalErrors = rows.filter((r) => r.severity === "CRITICAL").length;
   const flagErrors = rows.filter((r) => r.severity === "FLAG").length;

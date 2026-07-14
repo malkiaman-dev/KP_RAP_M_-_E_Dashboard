@@ -111,6 +111,8 @@ def _norm_severity(x: Any) -> str:
         return "CRITICAL"
     if s in {"WARNING", "WARN", "QUALITY", "FLAG"}:
         return "FLAG"
+    if s in {"ANOMALY", "IMPLAUSIBLE", "TECHNICAL", "TECH"}:
+        return "ANOMALY"
     if s in {"NOTE", "INFO"}:
         return "INFO"
 

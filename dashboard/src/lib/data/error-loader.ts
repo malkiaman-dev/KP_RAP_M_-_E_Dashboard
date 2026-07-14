@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import * as XLSX from "xlsx";
 import {
+  ANOMALY_RULE_IDS,
   computeErrorMetrics,
   scopeErrorReportRows,
   type ErrorRow,
@@ -17,6 +18,10 @@ export {
   defaultErrorFilters,
   excludeCrossSurveyChecks,
   scopeErrorReportRows,
+  actualErrorRows,
+  anomalyErrorRows,
+  isAnomalyError,
+  ANOMALY_RULE_IDS,
   ERROR_REPORT_SURVEYS,
   toggleErrorFilters,
 } from "./error-metrics";
@@ -56,24 +61,22 @@ function str(value: unknown): string {
   return String(value).trim();
 }
 
-function normalizeSeverity(value: unknown): ErrorSeverity {
-  return str(value).toUpperCase() === "CRITICAL" ? "CRITICAL" : "FLAG";
-}
-
-/**
- * Map legacy dual-tier rule IDs onto the consolidated single-check IDs.
- * Severity is unchanged — only the rule category is unified.
- */
+/** Map legacy duration rule IDs onto the anomaly rule IDs. */
 const LEGACY_RULE_ID_ALIASES: Record<string, string> = {
-  HH_QF_07: "HH_CE_FAST_10",
-  GL_QF_10: "GL_CE_FAST_10",
-  HH_QF_LONG_DURATION_WARN: "HH_CR_LONG_DURATION",
+  TRK_QF_05: "TRK_AN_FAST_DURATION",
+  HH_CE_FAST_10: "HH_AN_FAST_DURATION",
+  HH_QF_07: "HH_AN_FAST_DURATION",
+  GL_CE_FAST_10: "GL_AN_FAST_DURATION",
+  GL_QF_10: "GL_AN_FAST_DURATION",
+  HH_CR_LONG_DURATION: "HH_AN_LONG_DURATION",
+  HH_QF_LONG_DURATION_WARN: "HH_AN_LONG_DURATION",
 };
 
 const LEGACY_RULE_TITLES: Record<string, string> = {
-  HH_CE_FAST_10: "Survey completed too quickly",
-  GL_CE_FAST_10: "Interview completed too quickly",
-  HH_CR_LONG_DURATION: "Long survey duration",
+  TRK_AN_FAST_DURATION: "Implausibly short tracking interview duration",
+  HH_AN_FAST_DURATION: "Implausibly short household interview duration",
+  GL_AN_FAST_DURATION: "Implausibly short Girls interview duration",
+  HH_AN_LONG_DURATION: "Implausibly long household interview duration",
 };
 
 function normalizeRuleId(ruleId: string): string {
@@ -82,6 +85,21 @@ function normalizeRuleId(ruleId: string): string {
 
 function normalizeTitle(ruleId: string, title: string): string {
   return LEGACY_RULE_TITLES[ruleId] ?? title;
+}
+
+function normalizeSeverity(
+  value: unknown,
+  ruleId: string
+): ErrorSeverity {
+  const raw = str(value).toUpperCase();
+  if (raw === "ANOMALY" || raw === "IMPLAUSIBLE" || raw === "TECHNICAL") {
+    return "ANOMALY";
+  }
+  if (ANOMALY_RULE_IDS.has(ruleId) || ruleId in LEGACY_RULE_ID_ALIASES) {
+    return "ANOMALY";
+  }
+  if (raw === "CRITICAL") return "CRITICAL";
+  return "FLAG";
 }
 
 export function loadErrorRows(): ErrorRow[] {
@@ -106,7 +124,7 @@ export function loadErrorRows(): ErrorRow[] {
       survey: str(row["Survey"]),
       district: str(row["District"]),
       recordKey: str(row["Record Key"]),
-      severity: normalizeSeverity(row["Severity"]),
+      severity: normalizeSeverity(row["Severity"], ruleId),
       ruleId,
       title: normalizeTitle(ruleId, str(row["Title"])),
       message: str(row["Message"]),

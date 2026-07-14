@@ -135,18 +135,6 @@ export function buildHhProgressKpiTiles(
       accent: "#0F766E",
       bg: "#F8FAFC",
     },
-    {
-      label: "Girls Available",
-      value: num(metrics.availableGirls),
-      accent: "#134E4A",
-      bg: "#F8FAFC",
-    },
-    {
-      label: "Girls Studying",
-      value: num(metrics.studyingGirls),
-      accent: "#134E4A",
-      bg: "#F8FAFC",
-    },
   ];
 }
 
@@ -165,7 +153,7 @@ export function buildHhProgressExecutiveSummaryBullets(
     `Progress toward the sample target of ${num(metrics.hhTarget)} completed households stands at ${pct(metrics.progressToTarget, 1)}, with ${num(metrics.remainingToTarget)} still remaining.`,
     `${num(metrics.revisitsNeeded)} survey slots still need a revisit; ${num(metrics.totalRevisitedGirls)} girls have been revisited. ${num(metrics.missingSurveys)} required surveys are still missing.`,
     `Unavailability: father ${num(metrics.fatherNotAvailable)}, mother ${num(metrics.motherNotAvailable)}, girl ${num(metrics.girlNotAvailable)}. Consent refused on ${num(metrics.consentRefused)} forms.`,
-    `Girls survey: ${num(metrics.availableGirls)} available · ${num(metrics.studyingGirls)} studying · parental consent ${pct(metrics.parentalConsentRate, 0)} · child consent ${pct(metrics.childConsentRate, 0)}.`,
+    `Girls survey consent: parental ${pct(metrics.parentalConsentRate, 0)} · child ${pct(metrics.childConsentRate, 0)}.`,
   ];
 }
 

@@ -5,7 +5,7 @@ import {
   matchesEnumeratorFilter,
 } from "./enumerator-identity";
 
-export type ErrorSeverity = "CRITICAL" | "FLAG";
+export type ErrorSeverity = "CRITICAL" | "FLAG" | "ANOMALY";
 
 export interface ErrorRow {
   survey: string;
@@ -34,6 +34,8 @@ export interface ErrorFilters {
   severity: string;
   enumerator: string;
   ruleId: string;
+  /** Exact error title that occurred in the log (not free text). */
+  title: string;
   dateFrom: string;
   dateTo: string;
   /** When true, only submissions from today are included. */
@@ -46,6 +48,7 @@ export const defaultErrorFilters: ErrorFilters = {
   severity: "all",
   enumerator: "all",
   ruleId: "all",
+  title: "all",
   dateFrom: "",
   dateTo: "",
   todayOnly: false,
@@ -63,6 +66,41 @@ export const ERROR_REPORT_EXCLUDED_RULE_IDS = new Set([
   "TRK_CE_MIN_3_ATTEMPTS",
   "TRK_CE_VISIT_DATE_NOT_SAME_DAY",
 ]);
+
+/**
+ * Duration / device anomalies that look like data-quality errors but are often
+ * technically implausible (form fully answered yet duration too short/long).
+ * Shown on the Implausible Cases tab — not Critical/Quality.
+ */
+export const ANOMALY_RULE_IDS = new Set([
+  "TRK_AN_FAST_DURATION",
+  "HH_AN_FAST_DURATION",
+  "GL_AN_FAST_DURATION",
+  "HH_AN_LONG_DURATION",
+  // Legacy IDs from older error logs
+  "TRK_QF_05",
+  "HH_CE_FAST_10",
+  "HH_QF_07",
+  "GL_CE_FAST_10",
+  "GL_QF_10",
+  "HH_CR_LONG_DURATION",
+  "HH_QF_LONG_DURATION_WARN",
+]);
+
+export function isAnomalyError(row: ErrorRow): boolean {
+  if (row.severity === "ANOMALY") return true;
+  return ANOMALY_RULE_IDS.has((row.ruleId || "").trim());
+}
+
+/** Critical + Quality only (excludes implausible/technical anomalies). */
+export function actualErrorRows(rows: ErrorRow[]): ErrorRow[] {
+  return rows.filter((r) => !isAnomalyError(r));
+}
+
+/** Implausible / technical anomaly cases only. */
+export function anomalyErrorRows(rows: ErrorRow[]): ErrorRow[] {
+  return rows.filter((r) => isAnomalyError(r));
+}
 
 const UNASSIGNED = "-";
 
@@ -149,6 +187,8 @@ export function applyErrorFilters(
     if (filters.severity !== "all" && r.severity !== filters.severity)
       return false;
     if (filters.ruleId !== "all" && r.ruleId !== filters.ruleId) return false;
+    if (filters.title !== "all" && (r.title || "").trim() !== filters.title)
+      return false;
     if (filters.enumerator !== "all") {
       if (filters.enumerator === UNASSIGNED) {
         if (isEnumeratorAttributable(r)) return false;
@@ -210,6 +250,7 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
   const totalErrors = rows.length;
   const criticalErrors = rows.filter((r) => r.severity === "CRITICAL").length;
   const flagErrors = rows.filter((r) => r.severity === "FLAG").length;
+  const anomalyErrors = rows.filter((r) => r.severity === "ANOMALY").length;
 
   const attributable = rows.filter(isEnumeratorAttributable);
   const enumeratorErrors = attributable.length;
@@ -244,11 +285,12 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
   // ---- By survey (stacked critical / flag) ----
   const surveyMap = new Map<string, { critical: number; flag: number }>();
   for (const r of rows) {
+    if (r.severity === "ANOMALY") continue;
     const key = r.survey || "Unknown";
     if (!surveyMap.has(key)) surveyMap.set(key, { critical: 0, flag: 0 });
     const e = surveyMap.get(key)!;
     if (r.severity === "CRITICAL") e.critical += 1;
-    else e.flag += 1;
+    else if (r.severity === "FLAG") e.flag += 1;
   }
   const bySurvey = [...surveyMap.entries()]
     .map(([survey, v]) => ({
@@ -262,11 +304,12 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
   // ---- By district (stacked critical / flag) ----
   const districtMap = new Map<string, { critical: number; flag: number }>();
   for (const r of rows) {
+    if (r.severity === "ANOMALY") continue;
     const key = r.district || "Unknown";
     if (!districtMap.has(key)) districtMap.set(key, { critical: 0, flag: 0 });
     const e = districtMap.get(key)!;
     if (r.severity === "CRITICAL") e.critical += 1;
-    else e.flag += 1;
+    else if (r.severity === "FLAG") e.flag += 1;
   }
   const byDistrict = [...districtMap.entries()]
     .map(([district, v]) => ({
@@ -300,6 +343,7 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
     { id: string; name: string; district: string; critical: number; flag: number }
   >();
   for (const r of attributable) {
+    if (r.severity === "ANOMALY") continue;
     const key = enumeratorIdentityKey({
       enumerator_id: r.enumeratorId,
       enumerator_name: r.enumeratorName,
@@ -316,7 +360,7 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
     }
     const e = enumMap.get(key)!;
     if (r.severity === "CRITICAL") e.critical += 1;
-    else e.flag += 1;
+    else if (r.severity === "FLAG") e.flag += 1;
   }
   const enumerators = [...enumMap.values()].map((e) => ({
     ...e,
@@ -352,13 +396,14 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
   // ---- Daily trend (critical vs quality by submission date) ----
   const dayMap = new Map<string, { critical: number; flag: number }>();
   for (const r of rows) {
+    if (r.severity === "ANOMALY") continue;
     const day = errorSubmissionDay(r.submissionDate);
     if (!day) continue;
     const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
     if (!dayMap.has(iso)) dayMap.set(iso, { critical: 0, flag: 0 });
     const e = dayMap.get(iso)!;
     if (r.severity === "CRITICAL") e.critical += 1;
-    else e.flag += 1;
+    else if (r.severity === "FLAG") e.flag += 1;
   }
 
   const sortedDays = [...dayMap.keys()].sort();
@@ -410,6 +455,15 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
   const surveys = [...new Set(rows.map((r) => r.survey).filter(Boolean))]
     .sort()
     .map((s) => ({ value: s, label: s }));
+  const titles = [
+    ...new Set(
+      rows
+        .map((r) => (r.title || "").trim())
+        .filter((t) => t.length > 0)
+    ),
+  ]
+    .sort((a, b) => a.localeCompare(b))
+    .map((t) => ({ value: t, label: t }));
   const enumeratorOptions = buildEnumeratorFilterOptions(
     attributable.map((r) => ({
       enumerator_id: r.enumeratorId,
@@ -431,6 +485,7 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
     totalErrors,
     criticalErrors,
     flagErrors,
+    anomalyErrors,
     criticalRate: rate(criticalErrors, totalErrors),
     qualityRate: rate(flagErrors, totalErrors),
     enumeratorErrors,
@@ -452,6 +507,7 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
     filterOptions: {
       districts,
       surveys,
+      titles,
       enumerators: enumeratorOptions,
       severities: [
         { value: "CRITICAL", label: "Critical" },
@@ -463,3 +519,16 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
 }
 
 export type ErrorMetrics = ReturnType<typeof computeErrorMetrics>;
+
+/** Unique occurred titles for the Title filter dropdown. */
+export function buildErrorTitleOptions(
+  rows: ErrorRow[]
+): { value: string; label: string }[] {
+  return [
+    ...new Set(
+      rows.map((r) => (r.title || "").trim()).filter((t) => t.length > 0)
+    ),
+  ]
+    .sort((a, b) => a.localeCompare(b))
+    .map((t) => ({ value: t, label: t }));
+}

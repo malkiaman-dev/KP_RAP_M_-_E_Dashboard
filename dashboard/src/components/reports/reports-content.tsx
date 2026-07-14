@@ -26,6 +26,8 @@ import {
 } from "@/lib/data/hh-girls-monitoring";
 import type { HhGirlsFilters } from "@/lib/data/hh-girls-metrics";
 import {
+  applyErrorFilters,
+  buildErrorTitleOptions,
   defaultErrorFilters,
   type ErrorFilters,
 } from "@/lib/data/error-metrics";
@@ -284,7 +286,17 @@ export function ReportsContent() {
       ) : (
         <>
           <ErrorFiltersPanel
-            filterOptions={errorQuery.data?.filterOptions}
+            filterOptions={{
+              ...errorQuery.data?.filterOptions,
+              titles:
+                errorQuery.data?.filterOptions?.titles ??
+                buildErrorTitleOptions(
+                  applyErrorFilters(errorQuery.data?.allErrors ?? [], {
+                    ...errorFilters,
+                    title: "all",
+                  })
+                ),
+            }}
             filters={errorFilters}
             onChange={setErrorFilters}
             showTodayToggle

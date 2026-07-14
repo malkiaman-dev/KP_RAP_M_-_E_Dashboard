@@ -10,12 +10,17 @@ import {
   Flag,
 } from "lucide-react";
 import { cn, formatDisplayDate } from "@/lib/utils";
-import type { ErrorMetrics, ErrorRow } from "@/lib/data/error-metrics";
+import {
+  buildErrorTitleOptions,
+  type ErrorMetrics,
+  type ErrorRow,
+} from "@/lib/data/error-metrics";
 import {
   parseErrorValueParts,
   stripContextFromValue,
 } from "@/lib/data/error-value-parse";
 import { downloadErrorReportExcel } from "@/lib/export/error-report-excel";
+import { FilterSelect } from "@/components/ui/filter-select";
 
 const PAGE_SIZE = 50;
 
@@ -56,11 +61,23 @@ export function ErrorTable({
   loading?: boolean;
 }) {
   const [query, setQuery] = useState("");
+  const [titleFilter, setTitleFilter] = useState("all");
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
+  const titleOptions = useMemo(
+    () => [
+      { value: "all", label: "All titles" },
+      ...buildErrorTitleOptions(metrics?.allErrors ?? []),
+    ],
+    [metrics?.allErrors]
+  );
+
   const rows = useMemo(() => {
-    const data = metrics?.allErrors ?? [];
+    let data = metrics?.allErrors ?? [];
+    if (titleFilter !== "all") {
+      data = data.filter((e) => (e.title || "").trim() === titleFilter);
+    }
     if (!query) return data;
     const q = query.toLowerCase();
     return data.filter(
@@ -78,7 +95,7 @@ export function ErrorTable({
         (e.villageName || "").toLowerCase().includes(q) ||
         (e.schoolName || "").toLowerCase().includes(q)
     );
-  }, [metrics, query]);
+  }, [metrics, query, titleFilter]);
 
   if (loading) {
     return <div className="h-96 animate-pulse rounded-2xl bg-muted/50" />;
@@ -113,7 +130,18 @@ export function ErrorTable({
             {rows.length.toLocaleString()} issues
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="w-52 sm:w-64">
+            <FilterSelect
+              value={titleFilter}
+              options={titleOptions}
+              onChange={(value) => {
+                setTitleFilter(value);
+                setVisible(PAGE_SIZE);
+              }}
+              aria-label="Filter by error title"
+            />
+          </div>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -312,6 +340,14 @@ function SeverityBadge({ severity }: { severity: ErrorRow["severity"] }) {
       <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-600">
         <ShieldAlert className="h-3 w-3" />
         Critical
+      </span>
+    );
+  }
+  if (severity === "ANOMALY") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2.5 py-0.5 text-xs font-medium text-sky-700 dark:text-sky-300">
+        <Flag className="h-3 w-3" />
+        Implausible
       </span>
     );
   }

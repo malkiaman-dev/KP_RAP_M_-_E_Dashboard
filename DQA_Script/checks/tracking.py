@@ -549,6 +549,9 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
 
     start_col = col.get("starttime", "starttime")
     end_col = col.get("endtime", "endtime")
+    duration_col = col.get("duration", "duration") if col.get("duration", "duration") in df.columns else (
+        "duration" if "duration" in df.columns else None
+    )
 
     village_col = col.get("village", "village")
     village_label_col = col.get("village_label", "village_label")
@@ -557,6 +560,8 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     num_new_girls_col = col.get("num_new_girls", "num_new_girls")
 
     girl_found_confirm_enrolled = col.get("girl_found_confirm_enrolled", "girl_found_confirm_enrolled")
+    consent_col = "consent" if "consent" in df.columns else None
+    survey_status_col = "survey_status" if "survey_status" in df.columns else None
 
     def meta(i):
         return dict(
@@ -568,6 +573,19 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             submission_date=df.at[i, sub] if sub in df.columns else None,
             district=df.at[i, district_col] if district_col in df.columns else None,
         )
+
+    def _row_girl_found_positive(i) -> bool:
+        for c in _girl_found_cols:
+            if _is_found_positive(df.at[i, c]):
+                return True
+        return False
+
+    _girl_found_cols = [
+        c
+        for c in df.columns
+        if isinstance(c, str)
+        and (c == "girl_found" or (c.startswith("girl_found_") and c[11:].isdigit()))
+    ]
 
     # =========================================================
     # VISIT DATE VALIDITY (invalid parse only)
@@ -609,38 +627,106 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             )
 
     # =========================================================
-    # FAST SUBMISSION (ALWAYS USE starttime/endtime)
+    # FAST SUBMISSION — prefer SurveyCTO duration, else start/end
     # =========================================================
     min_fast = float(col.get("min_duration_minutes", 5))
+    dur_min = pd.Series(pd.NA, index=df.index, dtype="Float64")
+    if duration_col and duration_col in df.columns:
+        raw = pd.to_numeric(df[duration_col], errors="coerce")
+        # seconds if large; otherwise already minutes
+        mins = raw.where(raw <= 500, raw / 60.0)
+        dur_min = mins.where(raw.notna() & (raw >= 0))
+    need_fallback = dur_min.isna()
+    if need_fallback.any() and start_col in df.columns and end_col in df.columns:
+        st = _parse_dt(df.loc[need_fallback, start_col])
+        et = _parse_dt(df.loc[need_fallback, end_col])
+        wall = (et - st).dt.total_seconds() / 60.0
+        wall = wall.where(st.notna() & et.notna() & (et > st))
+        dur_min.loc[need_fallback] = wall
 
-    if start_col in df.columns and end_col in df.columns:
-        st = _parse_dt(df[start_col])
-        et = _parse_dt(df[end_col])
-        dur_min = (et - st).dt.total_seconds() / 60.0
+    too_fast = dur_min.notna() & (dur_min < min_fast)
+    field = ",".join(c for c in [duration_col, start_col, end_col] if c)
+    for i in df.index[too_fast.fillna(False)]:
+        m = meta(i)
+        observed = float(dur_min.at[i])
+        add_issue(
+            issues,
+            survey="Tracking",
+            severity="ANOMALY",
+            rule_id="TRK_AN_FAST_DURATION",
+            title="Implausibly short tracking interview duration",
+            cause=(
+                f"Active duration is under {min_fast:.0f} minutes. "
+                "A submitted tracking visit with identity/location/outcome fields filled "
+                "is often technically implausible this quickly — verify device duration/clock "
+                "before treating it as enumerator rushing."
+            ),
+            field=field,
+            value=f"{int(round(observed))} mins",
+            record_key=m["record_key"],
+            instance_id=m["instance_id"],
+            enumerator=m["enumerator"],
+            enumerator_id=m["enumerator_id"],
+            deviceid=m["deviceid"],
+            submission_date=m["submission_date"],
+            district=m["district"],
+        )
 
-        too_fast = dur_min.notna() & (dur_min < min_fast)
-        for i in df.index[too_fast]:
+    # =========================================================
+    # CONSENT vs COMPLETE STATUS (CRITICAL)
+    # Form guidance: consent is required when girl is found; refused consent
+    # cannot produce a valid complete tracking interview.
+    # =========================================================
+    if consent_col and survey_status_col:
+        for i in df.index:
+            consent_code = _as_code(df.at[i, consent_col])
+            status_code = _as_code(df.at[i, survey_status_col])
+            complete = status_code == "1"
+            if not complete:
+                continue
             m = meta(i)
-            observed = dur_min.at[i]
-            observed_txt = "" if pd.isna(observed) else f"{int(round(observed))} mins"
-
-            add_issue(
-                issues,
-                survey="Tracking",
-                severity="FLAG",
-                rule_id="TRK_QF_05",
-                title="Survey completed too fast",
-                cause=f"Tracking survey should take more than {min_fast} minutes.",
-                field=f"{start_col},{end_col}",
-                value=observed_txt,
-                record_key=m["record_key"],
-                instance_id=m["instance_id"],
-                enumerator=m["enumerator"],
-                enumerator_id=m["enumerator_id"],
-                deviceid=m["deviceid"],
-                submission_date=m["submission_date"],
-                district=m["district"],
-            )
+            if consent_code in {"2", "0"}:
+                add_issue(
+                    issues,
+                    survey="Tracking",
+                    severity="CRITICAL",
+                    rule_id="TRK_CE_CONSENT_REFUSED_COMPLETE",
+                    title="Consent refused but survey marked complete",
+                    cause=(
+                        "Respondent refused consent, but survey_status is Complete. "
+                        "A refused-consent interview must be Incomplete."
+                    ),
+                    field=f"{consent_col},{survey_status_col}",
+                    value=f"consent={consent_code}; survey_status={status_code}",
+                    record_key=m["record_key"],
+                    instance_id=m["instance_id"],
+                    enumerator=m["enumerator"],
+                    enumerator_id=m["enumerator_id"],
+                    deviceid=m["deviceid"],
+                    submission_date=m["submission_date"],
+                    district=m["district"],
+                )
+            elif _row_girl_found_positive(i) and consent_code == "":
+                add_issue(
+                    issues,
+                    survey="Tracking",
+                    severity="CRITICAL",
+                    rule_id="TRK_CE_CONSENT_MISSING",
+                    title="Consent missing for found girl with complete survey",
+                    cause=(
+                        "Girl was found and survey is marked Complete, but consent is blank. "
+                        "Consent must be captured before treating the track as valid."
+                    ),
+                    field=f"{consent_col},{survey_status_col}",
+                    value="consent=missing; survey_status=1",
+                    record_key=m["record_key"],
+                    instance_id=m["instance_id"],
+                    enumerator=m["enumerator"],
+                    enumerator_id=m["enumerator_id"],
+                    deviceid=m["deviceid"],
+                    submission_date=m["submission_date"],
+                    district=m["district"],
+                )
 
     # =========================================================
     # ENUMERATOR RUSHING (KEEPING YOUR EXISTING LOGIC)
@@ -1254,7 +1340,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     issues.extend(run_tracking_protocol(df, col, meta))
 
     def _sev_rank(s: str) -> int:
-        return {"CRITICAL": 3, "FLAG": 2, "INFO": 1}.get(str(s).upper(), 0)
+        return {"CRITICAL": 3, "FLAG": 2, "ANOMALY": 1, "INFO": 0}.get(str(s).upper(), 0)
 
     def _safe_int(x, default: int = 10**9) -> int:
         try:

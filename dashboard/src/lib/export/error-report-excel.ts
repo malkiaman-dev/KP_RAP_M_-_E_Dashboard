@@ -6,7 +6,12 @@ function toSheetRows(rows: ErrorRow[]) {
     Survey: row.survey,
     District: row.district,
     "Record Key": row.recordKey,
-    Severity: row.severity === "CRITICAL" ? "Critical" : "Quality",
+    Severity:
+      row.severity === "CRITICAL"
+        ? "Critical"
+        : row.severity === "ANOMALY"
+          ? "Implausible"
+          : "Quality",
     "Rule ID": row.ruleId,
     Title: row.title,
     Message: row.message,
