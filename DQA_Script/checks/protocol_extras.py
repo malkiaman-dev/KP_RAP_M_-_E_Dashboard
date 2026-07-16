@@ -571,10 +571,9 @@ def run_tracking_protocol(
         if not rows:
             continue
         girl_list = sorted(girls)
-        sev = "CRITICAL" if len(girls) >= max(dup_threshold + 1, 4) else "FLAG"
         _emit(
             rows[0],
-            sev,
+            "FLAG",
             "TRK_QF_DUP_PHONE_MULTI_GIRL",
             "Duplicate contact number across girls",
             (
