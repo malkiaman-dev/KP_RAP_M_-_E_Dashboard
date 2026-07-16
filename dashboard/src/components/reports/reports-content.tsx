@@ -287,7 +287,8 @@ export function ReportsContent() {
         <>
           <ErrorFiltersPanel
             filterOptions={{
-              ...errorQuery.data?.filterOptions,
+              districts: errorQuery.data?.filterOptions?.districts ?? [],
+              surveys: errorQuery.data?.filterOptions?.surveys ?? [],
               titles:
                 errorQuery.data?.filterOptions?.titles ??
                 buildErrorTitleOptions(
@@ -296,6 +297,15 @@ export function ReportsContent() {
                     title: "all",
                   })
                 ),
+              enumerators: errorQuery.data?.filterOptions?.enumerators ?? [],
+              severities: errorQuery.data?.filterOptions?.severities ?? [
+                { value: "CRITICAL", label: "Critical" },
+                { value: "FLAG", label: "Quality" },
+              ],
+              dateRange: errorQuery.data?.filterOptions?.dateRange ?? {
+                start: "",
+                end: "",
+              },
             }}
             filters={errorFilters}
             onChange={setErrorFilters}
