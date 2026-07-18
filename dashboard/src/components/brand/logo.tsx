@@ -1,16 +1,20 @@
 "use client";
 
 import Image from "next/image";
-import { FIRMS } from "@/lib/brand";
-import { useFirm } from "@/components/brand/firm-provider";
+import { FIRMS, type FirmId } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
-export function Logo({ collapsed = false }: { collapsed?: boolean }) {
-  const { firmId } = useFirm();
+function FirmLogoContent({
+  firmId,
+  collapsed,
+}: {
+  firmId: FirmId;
+  collapsed: boolean;
+}) {
   const firm = FIRMS[firmId];
 
   return (
-    <div className="flex min-w-0 items-center gap-3 select-none">
+    <>
       <Image
         src={firm.logoMark}
         alt=""
@@ -29,6 +33,20 @@ export function Logo({ collapsed = false }: { collapsed?: boolean }) {
           </span>
         </div>
       )}
+    </>
+  );
+}
+
+/** Renders both brands; `html[data-firm]` CSS picks which is visible (hydration-safe). */
+export function Logo({ collapsed = false }: { collapsed?: boolean }) {
+  return (
+    <div className="relative min-w-0 select-none">
+      <div className="firm-brand-alliance flex min-w-0 items-center gap-3">
+        <FirmLogoContent firmId="alliance" collapsed={collapsed} />
+      </div>
+      <div className="firm-brand-pidc flex min-w-0 items-center gap-3">
+        <FirmLogoContent firmId="pidc" collapsed={collapsed} />
+      </div>
     </div>
   );
 }
@@ -40,18 +58,26 @@ export function LogoMark({
   size?: number;
   className?: string;
 }) {
-  const { firmId } = useFirm();
-  const firm = FIRMS[firmId];
-
   return (
-    <Image
-      src={firm.logoMark}
-      alt=""
-      width={size}
-      height={size}
-      className={cn("object-contain", className)}
-      style={{ width: size, height: size }}
-      draggable={false}
-    />
+    <span className="relative inline-flex">
+      <Image
+        src={FIRMS.alliance.logoMark}
+        alt=""
+        width={size}
+        height={size}
+        className={cn("firm-brand-alliance object-contain", className)}
+        style={{ width: size, height: size }}
+        draggable={false}
+      />
+      <Image
+        src={FIRMS.pidc.logoMark}
+        alt=""
+        width={size}
+        height={size}
+        className={cn("firm-brand-pidc object-contain", className)}
+        style={{ width: size, height: size }}
+        draggable={false}
+      />
+    </span>
   );
 }

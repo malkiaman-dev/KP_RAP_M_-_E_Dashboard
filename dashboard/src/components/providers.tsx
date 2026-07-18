@@ -39,13 +39,6 @@ export function Providers({
         defaultTheme="light"
         enableSystem
         disableTransitionOnChange={false}
-        // React 19 / Next 16: avoid client re-execution warning for the
-        // blocking theme script (browser already ran the SSR-emitted copy).
-        scriptProps={
-          typeof window === "undefined"
-            ? undefined
-            : ({ type: "application/json" } as const)
-        }
       >
         <FirmProvider
           initialAuth={initialAuth}

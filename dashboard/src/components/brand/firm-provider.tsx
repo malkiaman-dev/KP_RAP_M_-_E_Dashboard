@@ -14,10 +14,8 @@ import {
   canRoleSwitchFirm,
   applyFirmTheme,
   FIRMS,
-  FIRM_STORAGE_KEY,
   getDefaultFirmForRole,
   persistFirmPreference,
-  parseFirmPreference,
   type FirmBrand,
   type FirmId,
   type FirmPalette,
@@ -35,11 +33,6 @@ interface FirmContextValue {
 
 const FirmContext = createContext<FirmContextValue | null>(null);
 
-function readStoredFirm(): FirmId | null {
-  if (typeof window === "undefined") return null;
-  return parseFirmPreference(localStorage.getItem(FIRM_STORAGE_KEY));
-}
-
 export function FirmProvider({
   children,
   initialAuth = null,
@@ -54,17 +47,24 @@ export function FirmProvider({
 }) {
   const router = useRouter();
   const [user, setUser] = useState<Session | null>(initialAuth?.user ?? null);
-  // Always start from the server snapshot — never localStorage during init.
+  // Server cookie/RSC snapshot is the only source of truth for the first paint.
   const [firmId, setFirmId] = useState<FirmId>(initialFirmId);
 
   const effectiveRole = user?.role ?? initialAuth?.user.role ?? null;
   const canSwitch = canRoleSwitchFirm(effectiveRole);
 
+  // Keep client state aligned when the server sends a new firm (e.g. after refresh).
+  useEffect(() => {
+    setFirmId(initialFirmId);
+  }, [initialFirmId]);
+
   useLayoutEffect(() => {
     applyFirmTheme(firmId);
   }, [firmId]);
 
-  useLayoutEffect(() => {
+  // After mount: lock role-based firms, or mirror the server firm into storage.
+  // Never override the server firm from localStorage — that caused hydration mismatches.
+  useEffect(() => {
     if (!canSwitch || firmLocked) {
       const lockedFirm = getDefaultFirmForRole(effectiveRole);
       setFirmId(lockedFirm);
@@ -73,18 +73,9 @@ export function FirmProvider({
       return;
     }
 
-    const stored = readStoredFirm();
-    if (!stored || stored === firmId) {
-      persistFirmPreference(firmId);
-      applyFirmTheme(firmId);
-      return;
-    }
-
-    setFirmId(stored);
-    persistFirmPreference(stored);
-    applyFirmTheme(stored);
-    router.refresh();
-  }, [effectiveRole, canSwitch, firmLocked]); // eslint-disable-line react-hooks/exhaustive-deps -- hydrate once per role/lock
+    persistFirmPreference(firmId);
+    applyFirmTheme(firmId);
+  }, [effectiveRole, canSwitch, firmLocked, firmId]);
 
   useEffect(() => {
     if (initialAuth?.user) {
@@ -116,10 +107,10 @@ export function FirmProvider({
       firmId,
       firm,
       palette: firm.palette,
-      canSwitchFirm: canSwitch,
+      canSwitchFirm: canSwitch && !firmLocked,
       setFirm,
     }),
-    [firmId, firm, canSwitch, setFirm]
+    [firmId, firm, canSwitch, firmLocked, setFirm]
   );
 
   return <FirmContext.Provider value={value}>{children}</FirmContext.Provider>;

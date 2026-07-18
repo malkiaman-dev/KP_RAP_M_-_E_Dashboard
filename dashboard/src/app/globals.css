@@ -95,17 +95,13 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Firm logo/name: CSS-only toggle via html[data-firm] — works before React hydrates */
-.firm-brand-pidc {
+/* Firm logo/name: hide the inactive brand only — active keeps its own display classes */
+html:not([data-firm="pidc"]) .firm-brand-pidc {
   display: none !important;
 }
 
-[data-firm="pidc"] .firm-brand-alliance {
+html[data-firm="pidc"] .firm-brand-alliance {
   display: none !important;
-}
-
-[data-firm="pidc"] .firm-brand-pidc {
-  display: block !important;
 }
 
 body {
