@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { FIRMS, type FirmId } from "@/lib/brand";
+import { FIRM_IDS, FIRMS, type FirmId } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 function FirmLogoContent({
@@ -37,16 +37,18 @@ function FirmLogoContent({
   );
 }
 
-/** Renders both brands; `html[data-firm]` CSS picks which is visible (hydration-safe). */
+/** Renders all brands; `html[data-firm]` CSS picks which is visible (hydration-safe). */
 export function Logo({ collapsed = false }: { collapsed?: boolean }) {
   return (
     <div className="relative min-w-0 select-none">
-      <div className="firm-brand-alliance flex min-w-0 items-center gap-3">
-        <FirmLogoContent firmId="alliance" collapsed={collapsed} />
-      </div>
-      <div className="firm-brand-pidc flex min-w-0 items-center gap-3">
-        <FirmLogoContent firmId="pidc" collapsed={collapsed} />
-      </div>
+      {FIRM_IDS.map((id) => (
+        <div
+          key={id}
+          className={`firm-brand-${id} flex min-w-0 items-center gap-3`}
+        >
+          <FirmLogoContent firmId={id} collapsed={collapsed} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -60,24 +62,18 @@ export function LogoMark({
 }) {
   return (
     <span className="relative inline-flex">
-      <Image
-        src={FIRMS.alliance.logoMark}
-        alt=""
-        width={size}
-        height={size}
-        className={cn("firm-brand-alliance object-contain", className)}
-        style={{ width: size, height: size }}
-        draggable={false}
-      />
-      <Image
-        src={FIRMS.pidc.logoMark}
-        alt=""
-        width={size}
-        height={size}
-        className={cn("firm-brand-pidc object-contain", className)}
-        style={{ width: size, height: size }}
-        draggable={false}
-      />
+      {FIRM_IDS.map((id) => (
+        <Image
+          key={id}
+          src={FIRMS[id].logoMark}
+          alt=""
+          width={size}
+          height={size}
+          className={cn(`firm-brand-${id} object-contain`, className)}
+          style={{ width: size, height: size }}
+          draggable={false}
+        />
+      ))}
     </span>
   );
 }

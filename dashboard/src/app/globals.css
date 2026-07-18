@@ -1,17 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --brand-teal: #21a1aa;
-  --brand-deep-teal: #178891;
-  --brand-gold: #edca5c;
-  --brand-light-gold: #f4d67f;
-  --brand-teal-light: #2dbcc6;
-  --brand-deep-teal-dark: #0e6b73;
-  --brand-gold-dark: #e0b53f;
-  --brand-selected: #0b7080;
-  --brand-teal-rgb: 33, 161, 170;
-  --brand-deep-teal-rgb: 23, 136, 145;
-  --brand-gold-rgb: 237, 202, 92;
+  /* Default brand = PIDC */
+  --brand-teal: #2060a0;
+  --brand-deep-teal: #164a7e;
+  --brand-gold: #39b54a;
+  --brand-light-gold: #6bcb77;
+  --brand-teal-light: #3b82c4;
+  --brand-deep-teal-dark: #123d66;
+  --brand-gold-dark: #2d9a3e;
+  --brand-selected: #0f4d82;
+  --brand-teal-rgb: 32, 96, 160;
+  --brand-deep-teal-rgb: 22, 74, 126;
+  --brand-gold-rgb: 57, 181, 74;
 
   --background: #f5f7fa;
   --foreground: #0f172a;
@@ -30,18 +31,32 @@
   --surface-elevated: rgba(255, 255, 255, 0.72);
 }
 
-[data-firm="pidc"] {
-  --brand-teal: #2060a0;
-  --brand-deep-teal: #164a7e;
-  --brand-gold: #39b54a;
-  --brand-light-gold: #6bcb77;
-  --brand-teal-light: #3b82c4;
-  --brand-deep-teal-dark: #123d66;
-  --brand-gold-dark: #2d9a3e;
-  --brand-selected: #0f4d82;
-  --brand-teal-rgb: 32, 96, 160;
-  --brand-deep-teal-rgb: 22, 74, 126;
-  --brand-gold-rgb: 57, 181, 74;
+[data-firm="aoe"] {
+  --brand-teal: #21a1aa;
+  --brand-deep-teal: #178891;
+  --brand-gold: #edca5c;
+  --brand-light-gold: #f4d67f;
+  --brand-teal-light: #2dbcc6;
+  --brand-deep-teal-dark: #0e6b73;
+  --brand-gold-dark: #e0b53f;
+  --brand-selected: #0b7080;
+  --brand-teal-rgb: 33, 161, 170;
+  --brand-deep-teal-rgb: 23, 136, 145;
+  --brand-gold-rgb: 237, 202, 92;
+}
+
+[data-firm="kprap"] {
+  --brand-teal: #1b7a4e;
+  --brand-deep-teal: #145c3a;
+  --brand-gold: #c4a035;
+  --brand-light-gold: #d4b84a;
+  --brand-teal-light: #2a9b63;
+  --brand-deep-teal-dark: #0e4028;
+  --brand-gold-dark: #a8862a;
+  --brand-selected: #0f5c38;
+  --brand-teal-rgb: 27, 122, 78;
+  --brand-deep-teal-rgb: 20, 92, 58;
+  --brand-gold-rgb: 196, 160, 53;
 }
 
 .dark {
@@ -95,12 +110,19 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Firm logo/name: hide the inactive brand only — active keeps its own display classes */
-html:not([data-firm="pidc"]) .firm-brand-pidc {
+/* Firm logo/name: hide inactive brands — default (no data-firm) = PIDC */
+html:not([data-firm="aoe"]):not([data-firm="kprap"]) .firm-brand-aoe,
+html:not([data-firm="aoe"]):not([data-firm="kprap"]) .firm-brand-kprap {
   display: none !important;
 }
 
-html[data-firm="pidc"] .firm-brand-alliance {
+html[data-firm="aoe"] .firm-brand-pidc,
+html[data-firm="aoe"] .firm-brand-kprap {
+  display: none !important;
+}
+
+html[data-firm="kprap"] .firm-brand-pidc,
+html[data-firm="kprap"] .firm-brand-aoe {
   display: none !important;
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { FIRMS, getOtherFirm } from "@/lib/brand";
+import { FIRM_IDS, FIRMS, getNextFirm } from "@/lib/brand";
 import { useFirm } from "@/components/brand/firm-provider";
 
 export function FirmToggle() {
@@ -9,38 +9,33 @@ export function FirmToggle() {
 
   if (!canSwitchFirm) return null;
 
-  const otherFirm = FIRMS[getOtherFirm(firmId)];
+  const current = FIRMS[firmId];
+  const nextFirm = FIRMS[getNextFirm(firmId)];
 
   return (
     <button
       type="button"
-      onDoubleClick={() => setFirm(otherFirm.id)}
+      onDoubleClick={() => setFirm(nextFirm.id)}
       className="flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-xs font-medium text-primary transition-colors select-none hover:bg-muted"
-      aria-label={`Double-click to switch to ${otherFirm.name}`}
-      title={`Double-click for ${otherFirm.shortName}`}
+      aria-label={`Current brand: ${current.name}. Double-click to switch to ${nextFirm.name}.`}
+      title={`${current.shortName} — double-click for ${nextFirm.shortName}`}
     >
-      <span className="firm-brand-alliance inline-flex items-center gap-2">
-        <Image
-          src={FIRMS.alliance.favicon}
-          alt=""
-          width={18}
-          height={18}
-          className="h-[18px] w-[18px] object-contain"
-          draggable={false}
-        />
-        <span className="hidden sm:inline">{FIRMS.alliance.shortName}</span>
-      </span>
-      <span className="firm-brand-pidc inline-flex items-center gap-2">
-        <Image
-          src={FIRMS.pidc.favicon}
-          alt=""
-          width={18}
-          height={18}
-          className="h-[18px] w-[18px] object-contain"
-          draggable={false}
-        />
-        <span className="hidden sm:inline">{FIRMS.pidc.shortName}</span>
-      </span>
+      {FIRM_IDS.map((id) => (
+        <span
+          key={id}
+          className={`firm-brand-${id} inline-flex items-center gap-2`}
+        >
+          <Image
+            src={FIRMS[id].favicon}
+            alt=""
+            width={18}
+            height={18}
+            className="h-[18px] w-[18px] object-contain"
+            draggable={false}
+          />
+          <span className="hidden sm:inline">{FIRMS[id].shortName}</span>
+        </span>
+      ))}
     </button>
   );
 }

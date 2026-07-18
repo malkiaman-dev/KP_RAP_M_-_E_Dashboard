@@ -1,4 +1,6 @@
-export type FirmId = "alliance" | "pidc";
+export type FirmId = "pidc" | "aoe" | "kprap";
+
+export const FIRM_IDS: readonly FirmId[] = ["pidc", "aoe", "kprap"] as const;
 
 export const FIRM_COOKIE = "dashboard-firm";
 export const FIRM_STORAGE_KEY = "dashboard-firm";
@@ -8,7 +10,9 @@ export const DEFAULT_FIRM_ID: FirmId = "pidc";
 export function parseFirmPreference(
   value: string | null | undefined
 ): FirmId | null {
-  if (value === "pidc" || value === "alliance") return value;
+  if (value === "pidc" || value === "aoe" || value === "kprap") return value;
+  // Legacy cookie/localStorage from the old 2-firm switcher
+  if (value === "alliance") return "pidc";
   return null;
 }
 
@@ -18,8 +22,15 @@ export function resolveFirmPreference(
   return parseFirmPreference(value) ?? DEFAULT_FIRM_ID;
 }
 
+/** Cycle PIDC → AoE → KP-RAP → PIDC */
+export function getNextFirm(firmId: FirmId): FirmId {
+  const index = FIRM_IDS.indexOf(firmId);
+  return FIRM_IDS[(index + 1) % FIRM_IDS.length];
+}
+
+/** @deprecated Use `getNextFirm` */
 export function getOtherFirm(firmId: FirmId): FirmId {
-  return firmId === "pidc" ? "alliance" : "pidc";
+  return getNextFirm(firmId);
 }
 
 /** Fixed project branding shown on the login page (not firm-specific). */
@@ -56,7 +67,8 @@ export interface FirmBrand {
   palette: FirmPalette;
 }
 
-export const ALLIANCE_PALETTE: FirmPalette = {
+/** Teal + gold palette from AoE brand assets */
+export const AOE_PALETTE: FirmPalette = {
   teal: "#21A1AA",
   deepTeal: "#178891",
   gold: "#EDCA5C",
@@ -69,6 +81,9 @@ export const ALLIANCE_PALETTE: FirmPalette = {
   deepTealRgb: "23, 136, 145",
   goldRgb: "237, 202, 92",
 };
+
+/** @deprecated Use `AOE_PALETTE` */
+export const ALLIANCE_PALETTE = AOE_PALETTE;
 
 /** Blue + green palette derived from PIDC brand assets */
 export const PIDC_PALETTE: FirmPalette = {
@@ -85,22 +100,28 @@ export const PIDC_PALETTE: FirmPalette = {
   goldRgb: "57, 181, 74",
 };
 
+/** Green-forward palette for KP-RAP / provincial branding */
+export const KPRAP_PALETTE: FirmPalette = {
+  teal: "#1B7A4E",
+  deepTeal: "#145C3A",
+  gold: "#C4A035",
+  lightGold: "#D4B84A",
+  tealLight: "#2A9B63",
+  deepTealDark: "#0E4028",
+  goldDark: "#A8862A",
+  selected: "#0F5C38",
+  tealRgb: "27, 122, 78",
+  deepTealRgb: "20, 92, 58",
+  goldRgb: "196, 160, 53",
+};
+
 export const FIRM_PALETTES: Record<FirmId, FirmPalette> = {
-  alliance: ALLIANCE_PALETTE,
   pidc: PIDC_PALETTE,
+  aoe: AOE_PALETTE,
+  kprap: KPRAP_PALETTE,
 };
 
 export const FIRMS: Record<FirmId, FirmBrand> = {
-  alliance: {
-    id: "alliance",
-    name: "KP-RAP Project",
-    shortName: "KP-RAP",
-    tagline: "Monitoring & Evaluation Intelligence",
-    logo: "/kprap-logo.png",
-    logoMark: "/kprap-logo.png",
-    favicon: "/kprap-favicon.png",
-    palette: ALLIANCE_PALETTE,
-  },
   pidc: {
     id: "pidc",
     name: "PIDC",
@@ -111,17 +132,37 @@ export const FIRMS: Record<FirmId, FirmBrand> = {
     favicon: "/pidc-favicon.png",
     palette: PIDC_PALETTE,
   },
+  aoe: {
+    id: "aoe",
+    name: "Alliance of Experts",
+    shortName: "AoE",
+    tagline: "Monitoring & Evaluation Intelligence",
+    logo: "/alliance-logo.png",
+    logoMark: "/alliance-favicon.png",
+    favicon: "/alliance-favicon.png",
+    palette: AOE_PALETTE,
+  },
+  kprap: {
+    id: "kprap",
+    name: "KP-RAP Project",
+    shortName: "KP-RAP",
+    tagline: "Monitoring & Evaluation Intelligence",
+    logo: "/kprap-logo.png",
+    logoMark: "/kprap-favicon.png",
+    favicon: "/kprap-favicon.png",
+    palette: KPRAP_PALETTE,
+  },
 };
 
 /** @deprecated Use `FIRMS` or `useFirm()` instead */
-export const brand = FIRMS.alliance;
+export const brand = FIRMS.kprap;
 
 /** @deprecated Use `FIRM_PALETTES` or `useFirm().palette` instead */
 export const colors = {
-  teal: ALLIANCE_PALETTE.teal,
-  deepTeal: ALLIANCE_PALETTE.deepTeal,
-  gold: ALLIANCE_PALETTE.gold,
-  lightGold: ALLIANCE_PALETTE.lightGold,
+  teal: AOE_PALETTE.teal,
+  deepTeal: AOE_PALETTE.deepTeal,
+  gold: AOE_PALETTE.gold,
+  lightGold: AOE_PALETTE.lightGold,
   white: "#FFFFFF",
   softGray: "#F5F7FA",
   darkSlate: "#0F172A",
@@ -183,8 +224,12 @@ export function applyFirmTheme(firmId: FirmId) {
 export function getDefaultFirmForRole(
   role: "malki" | "pidc" | "world-bank" | "piu" | "district" | null | undefined
 ): FirmId {
-  if (role === "pidc" || role === "piu") return "pidc";
-  return "alliance";
+  // Switchable users (Malki) and PIDC/PIU start on PIDC.
+  if (role === "pidc" || role === "piu" || role === "malki" || role == null) {
+    return DEFAULT_FIRM_ID;
+  }
+  // Locked project viewers keep KP-RAP branding.
+  return "kprap";
 }
 
 export function canRoleSwitchFirm(

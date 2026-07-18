@@ -154,8 +154,9 @@ export function DashboardHero({ metrics, loading }: DashboardHeroProps) {
             transition={{ delay: 0.12 }}
             className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-[2.75rem] lg:leading-[1.1]"
           >
-            <span className="firm-brand-alliance">{FIRMS.alliance.name} </span>
             <span className="firm-brand-pidc">{FIRMS.pidc.name} </span>
+            <span className="firm-brand-aoe">{FIRMS.aoe.name} </span>
+            <span className="firm-brand-kprap">{FIRMS.kprap.name} </span>
             <span className="bg-gradient-to-r from-teal via-deep-teal to-teal bg-clip-text text-transparent">
               Command Center
             </span>
