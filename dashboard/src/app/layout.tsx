@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { AppShell } from "@/components/layout/app-shell";
-import { FIRM_THEME_BOOTSTRAP, FIRMS } from "@/lib/brand";
+import { FIRMS } from "@/lib/brand";
 import { getServerFirmContext } from "@/lib/brand-server";
 import { getServerAuthState } from "@/lib/auth/server-auth";
 import "./globals.css";
@@ -50,9 +50,6 @@ export default async function RootLayout({
       suppressHydrationWarning
       className={`${dmSans.variable} ${geistMono.variable} h-full`}
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: FIRM_THEME_BOOTSTRAP }} />
-      </head>
       <body
         suppressHydrationWarning
         className="min-h-full bg-background font-sans antialiased"
@@ -63,7 +60,11 @@ export default async function RootLayout({
         >
           Skip to main content
         </a>
-        <Providers initialAuth={initialAuth}>
+        <Providers
+          initialAuth={initialAuth}
+          initialFirmId={firmId}
+          firmLocked={locked}
+        >
           <AppShell initialAuth={initialAuth}>{children}</AppShell>
         </Providers>
       </body>

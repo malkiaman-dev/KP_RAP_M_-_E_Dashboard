@@ -18,7 +18,6 @@ import {
   getDefaultFirmForRole,
   persistFirmPreference,
   parseFirmPreference,
-  resolveFirmPreference,
   type FirmBrand,
   type FirmId,
   type FirmPalette,
@@ -36,23 +35,27 @@ interface FirmContextValue {
 
 const FirmContext = createContext<FirmContextValue | null>(null);
 
-function readBootstrappedFirm(): FirmId {
-  if (typeof document === "undefined") return "pidc";
-  const fromDom = parseFirmPreference(document.documentElement.dataset.firm);
-  if (fromDom) return fromDom;
-  return resolveFirmPreference(localStorage.getItem(FIRM_STORAGE_KEY));
+function readStoredFirm(): FirmId | null {
+  if (typeof window === "undefined") return null;
+  return parseFirmPreference(localStorage.getItem(FIRM_STORAGE_KEY));
 }
 
 export function FirmProvider({
   children,
   initialAuth = null,
+  initialFirmId,
+  firmLocked = false,
 }: {
   children: React.ReactNode;
   initialAuth?: ServerAuthState | null;
+  /** Must match the SSR `data-firm` / cookie so hydration stays consistent. */
+  initialFirmId: FirmId;
+  firmLocked?: boolean;
 }) {
   const router = useRouter();
   const [user, setUser] = useState<Session | null>(initialAuth?.user ?? null);
-  const [firmId, setFirmId] = useState<FirmId>(readBootstrappedFirm);
+  // Always start from the server snapshot — never localStorage during init.
+  const [firmId, setFirmId] = useState<FirmId>(initialFirmId);
 
   const effectiveRole = user?.role ?? initialAuth?.user.role ?? null;
   const canSwitch = canRoleSwitchFirm(effectiveRole);
@@ -60,6 +63,28 @@ export function FirmProvider({
   useLayoutEffect(() => {
     applyFirmTheme(firmId);
   }, [firmId]);
+
+  useLayoutEffect(() => {
+    if (!canSwitch || firmLocked) {
+      const lockedFirm = getDefaultFirmForRole(effectiveRole);
+      setFirmId(lockedFirm);
+      document.documentElement.dataset.firm = lockedFirm;
+      applyFirmTheme(lockedFirm);
+      return;
+    }
+
+    const stored = readStoredFirm();
+    if (!stored || stored === firmId) {
+      persistFirmPreference(firmId);
+      applyFirmTheme(firmId);
+      return;
+    }
+
+    setFirmId(stored);
+    persistFirmPreference(stored);
+    applyFirmTheme(stored);
+    router.refresh();
+  }, [effectiveRole, canSwitch, firmLocked]); // eslint-disable-line react-hooks/exhaustive-deps -- hydrate once per role/lock
 
   useEffect(() => {
     if (initialAuth?.user) {
@@ -72,21 +97,6 @@ export function FirmProvider({
       .then((data) => setUser(data?.user ?? null))
       .catch(() => setUser(null));
   }, [initialAuth?.user]);
-
-  useEffect(() => {
-    const role = effectiveRole;
-    const nextFirmId = canSwitch
-      ? readBootstrappedFirm()
-      : getDefaultFirmForRole(role);
-
-    setFirmId(nextFirmId);
-    if (canSwitch) {
-      persistFirmPreference(nextFirmId);
-    } else {
-      document.documentElement.dataset.firm = nextFirmId;
-    }
-    applyFirmTheme(nextFirmId);
-  }, [effectiveRole, canSwitch]);
 
   const setFirm = useCallback(
     (nextFirmId: FirmId) => {

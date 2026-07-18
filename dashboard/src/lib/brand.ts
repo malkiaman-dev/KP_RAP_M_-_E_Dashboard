@@ -234,6 +234,3 @@ export function applyDocumentBrand(_firm: FirmBrand) {}
 
 /** Login title/favicon come from app/login/layout.tsx metadata. */
 export function applyProjectDocumentBrand() {}
-
-/** Sync firm preference before paint. Does not modify document.head (avoids React DOM conflicts). */
-export const FIRM_THEME_BOOTSTRAP = `(function(){try{var r=document.documentElement,locked=r.getAttribute("data-firm-locked")==="true",f=r.getAttribute("data-firm"),stored=localStorage.getItem("dashboard-firm");if(!locked&&f==="alliance"&&stored==="pidc")f="pidc";if(f!=="pidc"&&f!=="alliance")f=stored==="alliance"?"alliance":"pidc";r.setAttribute("data-firm",f);if(stored==="pidc"||stored==="alliance")document.cookie="dashboard-firm="+stored+";path=/;max-age=31536000;SameSite=Lax";else document.cookie="dashboard-firm="+f+";path=/;max-age=31536000;SameSite=Lax";localStorage.setItem("dashboard-firm",f);}catch(e){}})();`;
