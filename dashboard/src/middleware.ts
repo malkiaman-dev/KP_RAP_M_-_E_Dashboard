@@ -4,7 +4,12 @@ import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
 
 const PUBLIC_PATHS = ["/login"];
 
-export async function proxy(request: NextRequest) {
+/**
+ * Use middleware.ts (not proxy.ts) on Windows.
+ * Next.js 16.2.x + Turbopack often writes an empty middleware-manifest for
+ * proxy.ts, which makes authenticated API routes return 404 in `next dev`.
+ */
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_PATHS.includes(pathname) || pathname === "/api/auth/login") {
