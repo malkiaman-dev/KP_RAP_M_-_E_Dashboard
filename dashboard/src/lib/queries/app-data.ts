@@ -27,13 +27,13 @@ export async function fetchTrackingMetrics(): Promise<TrackingMetrics> {
 }
 
 export async function fetchTrackingExports(): Promise<TrackingExportPayload> {
-  const res = await fetch("/api/tracking/exports");
+  const res = await fetch("/api/tracking-exports");
   if (!res.ok) throw new Error("Failed to load tracking export data");
   return res.json();
 }
 
 export async function fetchTrackingGaps(): Promise<TrackingTargetGaps> {
-  const res = await fetch("/api/tracking/gaps");
+  const res = await fetch("/api/tracking-gaps");
   if (!res.ok) throw new Error("Failed to load tracking target gaps");
   return res.json();
 }

@@ -191,7 +191,7 @@ export function loadTrackingMetricsForClient() {
   });
 }
 
-/** Full metrics including Excel export lists (used by /api/tracking/exports). */
+/** Full metrics including Excel export lists (used by /api/tracking-exports). */
 export function loadTrackingMetrics() {
   const signature = `v4-cross-in-gap|${filesSignature(trackingFilePaths())}`;
   return getCached("tracking-metrics-full-v4", signature, () =>
