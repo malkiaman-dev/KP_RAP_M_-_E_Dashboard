@@ -1,10 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChartsSection } from "@/components/dashboard/charts-section";
 import { DashboardActiveFilters } from "@/components/dashboard/dashboard-active-filters";
-import { DataTable } from "@/components/dashboard/data-table";
 import { FiltersPanel } from "@/components/dashboard/filters-panel";
 import { DashboardHero } from "@/components/dashboard/hero";
 import { KpiCards } from "@/components/dashboard/kpi-cards";
@@ -23,6 +22,22 @@ import {
   fetchDashboardMetrics,
   QUERY_STALE_MS,
 } from "@/lib/queries/app-data";
+
+const ChartsSection = dynamic(
+  () =>
+    import("@/components/dashboard/charts-section").then((m) => m.ChartsSection),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="mb-6 h-72 animate-pulse rounded-2xl bg-muted/40" />
+    ),
+  }
+);
+
+const DataTable = dynamic(
+  () => import("@/components/dashboard/data-table").then((m) => m.DataTable),
+  { ssr: false }
+);
 
 export function DashboardContent() {
   const {

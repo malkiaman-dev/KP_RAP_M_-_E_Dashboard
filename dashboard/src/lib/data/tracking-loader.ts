@@ -12,8 +12,6 @@ import {
 import { DEFAULT_TRACKING_TARGETS } from "./protocol";
 import { FIELD_PERIOD_START } from "./field-period";
 import { filesSignature, getCached } from "./survey-cache";
-import { computeTrackingTargetGaps } from "./tracking-target-gaps";
-import { overlayMetricsWithAssignmentFrame } from "./tracking-target-gap-filters";
 
 export {
   mergeTrackingExportLists,
@@ -152,10 +150,13 @@ export function loadTrackingSurvey(): TrackingRow[] {
   return getCached("tracking-rows", signature, readTrackingSurvey);
 }
 
-/** Fast path for tracking UI — field-period aggregates, no Excel row arrays. */
+/** Fast path for tracking UI — field-period aggregates, no Excel row arrays.
+ *  Assignment-frame overlay is applied on the client once /api/tracking-gaps is warm
+ *  so this endpoint stays fast for tab switches.
+ */
 export function loadTrackingMetricsForClient() {
-  const signature = `v7-frame|${FIELD_PERIOD_START}|${filesSignature(trackingFilePaths())}`;
-  return getCached("tracking-metrics-light-v7", signature, () => {
+  const signature = `v8-fast|${FIELD_PERIOD_START}|${filesSignature(trackingFilePaths())}`;
+  return getCached("tracking-metrics-light-v8", signature, () => {
     const allRows = loadTrackingSurvey();
     const fieldPeriodRows = applyTrackingFilters(
       allRows,
@@ -167,8 +168,6 @@ export function loadTrackingMetricsForClient() {
       allRows,
       { includeExportLists: false }
     );
-    const gaps = computeTrackingTargetGaps(allRows);
-    const framed = overlayMetricsWithAssignmentFrame(metrics, gaps);
 
     // Date picker must span the full dataset (incl. March baseline), not only
     // the field-period window used for default KPI aggregates.
@@ -181,11 +180,11 @@ export function loadTrackingMetricsForClient() {
       .sort((a, b) => a.getTime() - b.getTime());
 
     return {
-      ...framed,
+      ...metrics,
       // Full frame so clearing the date filter can include pre–field-period rows.
       allSubmissions: allRows,
       filterOptions: {
-        ...framed.filterOptions,
+        ...metrics.filterOptions,
         dateRange: {
           start: allDates[0]?.toISOString().slice(0, 10) || "",
           end: allDates[allDates.length - 1]?.toISOString().slice(0, 10) || "",

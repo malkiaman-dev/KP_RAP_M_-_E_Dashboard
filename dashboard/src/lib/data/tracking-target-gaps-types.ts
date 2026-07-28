@@ -37,6 +37,11 @@ export interface TargetGapDistrictSummary {
   actionable: number;
 }
 
+/** Pre-aggregated district × cohort tallies for fast client filters (no girl arrays). */
+export interface TargetGapCohortDistrictSummary extends TargetGapDistrictSummary {
+  cohort: TrackingCohort;
+}
+
 export interface TrackingTargetGaps {
   available: boolean;
   targetTotal: number;
@@ -46,10 +51,15 @@ export interface TrackingTargetGaps {
   attemptedNotTracked: number;
   actionable: number;
   byDistrict: TargetGapDistrictSummary[];
+  byCohortDistrict: TargetGapCohortDistrictSummary[];
   /** Girls still outstanding for field teams (not attempted + revisit needed). */
   actionableGirls: TargetGapGirl[];
   notAttemptedGirls: TargetGapGirl[];
   needsRevisitGirls: TargetGapGirl[];
   attemptedNotTrackedGirls: TargetGapGirl[];
-  trackedGirls: TargetGapGirl[];
+  /**
+   * Optional — omitted from the API payload (use byCohortDistrict for counts).
+   * Kept for scripts / full in-memory compute.
+   */
+  trackedGirls?: TargetGapGirl[];
 }

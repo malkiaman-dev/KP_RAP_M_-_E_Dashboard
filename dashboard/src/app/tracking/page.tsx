@@ -1,16 +1,13 @@
 "use client";
 
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
 import { School, Target, Users } from "lucide-react";
 import { TrackingFiltersPanel } from "@/components/tracking/tracking-filters";
 import { TrackingActiveFilters } from "@/components/tracking/tracking-active-filters";
 import { TrackingKpis } from "@/components/tracking/tracking-kpis";
-import { TrackingSecondaryKpis } from "@/components/tracking/tracking-secondary-kpis";
-import { TrackingRevisitSection } from "@/components/tracking/tracking-revisit-section";
-import { TrackingDuplicateSection } from "@/components/tracking/tracking-duplicate-section";
 import { TrackingTargetGapsSection } from "@/components/tracking/tracking-target-gaps-section";
-import { TrackingCharts } from "@/components/tracking/tracking-charts";
 import { TrackingCohortOverview } from "@/components/tracking/tracking-cohort-overview";
 import { TrackingCohortSection } from "@/components/tracking/tracking-cohort-section";
 import { PageHero, SectionHeader } from "@/components/ui/page-hero";
@@ -38,6 +35,43 @@ import {
   TRACKING_METRICS_QUERY_KEY,
 } from "@/lib/queries/app-data";
 import { overlayMetricsWithAssignmentFrame } from "@/lib/data/tracking-target-gap-filters";
+
+const TrackingCharts = dynamic(
+  () =>
+    import("@/components/tracking/tracking-charts").then(
+      (m) => m.TrackingCharts
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="mb-6 h-72 animate-pulse rounded-2xl bg-muted/40" />
+    ),
+  }
+);
+
+const TrackingSecondaryKpis = dynamic(
+  () =>
+    import("@/components/tracking/tracking-secondary-kpis").then(
+      (m) => m.TrackingSecondaryKpis
+    ),
+  { ssr: false }
+);
+
+const TrackingRevisitSection = dynamic(
+  () =>
+    import("@/components/tracking/tracking-revisit-section").then(
+      (m) => m.TrackingRevisitSection
+    ),
+  { ssr: false }
+);
+
+const TrackingDuplicateSection = dynamic(
+  () =>
+    import("@/components/tracking/tracking-duplicate-section").then(
+      (m) => m.TrackingDuplicateSection
+    ),
+  { ssr: false }
+);
 
 function targetsForFilters(filters: TrackingFilters): TrackingTargets {
   return resolveTrackingTargets({
@@ -72,7 +106,7 @@ export default function TrackingPage() {
     setFilters(next);
   };
 
-  const { data, isLoading, isError, isFetching } = useQuery({
+  const { data, isLoading, isError, isFetching, isSuccess } = useQuery({
     queryKey: [...TRACKING_METRICS_QUERY_KEY],
     queryFn: fetchTrackingMetrics,
     staleTime: QUERY_STALE_MS,
@@ -82,6 +116,8 @@ export default function TrackingPage() {
     queryKey: [...TRACKING_GAPS_QUERY_KEY],
     queryFn: fetchTrackingGaps,
     staleTime: QUERY_STALE_MS,
+    // Let metrics paint first; gaps/overlay fill in as soon as ready (or from prefetch).
+    enabled: isSuccess,
   });
 
   const targets = useMemo(

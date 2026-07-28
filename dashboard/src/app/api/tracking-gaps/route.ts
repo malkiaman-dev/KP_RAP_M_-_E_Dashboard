@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import path from "path";
 import { loadTrackingSurvey } from "@/lib/data/tracking-loader";
-import { computeTrackingTargetGaps } from "@/lib/data/tracking-target-gaps";
+import {
+  computeTrackingTargetGaps,
+  toClientTrackingTargetGaps,
+} from "@/lib/data/tracking-target-gaps";
 import { trackingTargetsAvailable } from "@/lib/data/tracking-targets-loader";
 import { filesSignature, getCached } from "@/lib/data/survey-cache";
 import { requireApiAccess } from "@/lib/auth/guard";
@@ -26,11 +29,15 @@ export async function GET() {
 
   try {
     if (!trackingTargetsAvailable()) {
-      return NextResponse.json(computeTrackingTargetGaps([]));
+      return NextResponse.json(
+        toClientTrackingTargetGaps(computeTrackingTargetGaps([]))
+      );
     }
 
-    const gaps = getCached("tracking-gaps-v1", trackingGapsSignature(), () =>
-      computeTrackingTargetGaps(loadTrackingSurvey())
+    const gaps = getCached("tracking-gaps-v3", trackingGapsSignature(), () =>
+      toClientTrackingTargetGaps(
+        computeTrackingTargetGaps(loadTrackingSurvey())
+      )
     );
     return NextResponse.json(gaps);
   } catch (error) {

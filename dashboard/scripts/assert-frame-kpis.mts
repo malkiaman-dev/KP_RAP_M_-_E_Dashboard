@@ -6,7 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { loadTrackingSurvey } from "../src/lib/data/tracking-loader";
 import { computeTrackingMetrics } from "../src/lib/data/tracking-metrics";
-import { computeTrackingTargetGaps } from "../src/lib/data/tracking-target-gaps";
+import { computeTrackingTargetGaps, toClientTrackingTargetGaps } from "../src/lib/data/tracking-target-gaps";
 import { overlayMetricsWithAssignmentFrame } from "../src/lib/data/tracking-target-gap-filters";
 import { DEFAULT_TRACKING_TARGETS } from "../src/lib/data/protocol";
 
@@ -87,6 +87,29 @@ add(
   "dikhan tracked+remaining",
   dikhan.totalTrackedGirls + dikhan.remainingToSuccessTarget === 2170,
   `${dikhan.totalTrackedGirls}+${dikhan.remainingToSuccessTarget}`
+);
+
+const clientGaps = toClientTrackingTargetGaps(gaps);
+add(
+  "client gaps omit trackedGirls",
+  !("trackedGirls" in clientGaps) && clientGaps.byCohortDistrict.length > 0,
+  `byCohortDistrict=${clientGaps.byCohortDistrict.length}`
+);
+const mClient = overlayMetricsWithAssignmentFrame(raw, clientGaps);
+add(
+  "client overlay pool",
+  mClient.assignmentPool === 4333,
+  `assignmentPool=${mClient.assignmentPool}`
+);
+add(
+  "client overlay tracked",
+  mClient.totalTrackedGirls === 3778,
+  `totalTrackedGirls=${mClient.totalTrackedGirls}`
+);
+add(
+  "client baseline cohort",
+  mClient.cohortProgress[0]?.tracked === 1036,
+  `baseline=${mClient.cohortProgress[0]?.tracked}`
 );
 
 let failed = 0;

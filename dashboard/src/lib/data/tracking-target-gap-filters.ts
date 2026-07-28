@@ -1,9 +1,53 @@
 import type { TrackingCohort } from "./tracking-metrics";
 import type {
+  TargetGapCohortDistrictSummary,
   TargetGapDistrictSummary,
   TargetGapGirl,
   TrackingTargetGaps,
 } from "./tracking-target-gaps-types";
+
+function matchesDistrict(
+  code: string,
+  label: string,
+  needle: string
+): boolean {
+  const n = needle.trim().toLowerCase();
+  const c = code.trim().toLowerCase();
+  const l = label.trim().toLowerCase();
+  const labelCompact = l.replace(/\./g, "").replace(/\s+/g, "");
+  const needleCompact = n.replace(/\./g, "").replace(/\s+/g, "");
+  return (
+    c === n ||
+    l === n ||
+    labelCompact === needleCompact ||
+    l.includes(n) ||
+    n.includes(labelCompact)
+  );
+}
+
+function sumCohortDistrictRows(
+  rows: TargetGapCohortDistrictSummary[] | TargetGapDistrictSummary[]
+) {
+  return rows.reduce(
+    (acc, row) => {
+      acc.notAttempted += row.notAttempted;
+      acc.attemptedNotTracked += row.attemptedNotTracked;
+      acc.needsRevisit += row.needsRevisit;
+      acc.actionable += row.actionable;
+      acc.tracked += row.tracked;
+      acc.targetTotal += row.targetTotal;
+      return acc;
+    },
+    {
+      notAttempted: 0,
+      attemptedNotTracked: 0,
+      needsRevisit: 0,
+      actionable: 0,
+      tracked: 0,
+      targetTotal: 0,
+    }
+  );
+}
 
 /** Filter assignment-frame girls by the same district/cohort controls as Tracking. */
 export function filterTargetGapGirls(
@@ -15,18 +59,7 @@ export function filterTargetGapGirls(
 ): TargetGapGirl[] {
   return girls.filter((g) => {
     if (filters.district && filters.district !== "all") {
-      const needle = filters.district.trim().toLowerCase();
-      const code = g.district.trim().toLowerCase();
-      const label = g.districtLabel.trim().toLowerCase();
-      const labelCompact = label.replace(/\./g, "").replace(/\s+/g, "");
-      const needleCompact = needle.replace(/\./g, "").replace(/\s+/g, "");
-      if (
-        code !== needle &&
-        label !== needle &&
-        labelCompact !== needleCompact &&
-        !label.includes(needle) &&
-        !needle.includes(labelCompact)
-      ) {
+      if (!matchesDistrict(g.district, g.districtLabel, filters.district)) {
         return false;
       }
     }
@@ -44,6 +77,7 @@ export function filterTargetGapGirls(
 /**
  * Assignment-frame counts for the active filters.
  * Same source as Outstanding for districts (Tracking_Targets × survey match).
+ * Prefers byCohortDistrict aggregates so the API can omit trackedGirls.
  */
 export function assignmentFrameCounts(
   gaps: TrackingTargetGaps | undefined,
@@ -75,13 +109,36 @@ export function assignmentFrameCounts(
     };
   }
 
+  // Prefer pre-aggregated cohort×district (no need to ship trackedGirls).
+  if (gaps.byCohortDistrict?.length) {
+    const rows = gaps.byCohortDistrict.filter((row) => {
+      if (
+        !cohortAll &&
+        filters.cohort &&
+        row.cohort !== filters.cohort
+      ) {
+        return false;
+      }
+      if (!districtAll && filters.district) {
+        return matchesDistrict(
+          row.district,
+          row.districtLabel,
+          filters.district
+        );
+      }
+      return true;
+    });
+    return sumCohortDistrictRows(rows);
+  }
+
+  // Legacy fallback when girl lists are present (scripts / full compute).
   const notAttempted = filterTargetGapGirls(gaps.notAttemptedGirls, filters);
   const needsRevisit = filterTargetGapGirls(gaps.needsRevisitGirls, filters);
   const attemptedNotTracked = filterTargetGapGirls(
     gaps.attemptedNotTrackedGirls,
     filters
   );
-  const tracked = filterTargetGapGirls(gaps.trackedGirls, filters);
+  const tracked = filterTargetGapGirls(gaps.trackedGirls ?? [], filters);
   const actionable = filterTargetGapGirls(gaps.actionableGirls, filters);
 
   return {
@@ -121,20 +178,31 @@ export function frameDistrictSummaries(
   const cohortAll = !filters.cohort || filters.cohort === "all";
   const districtAll = !filters.district || filters.district === "all";
 
-  // Fast path: use pre-aggregated byDistrict when no cohort slice is needed.
   if (cohortAll) {
     return gaps.byDistrict.filter((d) => {
       if (districtAll) return true;
-      const needle = filters.district!.trim().toLowerCase();
-      return (
-        d.district.trim().toLowerCase() === needle ||
-        d.districtLabel.trim().toLowerCase().includes(needle)
-      );
+      return matchesDistrict(d.district, d.districtLabel, filters.district!);
     });
   }
 
+  if (gaps.byCohortDistrict?.length) {
+    return gaps.byCohortDistrict
+      .filter((row) => {
+        if (row.cohort !== filters.cohort) return false;
+        if (!districtAll && filters.district) {
+          return matchesDistrict(
+            row.district,
+            row.districtLabel,
+            filters.district
+          );
+        }
+        return true;
+      })
+      .map(({ cohort: _c, ...district }) => district);
+  }
+
   const girls = [
-    ...filterTargetGapGirls(gaps.trackedGirls, filters),
+    ...filterTargetGapGirls(gaps.trackedGirls ?? [], filters),
     ...filterTargetGapGirls(gaps.notAttemptedGirls, filters),
     ...filterTargetGapGirls(gaps.needsRevisitGirls, filters),
     ...filterTargetGapGirls(gaps.attemptedNotTrackedGirls, filters),

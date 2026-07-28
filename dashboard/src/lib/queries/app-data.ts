@@ -4,10 +4,10 @@ import type { HhGirlsMetrics } from "@/lib/data/hh-girls-metrics";
 import type { TrackingTargetGaps } from "@/lib/data/tracking-target-gaps-types";
 import type { TrackingMetrics } from "@/lib/data/tracking-metrics";
 
-export const TRACKING_METRICS_QUERY_KEY = ["tracking-metrics", "v3-frame"] as const;
+export const TRACKING_METRICS_QUERY_KEY = ["tracking-metrics", "v4-fast"] as const;
 export const TRACKING_EXPORTS_QUERY_KEY = ["tracking-exports"] as const;
-export const TRACKING_GAPS_QUERY_KEY = ["tracking-gaps", "v2"] as const;
-export const DASHBOARD_METRICS_QUERY_KEY = ["dashboard-metrics"] as const;
+export const TRACKING_GAPS_QUERY_KEY = ["tracking-gaps", "v4"] as const;
+export const DASHBOARD_METRICS_QUERY_KEY = ["dashboard-metrics", "v2"] as const;
 export const HH_GIRLS_METRICS_QUERY_KEY = ["hh-girls-metrics", "v9"] as const;
 export const HH_GIRLS_EXPORTS_QUERY_KEY = ["hh-girls-exports", "v2"] as const;
 export const ERROR_METRICS_QUERY_KEY = ["error-metrics", "v2"] as const;
@@ -18,7 +18,8 @@ export interface TrackingExportPayload {
   duplicateLists: TrackingMetrics["duplicateDetail"]["lists"];
 }
 
-const QUERY_STALE_MS = 5 * 60 * 1000;
+/** Keep tab data warm longer so switching tabs does not refetch. */
+const QUERY_STALE_MS = 15 * 60 * 1000;
 
 export async function fetchTrackingMetrics(): Promise<TrackingMetrics> {
   const res = await fetch("/api/tracking");
@@ -73,7 +74,7 @@ export async function fetchHhGirlsExports(): Promise<HhGirlsExportPayload> {
 
 function idle(cb: () => void, fallbackMs = 1200) {
   if (typeof globalThis.requestIdleCallback === "function") {
-    globalThis.requestIdleCallback(() => cb());
+    globalThis.requestIdleCallback(() => cb(), { timeout: fallbackMs + 2000 });
     return;
   }
   window.setTimeout(cb, fallbackMs);
@@ -98,6 +99,7 @@ export function prefetchRouteData(queryClient: QueryClient, href: string) {
 
   if (href === "/analytics") {
     warm(TRACKING_METRICS_QUERY_KEY, fetchTrackingMetrics);
+    warm(TRACKING_GAPS_QUERY_KEY, fetchTrackingGaps);
     warm(HH_GIRLS_METRICS_QUERY_KEY, fetchHhGirlsMetrics);
   }
 
@@ -111,21 +113,22 @@ export function prefetchRouteData(queryClient: QueryClient, href: string) {
     href === "/reports"
   ) {
     warm(TRACKING_METRICS_QUERY_KEY, fetchTrackingMetrics);
+    warm(TRACKING_GAPS_QUERY_KEY, fetchTrackingGaps);
   }
 
   if (href === "/reports") {
-    idle(() => warm(ERROR_METRICS_QUERY_KEY, fetchErrorMetrics));
-    idle(() => warm(HH_GIRLS_METRICS_QUERY_KEY, fetchHhGirlsMetrics));
+    idle(() => warm(ERROR_METRICS_QUERY_KEY, fetchErrorMetrics), 2500);
+    idle(() => warm(HH_GIRLS_METRICS_QUERY_KEY, fetchHhGirlsMetrics), 3000);
   }
 
   if (href === "/monitoring") {
-    idle(() => warm(HH_GIRLS_METRICS_QUERY_KEY, fetchHhGirlsMetrics));
+    idle(() => warm(HH_GIRLS_METRICS_QUERY_KEY, fetchHhGirlsMetrics), 2500);
   }
 }
 
 /**
  * Warm caches after shell mount. Prioritize the current route, then idle-warm
- * the other common tabs so switches feel instant.
+ * other common tabs so switches feel instant without fighting the first paint.
  */
 export function prefetchAppQueries(
   queryClient: QueryClient,
@@ -133,17 +136,30 @@ export function prefetchAppQueries(
 ) {
   prefetchRouteData(queryClient, pathname);
 
+  // Stagger background warm-ups so they do not compete with the active tab.
   idle(() => {
     if (pathname !== "/") {
       prefetchRouteData(queryClient, "/");
     }
+  }, 2500);
+
+  idle(() => {
     if (pathname !== "/tracking") {
       prefetchRouteData(queryClient, "/tracking");
     }
+  }, 4000);
+
+  idle(() => {
     if (pathname !== "/surveys/hh-girls") {
       prefetchRouteData(queryClient, "/surveys/hh-girls");
     }
-  }, 1800);
+  }, 5500);
+
+  idle(() => {
+    if (pathname !== "/analytics") {
+      prefetchRouteData(queryClient, "/analytics");
+    }
+  }, 7000);
 }
 
 export { QUERY_STALE_MS };

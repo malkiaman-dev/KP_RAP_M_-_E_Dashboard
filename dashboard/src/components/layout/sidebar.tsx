@@ -204,7 +204,7 @@ export function Sidebar({
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      prefetch={false}
+                      prefetch={true}
                       onClick={onMobileClose}
                       onMouseEnter={() => prefetchRoute(item.href)}
                       onFocus={() => prefetchRoute(item.href)}

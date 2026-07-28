@@ -20,6 +20,7 @@ import type {
 } from "./tracking-target-gaps-types";
 
 export type {
+  TargetGapCohortDistrictSummary,
   TargetGapDistrictSummary,
   TargetGapGirl,
   TargetGapStatus,
@@ -155,6 +156,7 @@ export function computeTrackingTargetGaps(
       attemptedNotTracked: 0,
       actionable: 0,
       byDistrict: [],
+      byCohortDistrict: [],
       actionableGirls: [],
       notAttemptedGirls: [],
       needsRevisitGirls: [],
@@ -215,6 +217,37 @@ export function computeTrackingTargetGaps(
     };
   });
 
+  const cohorts = ["baseline", "new-sample"] as const;
+  const byCohortDistrict = cohorts.flatMap((cohort) =>
+    districtCodes.map((code) => {
+      const rows = classified.filter(
+        (g) => g.district === code && g.cohort === cohort
+      );
+      const notAttempted = rows.filter(
+        (g) => g.status === "not_attempted"
+      ).length;
+      const needsRevisit = rows.filter(
+        (g) =>
+          g.status === "needs_revisit_2nd" || g.status === "needs_revisit_3rd"
+      ).length;
+      const attemptedNotTracked = rows.filter(
+        (g) => g.status === "attempted_not_tracked"
+      ).length;
+      const trackedCount = rows.filter((g) => g.status === "tracked").length;
+      return {
+        cohort,
+        district: code,
+        districtLabel: districtLabel(code, rows[0]?.districtLabel),
+        targetTotal: rows.length,
+        tracked: trackedCount,
+        notAttempted,
+        needsRevisit,
+        attemptedNotTracked,
+        actionable: notAttempted + needsRevisit,
+      };
+    }).filter((row) => row.targetTotal > 0)
+  );
+
   return {
     available: true,
     targetTotal: classified.length,
@@ -224,11 +257,20 @@ export function computeTrackingTargetGaps(
     attemptedNotTracked,
     actionable: actionableGirls.length,
     byDistrict,
+    byCohortDistrict,
     actionableGirls,
     notAttemptedGirls,
     needsRevisitGirls,
     attemptedNotTrackedGirls,
     trackedGirls,
   };
+}
+
+/** API payload: drop ~3.8k tracked girl rows; clients use byCohortDistrict for KPIs. */
+export function toClientTrackingTargetGaps(
+  gaps: TrackingTargetGaps
+): TrackingTargetGaps {
+  const { trackedGirls: _omit, ...rest } = gaps;
+  return rest;
 }
 

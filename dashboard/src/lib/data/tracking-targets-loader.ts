@@ -2,9 +2,15 @@ import fs from "fs";
 import path from "path";
 import * as XLSX from "xlsx";
 import type { TrackingCohort } from "./tracking-metrics";
+import { filesSignature, getCached } from "./survey-cache";
 
 const DATA_ROOT = path.join(process.cwd(), "..");
 const TARGETS_DIR = path.join(DATA_ROOT, "Tracking_Targets");
+
+const TARGET_FILES = [
+  path.join(TARGETS_DIR, "Tracking_Survey_Baseline.xlsx"),
+  path.join(TARGETS_DIR, "Tracking_Survey_NewSample.xlsx"),
+];
 
 export interface TrackingTargetGirl {
   girlId: string;
@@ -120,10 +126,11 @@ function loadTargetSheet(
 
 /** Load the official tracking assignment frame (baseline + new sample). */
 export function loadTrackingTargetGirls(): TrackingTargetGirl[] {
-  return [
+  const signature = filesSignature(TARGET_FILES);
+  return getCached("tracking-target-girls-v1", signature, () => [
     ...loadTargetSheet("Tracking_Survey_Baseline.xlsx", "baseline"),
     ...loadTargetSheet("Tracking_Survey_NewSample.xlsx", "new-sample"),
-  ];
+  ]);
 }
 
 export function trackingTargetsAvailable(): boolean {
