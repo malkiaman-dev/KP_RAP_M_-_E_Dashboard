@@ -30,7 +30,7 @@ import {
   hhGirlsFiltersEqual,
   type HhGirlsFilters,
 } from "@/lib/data/hh-girls-metrics";
-import { PROTOCOL } from "@/lib/data/protocol";
+import { PROTOCOL, resolveTrackingTargets } from "@/lib/data/protocol";
 import {
   applyTrackingFilters,
   computeTrackingMetrics,
@@ -42,11 +42,14 @@ import {
   DASHBOARD_METRICS_QUERY_KEY,
   fetchDashboardMetrics,
   fetchHhGirlsMetrics,
+  fetchTrackingGaps,
   fetchTrackingMetrics,
   HH_GIRLS_METRICS_QUERY_KEY,
   QUERY_STALE_MS,
+  TRACKING_GAPS_QUERY_KEY,
   TRACKING_METRICS_QUERY_KEY,
 } from "@/lib/queries/app-data";
+import { overlayMetricsWithAssignmentFrame } from "@/lib/data/tracking-target-gap-filters";
 
 function toTrackingFilters(filters: DashboardFilters): TrackingFilters {
   return {
@@ -95,6 +98,12 @@ export function AnalyticsContent() {
     staleTime: QUERY_STALE_MS,
   });
 
+  const gapsQuery = useQuery({
+    queryKey: [...TRACKING_GAPS_QUERY_KEY],
+    queryFn: fetchTrackingGaps,
+    staleTime: QUERY_STALE_MS,
+  });
+
   const hhQuery = useQuery({
     queryKey: [...HH_GIRLS_METRICS_QUERY_KEY],
     queryFn: fetchHhGirlsMetrics,
@@ -132,16 +141,22 @@ export function AnalyticsContent() {
   const tracking = useMemo(() => {
     if (!trackingQuery.data?.allSubmissions) return undefined;
     const trackingFilters = toTrackingFilters(deferredFilters);
-    if (trackingFiltersEqual(trackingFilters, FIELD_PERIOD_TRACKING)) {
-      return trackingQuery.data;
+    let base = trackingQuery.data;
+    if (!trackingFiltersEqual(trackingFilters, FIELD_PERIOD_TRACKING)) {
+      base = computeTrackingMetrics(
+        applyTrackingFilters(
+          trackingQuery.data.allSubmissions,
+          trackingFilters
+        ),
+        resolveTrackingTargets({ district: trackingFilters.district }),
+        trackingQuery.data.allSubmissions,
+        { includeExportLists: false }
+      );
     }
-    return computeTrackingMetrics(
-      applyTrackingFilters(trackingQuery.data.allSubmissions, trackingFilters),
-      undefined,
-      trackingQuery.data.allSubmissions,
-      { includeExportLists: false }
-    );
-  }, [trackingQuery.data, deferredFilters]);
+    return overlayMetricsWithAssignmentFrame(base, gapsQuery.data, {
+      district: trackingFilters.district,
+    });
+  }, [trackingQuery.data, gapsQuery.data, deferredFilters]);
 
   const hhGirls = useMemo(() => {
     if (!hhQuery.data?.allHousehold || !hhQuery.data?.allGirls) return undefined;

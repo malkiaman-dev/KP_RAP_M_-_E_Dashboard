@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import {
   FileStack,
   School,
@@ -11,7 +12,18 @@ import {
   Percent,
 } from "lucide-react";
 import { StatCard, StatCardSkeleton } from "@/components/ui/stat-card";
-import type { TrackingMetrics } from "@/lib/data/tracking-metrics";
+import type {
+  TrackingCohort,
+  TrackingMetrics,
+} from "@/lib/data/tracking-metrics";
+import { assignmentFrameCounts } from "@/lib/data/tracking-target-gap-filters";
+import {
+  fetchTrackingGaps,
+  QUERY_STALE_MS,
+  TRACKING_GAPS_QUERY_KEY,
+} from "@/lib/queries/app-data";
+
+type FrameCounts = NonNullable<ReturnType<typeof assignmentFrameCounts>>;
 
 const kpiConfig: {
   key: keyof Pick<
@@ -30,7 +42,12 @@ const kpiConfig: {
   icon: typeof FileStack;
   suffix?: string;
   decimals?: number;
-  hint?: (m: TrackingMetrics) => string;
+  /**
+   * When set, the card value comes from the assignment frame so
+   * Pool = Tracked + Remaining always holds.
+   */
+  frameValue?: (frame: FrameCounts) => number;
+  hint?: (m: TrackingMetrics, frame: FrameCounts | null) => string;
 }[] = [
   {
     key: "totalSubmissions",
@@ -62,28 +79,40 @@ const kpiConfig: {
     label: "Assignment Pool",
     colorClass: "text-slate-700 dark:text-slate-200",
     icon: Target,
-    hint: (m) =>
-      `${m.assignmentPool.toLocaleString()} girls in active target pool`,
+    frameValue: (frame) => frame.targetTotal,
+    hint: (_m, frame) =>
+      frame
+        ? `${frame.targetTotal.toLocaleString()} girls in active target pool`
+        : "Loading assignment frame…",
   },
   {
     key: "totalTrackedGirls",
     label: "Successfully Tracked",
     colorClass: "text-teal",
     icon: CheckCircle2,
-    hint: (m) => `Target ${m.successTarget.toLocaleString()}`,
+    frameValue: (frame) => frame.tracked,
+    hint: (_m, frame) =>
+      frame
+        ? `Of ${frame.targetTotal.toLocaleString()} assignment-frame girls`
+        : "Loading assignment frame…",
   },
   {
     key: "remainingToSuccessTarget",
     label: "Remaining to Target",
     colorClass: "text-red-600",
     icon: Flag,
-    hint: (m) => {
-      const notTracked = m.secondaryKpis.attemptedNotTracked;
-      const notAttempted = Math.max(
-        0,
-        m.assignmentPool - m.secondaryKpis.uniqueGirlsAttempted
-      );
-      return `Not tracked ${notTracked.toLocaleString()}\nNot attempted ${notAttempted.toLocaleString()}`;
+    frameValue: (frame) =>
+      frame.notAttempted + frame.attemptedNotTracked + frame.needsRevisit,
+    hint: (_m, frame) => {
+      if (!frame) return "Loading assignment-frame details…";
+      const lines = [
+        `Not tracked ${frame.attemptedNotTracked.toLocaleString()}`,
+        `Not attempted ${frame.notAttempted.toLocaleString()}`,
+      ];
+      if (frame.needsRevisit > 0) {
+        lines.push(`Needs revisit ${frame.needsRevisit.toLocaleString()}`);
+      }
+      return lines.join("\n");
     },
   },
   {
@@ -93,18 +122,37 @@ const kpiConfig: {
     icon: Percent,
     suffix: "%",
     decimals: 1,
-    hint: (m) =>
-      `${m.totalTrackedGirls.toLocaleString()} / ${m.successTarget.toLocaleString()}`,
+    frameValue: (frame) =>
+      frame.targetTotal > 0 ? (frame.tracked / frame.targetTotal) * 100 : 0,
+    hint: (_m, frame) =>
+      frame
+        ? `${frame.tracked.toLocaleString()} / ${frame.targetTotal.toLocaleString()}`
+        : "Loading…",
   },
 ];
 
 export function TrackingKpis({
   metrics,
   loading,
+  districtFilter = "all",
+  cohortFilter = "all",
 }: {
   metrics?: TrackingMetrics;
   loading?: boolean;
+  districtFilter?: string;
+  cohortFilter?: "all" | TrackingCohort;
 }) {
+  const { data: gaps } = useQuery({
+    queryKey: [...TRACKING_GAPS_QUERY_KEY],
+    queryFn: fetchTrackingGaps,
+    staleTime: QUERY_STALE_MS,
+  });
+
+  const frame = assignmentFrameCounts(gaps, {
+    district: districtFilter,
+    cohort: cohortFilter,
+  });
+
   if (loading) {
     return (
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
@@ -117,19 +165,26 @@ export function TrackingKpis({
 
   return (
     <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
-      {kpiConfig.map((kpi, i) => (
-        <StatCard
-          key={kpi.key}
-          index={i}
-          label={kpi.label}
-          value={metrics[kpi.key] as number}
-          icon={kpi.icon}
-          color={kpi.colorClass}
-          suffix={kpi.suffix}
-          decimals={kpi.decimals}
-          hint={kpi.hint?.(metrics)}
-        />
-      ))}
+      {kpiConfig.map((kpi, i) => {
+        const value =
+          kpi.frameValue && frame
+            ? kpi.frameValue(frame)
+            : (metrics[kpi.key] as number);
+
+        return (
+          <StatCard
+            key={kpi.key}
+            index={i}
+            label={kpi.label}
+            value={value}
+            icon={kpi.icon}
+            color={kpi.colorClass}
+            suffix={kpi.suffix}
+            decimals={kpi.decimals}
+            hint={kpi.hint?.(metrics, frame)}
+          />
+        );
+      })}
     </div>
   );
 }

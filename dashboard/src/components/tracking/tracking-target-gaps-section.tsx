@@ -19,38 +19,17 @@ import type {
   TargetGapGirl,
   TrackingTargetGaps,
 } from "@/lib/data/tracking-target-gaps-types";
+import {
+  assignmentFrameCounts,
+  filterTargetGapGirls,
+  frameDistrictSummaries,
+} from "@/lib/data/tracking-target-gap-filters";
 import { downloadTargetGapExcel } from "@/lib/export/target-gap-excel";
 import {
   fetchTrackingGaps,
   QUERY_STALE_MS,
   TRACKING_GAPS_QUERY_KEY,
 } from "@/lib/queries/app-data";
-
-function filterTargetGapGirls(
-  girls: TargetGapGirl[],
-  filters: {
-    district?: string;
-    cohort?: "all" | TrackingCohort;
-  }
-): TargetGapGirl[] {
-  return girls.filter((g) => {
-    if (
-      filters.district &&
-      filters.district !== "all" &&
-      g.district !== filters.district
-    ) {
-      return false;
-    }
-    if (
-      filters.cohort &&
-      filters.cohort !== "all" &&
-      g.cohort !== filters.cohort
-    ) {
-      return false;
-    }
-    return true;
-  });
-}
 
 function slug(value: string): string {
   return value
@@ -59,10 +38,7 @@ function slug(value: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
-function downloadList(
-  rows: TargetGapGirl[],
-  label: string
-) {
+function downloadList(rows: TargetGapGirl[], label: string) {
   if (!rows.length) return;
   const date = new Date().toISOString().slice(0, 10);
   downloadTargetGapExcel(rows, `outstanding-girls-${label}-${date}.xlsx`);
@@ -86,7 +62,6 @@ export function TrackingTargetGapsSection({
     queryKey: [...TRACKING_GAPS_QUERY_KEY],
     queryFn: fetchTrackingGaps,
     staleTime: QUERY_STALE_MS,
-    enabled: expanded,
   });
 
   // Prefer page-level filters when set; otherwise local controls.
@@ -97,6 +72,11 @@ export function TrackingTargetGapsSection({
   const effectiveCohort =
     cohortFilter && cohortFilter !== "all" ? cohortFilter : localCohort;
 
+  const filterOpts = {
+    district: effectiveDistrict,
+    cohort: effectiveCohort,
+  };
+
   const filtered = useMemo(() => {
     if (!data?.available) {
       return {
@@ -105,16 +85,14 @@ export function TrackingTargetGapsSection({
         needsRevisit: [] as TargetGapGirl[],
       };
     }
-    const opts = {
-      district: effectiveDistrict,
-      cohort: effectiveCohort,
-    };
     return {
-      actionable: filterTargetGapGirls(data.actionableGirls, opts),
-      notAttempted: filterTargetGapGirls(data.notAttemptedGirls, opts),
-      needsRevisit: filterTargetGapGirls(data.needsRevisitGirls, opts),
+      actionable: filterTargetGapGirls(data.actionableGirls, filterOpts),
+      notAttempted: filterTargetGapGirls(data.notAttemptedGirls, filterOpts),
+      needsRevisit: filterTargetGapGirls(data.needsRevisitGirls, filterOpts),
     };
   }, [data, effectiveDistrict, effectiveCohort]);
+
+  const frame = assignmentFrameCounts(data, filterOpts);
 
   const viewRows =
     statusView === "not_attempted"
@@ -162,12 +140,13 @@ export function TrackingTargetGapsSection({
             </p>
             {!isLoading && data && (
               <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
-                {data.actionable.toLocaleString()} to share with districts
+                {(frame?.actionable ?? 0).toLocaleString()} to share with
+                districts
               </span>
             )}
-            {!expanded && !data && (
+            {!expanded && isLoading && (
               <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                Click Show to load
+                Loading…
               </span>
             )}
           </div>
@@ -206,7 +185,7 @@ export function TrackingTargetGapsSection({
           >
             <div className="space-y-4 p-4 sm:p-5">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {isLoading || !data ? (
+                {isLoading || !data || !frame ? (
                   <StatCardSkeleton count={4} />
                 ) : (
                   <>
@@ -214,7 +193,7 @@ export function TrackingTargetGapsSection({
                       muted
                       index={0}
                       label="Target girls"
-                      value={data.targetTotal}
+                      value={frame.targetTotal}
                       icon={ClipboardList}
                       color="text-deep-teal"
                       hint="Official assignment frame (baseline + new sample)"
@@ -223,11 +202,7 @@ export function TrackingTargetGapsSection({
                       muted
                       index={1}
                       label="Not attempted"
-                      value={
-                        effectiveDistrict !== "all" || effectiveCohort !== "all"
-                          ? filtered.notAttempted.length
-                          : data.notAttempted
-                      }
+                      value={frame.notAttempted}
                       icon={UserX}
                       color="text-rose-600"
                       hint="In targets, no survey submission yet"
@@ -245,11 +220,7 @@ export function TrackingTargetGapsSection({
                       muted
                       index={2}
                       label="Needs revisit"
-                      value={
-                        effectiveDistrict !== "all" || effectiveCohort !== "all"
-                          ? filtered.needsRevisit.length
-                          : data.needsRevisit
-                      }
+                      value={frame.needsRevisit}
                       icon={RefreshCw}
                       color="text-amber-600"
                       hint="Attempted but still needs 2nd or 3rd visit"
@@ -267,11 +238,7 @@ export function TrackingTargetGapsSection({
                       muted
                       index={3}
                       label="Outstanding (share)"
-                      value={
-                        effectiveDistrict !== "all" || effectiveCohort !== "all"
-                          ? filtered.actionable.length
-                          : data.actionable
-                      }
+                      value={frame.actionable}
                       icon={MapPin}
                       color="text-amber-700"
                       hint="Not attempted + needs revisit — click to download"
@@ -369,8 +336,10 @@ export function TrackingTargetGapsSection({
                   </div>
 
                   <DistrictGapTable
-                    data={data}
-                    effectiveDistrict={effectiveDistrict}
+                    rows={frameDistrictSummaries(data, {
+                      district: effectiveDistrict,
+                      cohort: effectiveCohort,
+                    })}
                     onDownloadDistrict={(code, label) => {
                       const rows = filterTargetGapGirls(data.actionableGirls, {
                         district: code,
@@ -392,19 +361,12 @@ export function TrackingTargetGapsSection({
 }
 
 function DistrictGapTable({
-  data,
-  effectiveDistrict,
+  rows,
   onDownloadDistrict,
 }: {
-  data: TrackingTargetGaps;
-  effectiveDistrict: string;
+  rows: import("@/lib/data/tracking-target-gaps-types").TargetGapDistrictSummary[];
   onDownloadDistrict: (code: string, label: string) => void;
 }) {
-  const rows =
-    effectiveDistrict === "all"
-      ? data.byDistrict
-      : data.byDistrict.filter((d) => d.district === effectiveDistrict);
-
   return (
     <div className="overflow-x-auto rounded-xl border border-border/50">
       <table className="w-full min-w-[640px] text-left text-xs">

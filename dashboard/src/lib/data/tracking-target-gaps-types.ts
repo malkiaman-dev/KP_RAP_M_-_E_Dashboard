@@ -50,4 +50,6 @@ export interface TrackingTargetGaps {
   actionableGirls: TargetGapGirl[];
   notAttemptedGirls: TargetGapGirl[];
   needsRevisitGirls: TargetGapGirl[];
+  attemptedNotTrackedGirls: TargetGapGirl[];
+  trackedGirls: TargetGapGirl[];
 }

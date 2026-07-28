@@ -158,6 +158,8 @@ export function computeTrackingTargetGaps(
       actionableGirls: [],
       notAttemptedGirls: [],
       needsRevisitGirls: [],
+      attemptedNotTrackedGirls: [],
+      trackedGirls: [],
     };
   }
 
@@ -174,6 +176,10 @@ export function computeTrackingTargetGaps(
     (g) =>
       g.status === "needs_revisit_2nd" || g.status === "needs_revisit_3rd"
   );
+  const attemptedNotTrackedGirls = classified.filter(
+    (g) => g.status === "attempted_not_tracked"
+  );
+  const trackedGirls = classified.filter((g) => g.status === "tracked");
   const actionableGirls = [...notAttemptedGirls, ...needsRevisitGirls].sort(
     (a, b) =>
       a.districtLabel.localeCompare(b.districtLabel) ||
@@ -181,10 +187,8 @@ export function computeTrackingTargetGaps(
       a.girlName.localeCompare(b.girlName)
   );
 
-  const tracked = classified.filter((g) => g.status === "tracked").length;
-  const attemptedNotTracked = classified.filter(
-    (g) => g.status === "attempted_not_tracked"
-  ).length;
+  const tracked = trackedGirls.length;
+  const attemptedNotTracked = attemptedNotTrackedGirls.length;
 
   const districtCodes = [
     ...new Set(classified.map((g) => g.district).filter(Boolean)),
@@ -223,6 +227,8 @@ export function computeTrackingTargetGaps(
     actionableGirls,
     notAttemptedGirls,
     needsRevisitGirls,
+    attemptedNotTrackedGirls,
+    trackedGirls,
   };
 }
 

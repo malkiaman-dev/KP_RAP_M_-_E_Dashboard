@@ -15,7 +15,6 @@ import type {
   TrackingCohort,
   TrackingMetrics,
 } from "@/lib/data/tracking-metrics";
-import { PROTOCOL } from "@/lib/data/protocol";
 
 function StatTile({
   label,
@@ -48,20 +47,17 @@ const COHORT_COPY: Record<
   {
     eyebrow: string;
     title: string;
-    assignmentPool: number;
     poolLabel: string;
   }
 > = {
   baseline: {
     eyebrow: "Baseline tracking",
     title: "Baseline listed girls · Tracking_Survey_Baseline",
-    assignmentPool: PROTOCOL.BASELINE_GIRLS_TO_TRACK,
     poolLabel: "baseline",
   },
   "new-sample": {
     eyebrow: "New sample tracking",
     title: "New sample listed girls · Tracking_Survey_NewSample",
-    assignmentPool: PROTOCOL.NEW_SAMPLE_GIRLS_TO_TRACK,
     poolLabel: "new sample",
   },
 };
@@ -114,11 +110,11 @@ export function TrackingCohortSection({
               {copy.title}
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              {copy.assignmentPool.toLocaleString()} girls in the {copy.poolLabel}{" "}
-              assignment pool, contributing toward the overall{" "}
-              {PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()} successfully
-              tracked target ({cohortData.successTarget.toLocaleString()}{" "}
-              {copy.poolLabel} share).
+              {cohortData.assignmentTarget.toLocaleString()} girls in the{" "}
+              {copy.poolLabel} assignment frame (Tracking_Targets Excel). Success
+              target {cohortData.successTarget.toLocaleString()} — tracked{" "}
+              {cohortData.totalTrackedGirls.toLocaleString()}, remaining{" "}
+              {cohortData.remainingToSuccessTarget.toLocaleString()}.
             </p>
           </div>
           <div className="rounded-xl border border-teal/20 bg-card px-4 py-3 text-right">
@@ -155,11 +151,8 @@ export function TrackingCohortSection({
               icon={CheckCircle2}
             />
             <StatTile
-              label="Remaining to Attempt"
-              value={Math.max(
-                0,
-                cohortData.successTarget - cohortData.uniqueGirlsAttempted
-              )}
+              label="Remaining to Target"
+              value={cohortData.remainingToSuccessTarget}
               icon={Target}
             />
           </div>
@@ -211,7 +204,7 @@ export function TrackingCohortSection({
                   <span className="tabular-nums text-muted-foreground">
                     <span className="font-semibold text-teal">{d.tracked}</span>
                     {" tracked · "}
-                    {d.inData} in data
+                    {d.inData} attempted
                   </span>
                 </div>
               ))

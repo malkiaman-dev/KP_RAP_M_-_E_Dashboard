@@ -12,6 +12,8 @@ import {
 import { DEFAULT_TRACKING_TARGETS } from "./protocol";
 import { FIELD_PERIOD_START } from "./field-period";
 import { filesSignature, getCached } from "./survey-cache";
+import { computeTrackingTargetGaps } from "./tracking-target-gaps";
+import { overlayMetricsWithAssignmentFrame } from "./tracking-target-gap-filters";
 
 export {
   mergeTrackingExportLists,
@@ -152,8 +154,8 @@ export function loadTrackingSurvey(): TrackingRow[] {
 
 /** Fast path for tracking UI — field-period aggregates, no Excel row arrays. */
 export function loadTrackingMetricsForClient() {
-  const signature = `v6-fp|${FIELD_PERIOD_START}|${filesSignature(trackingFilePaths())}`;
-  return getCached("tracking-metrics-light-v6", signature, () => {
+  const signature = `v7-frame|${FIELD_PERIOD_START}|${filesSignature(trackingFilePaths())}`;
+  return getCached("tracking-metrics-light-v7", signature, () => {
     const allRows = loadTrackingSurvey();
     const fieldPeriodRows = applyTrackingFilters(
       allRows,
@@ -165,6 +167,8 @@ export function loadTrackingMetricsForClient() {
       allRows,
       { includeExportLists: false }
     );
+    const gaps = computeTrackingTargetGaps(allRows);
+    const framed = overlayMetricsWithAssignmentFrame(metrics, gaps);
 
     // Date picker must span the full dataset (incl. March baseline), not only
     // the field-period window used for default KPI aggregates.
@@ -177,11 +181,11 @@ export function loadTrackingMetricsForClient() {
       .sort((a, b) => a.getTime() - b.getTime());
 
     return {
-      ...metrics,
+      ...framed,
       // Full frame so clearing the date filter can include pre–field-period rows.
       allSubmissions: allRows,
       filterOptions: {
-        ...metrics.filterOptions,
+        ...framed.filterOptions,
         dateRange: {
           start: allDates[0]?.toISOString().slice(0, 10) || "",
           end: allDates[allDates.length - 1]?.toISOString().slice(0, 10) || "",

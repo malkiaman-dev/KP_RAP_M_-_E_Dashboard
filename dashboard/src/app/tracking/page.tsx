@@ -31,10 +31,13 @@ import {
 } from "@/lib/data/tracking-metrics";
 import { FIELD_PERIOD_START } from "@/lib/data/field-period";
 import {
+  fetchTrackingGaps,
   fetchTrackingMetrics,
   QUERY_STALE_MS,
+  TRACKING_GAPS_QUERY_KEY,
   TRACKING_METRICS_QUERY_KEY,
 } from "@/lib/queries/app-data";
+import { overlayMetricsWithAssignmentFrame } from "@/lib/data/tracking-target-gap-filters";
 
 function targetsForFilters(filters: TrackingFilters): TrackingTargets {
   return resolveTrackingTargets({
@@ -75,6 +78,12 @@ export default function TrackingPage() {
     staleTime: QUERY_STALE_MS,
   });
 
+  const { data: gaps } = useQuery({
+    queryKey: [...TRACKING_GAPS_QUERY_KEY],
+    queryFn: fetchTrackingGaps,
+    staleTime: QUERY_STALE_MS,
+  });
+
   const targets = useMemo(
     () => targetsForFilters(deferredFilters),
     [deferredFilters]
@@ -88,6 +97,7 @@ export default function TrackingPage() {
   const display = useMemo(() => {
     if (!data?.allSubmissions) return undefined;
 
+    let base: TrackingMetrics;
     // Server metrics are pre-scoped to the field-period start date.
     if (
       trackingFiltersEqual(
@@ -95,40 +105,49 @@ export default function TrackingPage() {
         createDefaultTrackingFilters(FIELD_PERIOD_START)
       )
     ) {
-      return data;
+      base = data;
+    } else {
+      const emptyDefaults = createDefaultTrackingFilters("");
+      if (
+        !deferredFilters.dateFrom &&
+        trackingFiltersEqual(deferredFilters, emptyDefaults)
+      ) {
+        base = computeTrackingMetrics(
+          data.allSubmissions,
+          targets,
+          data.allSubmissions,
+          { includeExportLists: false }
+        );
+      } else {
+        // Skip Excel row arrays while filtering — keeps the browser responsive.
+        base = computeTrackingMetrics(
+          applyTrackingFilters(data.allSubmissions, deferredFilters),
+          targets,
+          data.allSubmissions,
+          { includeExportLists: false }
+        );
+      }
     }
 
-    const emptyDefaults = createDefaultTrackingFilters("");
-    if (
-      !deferredFilters.dateFrom &&
-      trackingFiltersEqual(deferredFilters, emptyDefaults)
-    ) {
-      return computeTrackingMetrics(
-        data.allSubmissions,
-        targets,
-        data.allSubmissions,
-        { includeExportLists: false }
-      );
-    }
-
-    // Skip Excel row arrays while filtering — keeps the browser responsive.
-    return computeTrackingMetrics(
-      applyTrackingFilters(data.allSubmissions, deferredFilters),
-      targets,
-      data.allSubmissions,
-      { includeExportLists: false }
-    );
-  }, [data, deferredFilters, targets]);
+    return overlayMetricsWithAssignmentFrame(base, gaps, {
+      district: deferredFilters.district,
+      cohort: activeCohort,
+    });
+  }, [data, deferredFilters, targets, gaps, activeCohort]);
 
   /** Build full export lists on demand (download click) for the active filters. */
   const buildExportMetrics = (): TrackingMetrics | undefined => {
     if (!data?.allSubmissions) return undefined;
-    return computeTrackingMetrics(
+    const raw = computeTrackingMetrics(
       applyTrackingFilters(data.allSubmissions, filters),
       targetsForFilters(filters),
       data.allSubmissions,
       { includeExportLists: true }
     );
+    return overlayMetricsWithAssignmentFrame(raw, gaps, {
+      district: filters.district,
+      cohort: resolveActiveCohort(filters),
+    });
   };
 
   const showLoading = isLoading || (isFetching && !display);
@@ -210,7 +229,12 @@ export default function TrackingPage() {
         title="Protocol KPIs"
         subtitle="Assignment pool, tracked girls, and progress to the success target."
       />
-      <TrackingKpis metrics={display} loading={showLoading} />
+      <TrackingKpis
+        metrics={display}
+        loading={showLoading}
+        districtFilter={deferredFilters.district}
+        cohortFilter={activeCohort}
+      />
 
       <SectionHeader
         title="Cohort command"

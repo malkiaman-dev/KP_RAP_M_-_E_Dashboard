@@ -4,9 +4,9 @@ import type { HhGirlsMetrics } from "@/lib/data/hh-girls-metrics";
 import type { TrackingTargetGaps } from "@/lib/data/tracking-target-gaps-types";
 import type { TrackingMetrics } from "@/lib/data/tracking-metrics";
 
-export const TRACKING_METRICS_QUERY_KEY = ["tracking-metrics", "v2"] as const;
+export const TRACKING_METRICS_QUERY_KEY = ["tracking-metrics", "v3-frame"] as const;
 export const TRACKING_EXPORTS_QUERY_KEY = ["tracking-exports"] as const;
-export const TRACKING_GAPS_QUERY_KEY = ["tracking-gaps"] as const;
+export const TRACKING_GAPS_QUERY_KEY = ["tracking-gaps", "v2"] as const;
 export const DASHBOARD_METRICS_QUERY_KEY = ["dashboard-metrics"] as const;
 export const HH_GIRLS_METRICS_QUERY_KEY = ["hh-girls-metrics", "v9"] as const;
 export const HH_GIRLS_EXPORTS_QUERY_KEY = ["hh-girls-exports", "v2"] as const;

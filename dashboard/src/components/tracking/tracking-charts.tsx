@@ -351,7 +351,7 @@ export function TrackingCharts({
 
       <ChartCard
         title="Untracked Girls by District"
-        subtitle={`Girls in data not yet tracked · ${CHART_CLICK_HINT}`}
+        subtitle={`Assignment-frame remaining by district · ${CHART_CLICK_HINT}`}
         className="lg:col-start-1 lg:row-start-2"
       >
         <ChartArea>

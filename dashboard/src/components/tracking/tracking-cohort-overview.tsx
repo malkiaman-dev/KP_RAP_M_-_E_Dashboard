@@ -79,14 +79,9 @@ function CohortCard({
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-muted-foreground">Remaining</p>
+          <p className="text-xs text-muted-foreground">Remaining to target</p>
           <p className={cn("text-lg font-bold tabular-nums", accentClass)}>
-            <AnimatedCounter
-              value={Math.max(
-                0,
-                metrics.successTarget - metrics.uniqueGirlsAttempted
-              )}
-            />
+            <AnimatedCounter value={metrics.remainingToSuccessTarget} />
           </p>
         </div>
       </div>
