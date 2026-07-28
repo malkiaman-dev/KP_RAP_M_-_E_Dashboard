@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    void fetch("/api/auth/me")
+    void fetch("/api/me")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.user) {
@@ -31,7 +31,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

@@ -60,7 +60,7 @@ export function AuthProvider({
 
   const refreshAuth = useCallback(async (): Promise<AuthRefreshResult> => {
     try {
-      const res = await fetch("/api/auth/me");
+      const res = await fetch("/api/me");
 
       if (res.status === 401) {
         applyAuth(null);
@@ -97,7 +97,7 @@ export function AuthProvider({
     let cancelled = false;
 
     async function syncAuth() {
-      // Server already hydrated a valid session — skip the immediate /api/auth/me
+      // Server already hydrated a valid session — skip the immediate /api/me
       // round-trip so the first paint is not blocked on auth.
       if (initialAuth?.user) {
         setLoading(false);
@@ -137,7 +137,7 @@ export function AuthProvider({
   );
 
   const logout = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    await fetch("/api/logout", { method: "POST" });
     applyAuth(null);
     setAuthError(false);
     router.push("/login");

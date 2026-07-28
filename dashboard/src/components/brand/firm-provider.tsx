@@ -83,7 +83,7 @@ export function FirmProvider({
       return;
     }
 
-    fetch("/api/auth/me")
+    fetch("/api/me")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setUser(data?.user ?? null))
       .catch(() => setUser(null));
