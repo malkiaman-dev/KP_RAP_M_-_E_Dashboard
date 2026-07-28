@@ -112,7 +112,7 @@ export function StatCard({
       </p>
 
       {hint && (
-        <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">
+        <p className="mt-0.5 whitespace-pre-line text-[10px] leading-tight text-muted-foreground">
           {hint}
         </p>
       )}

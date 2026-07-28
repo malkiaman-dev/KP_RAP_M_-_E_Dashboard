@@ -77,7 +77,14 @@ const kpiConfig: {
     label: "Remaining to Target",
     colorClass: "text-red-600",
     icon: Flag,
-    hint: (m) => `Of ${m.successTarget.toLocaleString()} success target`,
+    hint: (m) => {
+      const notTracked = m.secondaryKpis.attemptedNotTracked;
+      const notAttempted = Math.max(
+        0,
+        m.assignmentPool - m.secondaryKpis.uniqueGirlsAttempted
+      );
+      return `Not tracked ${notTracked.toLocaleString()}\nNot attempted ${notAttempted.toLocaleString()}`;
+    },
   },
   {
     key: "successRate",
