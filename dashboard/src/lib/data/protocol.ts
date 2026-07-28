@@ -7,24 +7,25 @@ export const PROTOCOL = {
    * Endline = 2023-24 new-sample cohort).
    * Keys match SurveyCTO district codes.
    */
+  // Counts match Tracking_Targets Excel assignment frame (girlid rows).
   DISTRICT_TRACKING_TARGETS: {
     "1": { label: "D.I. Khan", baseline: 638, endline: 1532 },
-    "2": { label: "Hangu", baseline: 148, endline: 364 },
+    "2": { label: "Hangu", baseline: 148, endline: 368 },
     "3": { label: "Lakki Marwat", baseline: 441, endline: 1060 },
-    "4": { label: "Torghar", baseline: 7, endline: 140 },
+    "4": { label: "Torghar", baseline: 7, endline: 139 },
   },
   /** Baseline successful-tracking target (sum of district baseline) */
   BASELINE_SUCCESS_TARGET: 1234,
   /** Endline / new-sample successful-tracking target */
-  ENDLINE_SUCCESS_TARGET: 3096,
+  ENDLINE_SUCCESS_TARGET: 3099,
   /** Primary outcome target — successfully tracked girls */
-  SUCCESSFUL_TRACKING_TARGET: 4330,
+  SUCCESSFUL_TRACKING_TARGET: 4333,
   /** Baseline listed / assignment pool (aligned to baseline success target) */
   BASELINE_GIRLS_TO_TRACK: 1234,
   /** New sample listed / assignment pool (aligned to endline success target) */
-  NEW_SAMPLE_GIRLS_TO_TRACK: 3096,
+  NEW_SAMPLE_GIRLS_TO_TRACK: 3099,
   /** Total girls in the tracking assignment pool */
-  GIRLS_TO_TRACK: 4330,
+  GIRLS_TO_TRACK: 4333,
   TRACKING_BUFFER_PERCENT: 100,
   /** Per-enumerator daily tracking target (girls to track per working day) */
   DAILY_TRACKING_TARGET_PER_ENUMERATOR: 10,
