@@ -239,6 +239,15 @@ body {
   }
 }
 
+@keyframes tabProgress {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
 /* Card surface used by KPI + chart cards */
 .surface-card {
   background: var(--card);

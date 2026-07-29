@@ -44,9 +44,10 @@ function isJumpLinkActive(pathname: string, href: string): boolean {
 export function TopNavPageContext() {
   const pathname = usePathname();
   const queryClient = useQueryClient();
-  const { switchTab, displayPath } = useRouteCache();
+  const { navigate, displayPath, pendingPath } = useRouteCache();
   const { allowedRoutes, user } = useAuth();
-  const current = getPageContext(displayPath || pathname);
+  const activePath = pendingPath || displayPath || pathname;
+  const current = getPageContext(activePath);
 
   const warmRoute = (href: string) => {
     prefetchRouteData(queryClient, href);
@@ -57,9 +58,8 @@ export function TopNavPageContext() {
     event: React.MouseEvent<HTMLAnchorElement>,
     href: string
   ) => {
-    if (switchTab(href)) {
-      event.preventDefault();
-    }
+    event.preventDefault();
+    navigate(href);
   };
 
   const jumpHrefs =
@@ -90,7 +90,7 @@ export function TopNavPageContext() {
               Jump to
             </span>
             {quickLinks.map((tab, index) => {
-              const active = isJumpLinkActive(displayPath || pathname, tab.href);
+              const active = isJumpLinkActive(activePath, tab.href);
 
               return (
                 <span key={tab.href} className="flex min-w-0 items-center">

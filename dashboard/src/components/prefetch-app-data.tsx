@@ -1,20 +1,20 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { prefetchAppQueries } from "@/lib/queries/app-data";
 import { preloadRouteChunks } from "@/lib/queries/route-chunks";
+import { useRouteCache } from "@/components/layout/route-cache";
 
-/** Warm survey queries after the shell mounts so tab switches feel instant. */
+/** Warm survey queries so tab switches feel instant. */
 export function PrefetchAppData() {
   const queryClient = useQueryClient();
-  const pathname = usePathname();
+  const { displayPath } = useRouteCache();
 
   useEffect(() => {
-    prefetchAppQueries(queryClient, pathname);
-    preloadRouteChunks(pathname);
-  }, [queryClient, pathname]);
+    prefetchAppQueries(queryClient, displayPath);
+    preloadRouteChunks(displayPath);
+  }, [queryClient, displayPath]);
 
   return null;
 }

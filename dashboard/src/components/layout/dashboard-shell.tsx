@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { TopNav } from "./top-nav";
-import { RouteCacheOutlet, RouteCacheProvider } from "./route-cache";
+import {
+  RouteCacheOutlet,
+  RouteCacheProvider,
+  TabNavProgress,
+} from "./route-cache";
 import { RouteGuard } from "@/components/auth/route-guard";
 import { PrefetchAppData } from "@/components/prefetch-app-data";
 
@@ -24,6 +28,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         className="mesh-bg min-h-screen"
         style={{ "--sidebar-w": `${sidebarWidth}px` } as React.CSSProperties}
       >
+        <TabNavProgress />
         <Sidebar
           collapsed={collapsed}
           onToggle={() => setCollapsed(!collapsed)}

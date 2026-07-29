@@ -166,6 +166,24 @@ export function prefetchAppQueries(
       prefetchRouteData(queryClient, "/surveys/hh-girls");
     }
   }, 2600);
+
+  idle(() => {
+    if (pathname !== "/surveys/errors") {
+      prefetchRouteData(queryClient, "/surveys/errors");
+    }
+  }, 3200);
+
+  idle(() => {
+    if (pathname !== "/monitoring") {
+      prefetchRouteData(queryClient, "/monitoring");
+    }
+  }, 3800);
+
+  idle(() => {
+    if (pathname !== "/reports") {
+      prefetchRouteData(queryClient, "/reports");
+    }
+  }, 4400);
 }
 
 export { QUERY_STALE_MS };
