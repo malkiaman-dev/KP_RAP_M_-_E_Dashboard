@@ -27,6 +27,7 @@ import { getTabsBySection, isNavTabActive } from "@/lib/auth/nav-tabs";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import { prefetchRouteData } from "@/lib/queries/app-data";
 import { preloadRouteChunks } from "@/lib/queries/route-chunks";
+import { useRouteCache } from "@/components/layout/route-cache";
 import type { LucideIcon } from "lucide-react";
 
 /** Tracks whether the viewport is below the `lg` breakpoint (drawer mode). */
@@ -81,6 +82,7 @@ export function Sidebar({
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { canAccess, user } = useAuth();
+  const { switchTab, displayPath } = useRouteCache();
   const isMobile = useIsMobile();
   // On mobile the drawer is always full-width; collapse only applies on desktop.
   const effectiveCollapsed = collapsed && !isMobile;
@@ -89,6 +91,20 @@ export function Sidebar({
     prefetchRouteData(queryClient, href);
     preloadRouteChunks(href);
   };
+
+  const onNavClick = (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string
+  ) => {
+    onMobileClose();
+    // Cached tabs paint instantly; skip waiting on the server round-trip.
+    if (switchTab(href)) {
+      event.preventDefault();
+    }
+  };
+
+  // Prefer optimistic display path so the highlight updates immediately.
+  const activePath = displayPath || pathname;
 
   return (
     <>
@@ -162,7 +178,7 @@ export function Sidebar({
             </AnimatePresence>
             <ul className="space-y-1">
               {visibleItems.map((item) => {
-                const isActive = isNavTabActive(pathname, item.href);
+                const isActive = isNavTabActive(activePath, item.href);
                 const Icon = item.icon;
                 const allowed = canAccess(item.href);
                 const locked = !allowed;
@@ -205,7 +221,7 @@ export function Sidebar({
                     <Link
                       href={item.href}
                       prefetch={true}
-                      onClick={onMobileClose}
+                      onClick={(e) => onNavClick(e, item.href)}
                       onMouseEnter={() => prefetchRoute(item.href)}
                       onFocus={() => prefetchRoute(item.href)}
                       className={cn(

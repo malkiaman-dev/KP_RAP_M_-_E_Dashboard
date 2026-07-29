@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import { AuthProvider } from "@/components/auth/auth-provider";
-import { RouteGuard } from "@/components/auth/route-guard";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import type { ServerAuthState } from "@/lib/auth/server-auth";
 
@@ -22,9 +21,7 @@ export function AppShell({
 
   return (
     <AuthProvider initialAuth={initialAuth}>
-      <DashboardShell>
-        <RouteGuard>{children}</RouteGuard>
-      </DashboardShell>
+      <DashboardShell>{children}</DashboardShell>
     </AuthProvider>
   );
 }

@@ -8,6 +8,7 @@ import { isNavTabActive, isPathAllowed, NAV_TABS } from "@/lib/auth/nav-tabs";
 import { useAuth } from "@/components/auth/auth-provider";
 import { prefetchRouteData } from "@/lib/queries/app-data";
 import { preloadRouteChunks } from "@/lib/queries/route-chunks";
+import { useRouteCache } from "@/components/layout/route-cache";
 import { cn } from "@/lib/utils";
 
 function getPageContext(pathname: string) {
@@ -43,12 +44,22 @@ function isJumpLinkActive(pathname: string, href: string): boolean {
 export function TopNavPageContext() {
   const pathname = usePathname();
   const queryClient = useQueryClient();
+  const { switchTab, displayPath } = useRouteCache();
   const { allowedRoutes, user } = useAuth();
-  const current = getPageContext(pathname);
+  const current = getPageContext(displayPath || pathname);
 
   const warmRoute = (href: string) => {
     prefetchRouteData(queryClient, href);
     preloadRouteChunks(href);
+  };
+
+  const onJumpClick = (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string
+  ) => {
+    if (switchTab(href)) {
+      event.preventDefault();
+    }
   };
 
   const jumpHrefs =
@@ -79,7 +90,7 @@ export function TopNavPageContext() {
               Jump to
             </span>
             {quickLinks.map((tab, index) => {
-              const active = isJumpLinkActive(pathname, tab.href);
+              const active = isJumpLinkActive(displayPath || pathname, tab.href);
 
               return (
                 <span key={tab.href} className="flex min-w-0 items-center">
@@ -100,6 +111,7 @@ export function TopNavPageContext() {
                     <Link
                       href={tab.href}
                       prefetch={true}
+                      onClick={(e) => onJumpClick(e, tab.href)}
                       onMouseEnter={() => warmRoute(tab.href)}
                       onFocus={() => warmRoute(tab.href)}
                       className={cn(
