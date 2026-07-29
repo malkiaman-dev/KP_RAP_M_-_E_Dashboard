@@ -18,16 +18,12 @@ import type { ErrorMetrics } from "@/lib/data/error-metrics";
 import { PROTOCOL } from "@/lib/data/protocol";
 import {
   DASHBOARD_METRICS_QUERY_KEY,
+  ERROR_METRICS_QUERY_KEY,
   fetchDashboardMetrics,
+  fetchErrorMetrics,
   QUERY_STALE_MS,
 } from "@/lib/queries/app-data";
 import { cn } from "@/lib/utils";
-
-async function fetchErrors(): Promise<ErrorMetrics> {
-  const res = await fetch("/api/errors");
-  if (!res.ok) throw new Error("Failed");
-  return res.json();
-}
 
 export default function SurveysPage() {
   const { data, isLoading } = useQuery({
@@ -36,8 +32,9 @@ export default function SurveysPage() {
     staleTime: QUERY_STALE_MS,
   });
   const { data: errors } = useQuery({
-    queryKey: ["error-metrics"],
-    queryFn: fetchErrors,
+    queryKey: [...ERROR_METRICS_QUERY_KEY],
+    queryFn: fetchErrorMetrics,
+    staleTime: QUERY_STALE_MS,
   });
 
   const surveys = [

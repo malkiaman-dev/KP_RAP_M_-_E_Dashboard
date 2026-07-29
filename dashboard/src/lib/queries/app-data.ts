@@ -116,13 +116,25 @@ export function prefetchRouteData(queryClient: QueryClient, href: string) {
     warm(TRACKING_GAPS_QUERY_KEY, fetchTrackingGaps);
   }
 
+  if (
+    href === "/reports" ||
+    href === "/surveys/errors" ||
+    href === "/field" ||
+    href === "/field/analytics"
+  ) {
+    warm(ERROR_METRICS_QUERY_KEY, fetchErrorMetrics);
+  }
+
   if (href === "/reports") {
-    idle(() => warm(ERROR_METRICS_QUERY_KEY, fetchErrorMetrics), 2500);
-    idle(() => warm(HH_GIRLS_METRICS_QUERY_KEY, fetchHhGirlsMetrics), 3000);
+    warm(HH_GIRLS_METRICS_QUERY_KEY, fetchHhGirlsMetrics);
   }
 
   if (href === "/monitoring") {
-    idle(() => warm(HH_GIRLS_METRICS_QUERY_KEY, fetchHhGirlsMetrics), 2500);
+    warm(HH_GIRLS_METRICS_QUERY_KEY, fetchHhGirlsMetrics);
+  }
+
+  if (href === "/surveys") {
+    warm(ERROR_METRICS_QUERY_KEY, fetchErrorMetrics);
   }
 }
 
@@ -136,30 +148,24 @@ export function prefetchAppQueries(
 ) {
   prefetchRouteData(queryClient, pathname);
 
-  // Stagger background warm-ups so they do not compete with the active tab.
+  // Warm other common tabs soon after the active route — shorter delays for snappier switches.
   idle(() => {
-    if (pathname !== "/") {
-      prefetchRouteData(queryClient, "/");
-    }
-  }, 2500);
+    if (pathname !== "/") prefetchRouteData(queryClient, "/");
+  }, 800);
 
   idle(() => {
-    if (pathname !== "/tracking") {
-      prefetchRouteData(queryClient, "/tracking");
-    }
-  }, 4000);
+    if (pathname !== "/tracking") prefetchRouteData(queryClient, "/tracking");
+  }, 1400);
+
+  idle(() => {
+    if (pathname !== "/analytics") prefetchRouteData(queryClient, "/analytics");
+  }, 2000);
 
   idle(() => {
     if (pathname !== "/surveys/hh-girls") {
       prefetchRouteData(queryClient, "/surveys/hh-girls");
     }
-  }, 5500);
-
-  idle(() => {
-    if (pathname !== "/analytics") {
-      prefetchRouteData(queryClient, "/analytics");
-    }
-  }, 7000);
+  }, 2600);
 }
 
 export { QUERY_STALE_MS };

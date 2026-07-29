@@ -22,6 +22,11 @@ import {
 } from "@/lib/data/error-metrics";
 import type { DqaStatus } from "@/lib/data/dqa-runner";
 
+import {
+  ERROR_METRICS_QUERY_KEY,
+  QUERY_STALE_MS,
+} from "@/lib/queries/app-data";
+
 type ErrorMetricsPayload = ErrorMetrics & {
   dqaStatus?: DqaStatus;
   dqaError?: string | null;
@@ -40,8 +45,9 @@ export default function ErrorReportPage() {
   const [view, setView] = useState<ErrorView>("quality");
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["error-metrics"],
+    queryKey: [...ERROR_METRICS_QUERY_KEY],
     queryFn: fetchErrors,
+    staleTime: QUERY_STALE_MS,
     refetchInterval: (query) => {
       const status = query.state.data?.dqaStatus;
       return status === "regenerating" || status === "stale" || status === "missing"

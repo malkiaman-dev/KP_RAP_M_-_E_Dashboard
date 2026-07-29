@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { isNavTabActive, isPathAllowed, NAV_TABS } from "@/lib/auth/nav-tabs";
 import { useAuth } from "@/components/auth/auth-provider";
+import { prefetchRouteData } from "@/lib/queries/app-data";
+import { preloadRouteChunks } from "@/lib/queries/route-chunks";
 import { cn } from "@/lib/utils";
 
 function getPageContext(pathname: string) {
@@ -39,8 +42,14 @@ function isJumpLinkActive(pathname: string, href: string): boolean {
 
 export function TopNavPageContext() {
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const { allowedRoutes, user } = useAuth();
   const current = getPageContext(pathname);
+
+  const warmRoute = (href: string) => {
+    prefetchRouteData(queryClient, href);
+    preloadRouteChunks(href);
+  };
 
   const jumpHrefs =
     user?.role === "district" ? FIELD_JUMP_HREFS : STAKEHOLDER_JUMP_HREFS;
@@ -90,6 +99,9 @@ export function TopNavPageContext() {
                   ) : (
                     <Link
                       href={tab.href}
+                      prefetch={true}
+                      onMouseEnter={() => warmRoute(tab.href)}
+                      onFocus={() => warmRoute(tab.href)}
                       className={cn(
                         "truncate rounded-md px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors",
                         "hover:bg-primary/10 hover:text-primary"

@@ -96,21 +96,18 @@ export function AnalyticsContent() {
     queryKey: [...TRACKING_METRICS_QUERY_KEY],
     queryFn: fetchTrackingMetrics,
     staleTime: QUERY_STALE_MS,
-    enabled: dashboardQuery.isSuccess,
   });
 
   const gapsQuery = useQuery({
     queryKey: [...TRACKING_GAPS_QUERY_KEY],
     queryFn: fetchTrackingGaps,
     staleTime: QUERY_STALE_MS,
-    enabled: trackingQuery.isSuccess,
   });
 
   const hhQuery = useQuery({
     queryKey: [...HH_GIRLS_METRICS_QUERY_KEY],
     queryFn: fetchHhGirlsMetrics,
     staleTime: QUERY_STALE_MS,
-    enabled: dashboardQuery.isSuccess,
   });
 
   const dashboard = useMemo(() => {

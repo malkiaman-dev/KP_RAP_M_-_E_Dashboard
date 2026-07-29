@@ -25,9 +25,8 @@ import { Logo } from "@/components/brand/logo";
 import { useAuth } from "@/components/auth/auth-provider";
 import { getTabsBySection, isNavTabActive } from "@/lib/auth/nav-tabs";
 import { ROLE_LABELS } from "@/lib/auth/roles";
-import {
-  prefetchRouteData,
-} from "@/lib/queries/app-data";
+import { prefetchRouteData } from "@/lib/queries/app-data";
+import { preloadRouteChunks } from "@/lib/queries/route-chunks";
 import type { LucideIcon } from "lucide-react";
 
 /** Tracks whether the viewport is below the `lg` breakpoint (drawer mode). */
@@ -88,6 +87,7 @@ export function Sidebar({
 
   const prefetchRoute = (href: string) => {
     prefetchRouteData(queryClient, href);
+    preloadRouteChunks(href);
   };
 
   return (

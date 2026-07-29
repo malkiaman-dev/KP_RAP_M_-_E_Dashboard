@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { TopNav } from "./top-nav";
+import { RouteCache } from "./route-cache";
 import { PrefetchAppData } from "@/components/prefetch-app-data";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -32,7 +33,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen transition-[margin] duration-300 lg:ml-(--sidebar-w)">
         <TopNav onMenuClick={() => setMobileOpen(true)} />
         <main className="p-4 sm:p-6 lg:p-8" id="main-content" role="main">
-          {children}
+          <RouteCache>{children}</RouteCache>
         </main>
       </div>
     </div>

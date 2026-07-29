@@ -106,7 +106,7 @@ export default function TrackingPage() {
     setFilters(next);
   };
 
-  const { data, isLoading, isError, isFetching, isSuccess } = useQuery({
+  const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: [...TRACKING_METRICS_QUERY_KEY],
     queryFn: fetchTrackingMetrics,
     staleTime: QUERY_STALE_MS,
@@ -116,8 +116,6 @@ export default function TrackingPage() {
     queryKey: [...TRACKING_GAPS_QUERY_KEY],
     queryFn: fetchTrackingGaps,
     staleTime: QUERY_STALE_MS,
-    // Let metrics paint first; gaps/overlay fill in as soon as ready (or from prefetch).
-    enabled: isSuccess,
   });
 
   const targets = useMemo(
