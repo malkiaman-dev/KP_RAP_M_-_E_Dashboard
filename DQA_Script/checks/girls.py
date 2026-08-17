@@ -5,6 +5,7 @@ import warnings
 import inspect
 import pandas as pd
 from utils.logging import make_issue
+from checks.high_frequency import run_girls_high_frequency
 
 
 def run(df: pd.DataFrame, col: dict) -> list[dict]:
@@ -1283,6 +1284,9 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 ),
                 f"how_far={float(dist)}; time_mins={mins:.0f}",
             )
+
+    # High-frequency partner checks: reading test, GPS, speed warnings, night re-entry
+    issues.extend(run_girls_high_frequency(df, col, meta))
 
     # --------------------------
     # FINAL STEP: dedupe issues per record, per field

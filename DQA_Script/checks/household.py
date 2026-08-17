@@ -155,6 +155,7 @@ import pandas as pd
 
 from utils.logging import add_issue as log_add_issue
 from checks.protocol_extras import run_household_protocol
+from checks.high_frequency import run_household_high_frequency
 
 YES_SET = {"yes", "y", "1", "true", "t"}
 NO_SET = {"no", "n", "0", "false", "f", "none", "nan", ""}
@@ -226,6 +227,24 @@ def _is_yes(x: Any) -> bool:
 
 def _is_no(x: Any) -> bool:
     return _norm_str(x) in NO_SET
+
+
+def _is_explicit_no(x: Any) -> bool:
+    """True only when the respondent answered No. Blank/skipped/NaN is not a refusal."""
+    s = _norm_str(x)
+    if s == "":
+        return False
+    n = _to_num(x)
+    if n is not None and abs(n - round(n)) < 1e-9:
+        return int(round(n)) == 0
+    return s in {"no", "n", "false", "f"}
+
+
+def _resp_code(x: Any) -> str:
+    n = _to_num(x)
+    if n is not None and abs(n - round(n)) < 1e-9:
+        return str(int(round(n)))
+    return _norm_str(x)
 
 
 def _col(col: dict, key: str, fallback: str | None = None) -> str | None:
@@ -968,14 +987,14 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         (consent_father_col and consent_father_col in df.columns) or (consent_mother_col and consent_mother_col in df.columns)
     ):
         def _row_nonconsent(row: pd.Series) -> bool:
-            resp = _norm_str(row.get(respondent_code_col))
+            # Count only an explicit No on the interviewed parent's consent.
+            # Blank father consent on a mother interview is skip-logic, not a refusal.
+            resp = _resp_code(row.get(respondent_code_col))
             if resp == "1" and consent_father_col and consent_father_col in row.index:
-                return _is_no(row.get(consent_father_col))
+                return _is_explicit_no(row.get(consent_father_col))
             if resp == "2" and consent_mother_col and consent_mother_col in row.index:
-                return _is_no(row.get(consent_mother_col))
-            f_no = _is_no(row.get(consent_father_col)) if (consent_father_col and consent_father_col in row.index) else False
-            m_no = _is_no(row.get(consent_mother_col)) if (consent_mother_col and consent_mother_col in row.index) else False
-            return f_no or m_no
+                return _is_explicit_no(row.get(consent_mother_col))
+            return False
 
         nonconsent_mask = df.apply(_row_nonconsent, axis=1)
         if nonconsent_mask.any():
@@ -2239,6 +2258,9 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     # Protocol extras: roster / schooling / transport / duration / dummy phones
     # =========================================================
     issues.extend(run_household_protocol(df, col, meta))
+
+    # High-frequency partner checks: GPS, speed warnings, night re-entry, timestamps
+    issues.extend(run_household_high_frequency(df, col, meta))
 
     # =========================================================
     # FINAL: allow multiple issues per record, but dedupe within record per field

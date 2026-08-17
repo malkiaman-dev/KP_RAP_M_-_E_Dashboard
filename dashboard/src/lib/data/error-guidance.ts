@@ -291,6 +291,100 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoid:
       "Enter the real number of students in the class. Never use 0 or negative values as placeholders.",
   },
+  GL_CE_READING_INCONSISTENT: {
+    focus:
+      "Reading-test word marks, last_word, and incorrect total do not agree.",
+    avoid:
+      "Mark each story word as the girl reads. last_word must be the last word she attempted, and incorrect must equal the number of words marked Incorrect. Do not tap through the test.",
+  },
+  GL_CE_GPS_OUT_OF_DISTRICT: {
+    focus: "Girls-interview GPS is outside the assigned district (including Mansehra).",
+    avoid:
+      "Complete the form at the interview location. Do not delete and re-enter forms from another district. Confirm GPS is on before starting.",
+  },
+  GL_CE_GPS_JUMP: {
+    focus: "GPS moved a long distance during the same Girls interview.",
+    avoid:
+      "Stay on site until submit. Do not continue or finish the form after travelling to another location.",
+  },
+  GL_QF_GPS_VILLAGE_CLUSTER: {
+    focus: "The same GPS point is recorded under many different village names.",
+    avoid:
+      "Select the correct village for the household you are in. Do not reuse a previous GPS/village combination.",
+  },
+  GL_QF_CONSENT_SPEED: {
+    focus: "Parental and child consent screens triggered SurveyCTO speed warnings.",
+    avoid:
+      "When the consent screens appear, read the scripts aloud. Do not tap through in under two seconds even if consent was discussed earlier.",
+  },
+  GL_QF_SPEED_WARNINGS: {
+    focus: "This Girls interview has a very high SurveyCTO speed-warning count.",
+    avoid:
+      "Leave each question on screen long enough to read it. Rushing produces speed warnings and weak learning-test data.",
+  },
+  GL_QF_LATE_NIGHT: {
+    focus: "Girls interview started late at night.",
+    avoid:
+      "Interview during agreed field hours. Do not complete or re-enter Girls forms by phone at night unless a supervisor approved it.",
+  },
+  GL_QF_TIMESTAMP_YEAR: {
+    focus: "Tablet start/end time has an impossible year.",
+    avoid: "Set the tablet date and time correctly before starting any interview.",
+  },
+  GL_CE_REENUM_COMPLETED: {
+    focus: "A second enumerator re-interviewed a girl who was already surveyed.",
+    avoid:
+      "Do not re-enter another enumerator’s completed Girls form. If a correction is needed, the supervisor must assign it.",
+  },
+  GL_QF_LATE_REINTERVIEW: {
+    focus: "Late-night re-interview of a girl who already had a completed survey.",
+    avoid:
+      "Do not reopen completed Girls cases at night. Corrections go through the supervisor, not a second midnight form.",
+  },
+  HH_CR_GPS_OUT_OF_DISTRICT: {
+    focus: "Household-interview GPS is outside the assigned district (including Mansehra).",
+    avoid:
+      "Capture GPS at the household. Do not delete and re-type forms from another district.",
+  },
+  HH_CR_GPS_JUMP: {
+    focus: "GPS moved a long distance during the same household interview.",
+    avoid:
+      "Finish the household form at the house. Do not continue it after travelling away.",
+  },
+  HH_QF_GPS_VILLAGE_CLUSTER: {
+    focus: "The same household GPS point is stored under many village names.",
+    avoid:
+      "Choose the village that matches the household you are in. Confirm the GPS reading before submit.",
+  },
+  HH_QF_CONSENT_SPEED: {
+    focus: "Household consent screens triggered SurveyCTO speed warnings.",
+    avoid:
+      "Read the consent script when those screens are open. Do not tap understand/agree in under two seconds.",
+  },
+  HH_QF_SPEED_WARNINGS: {
+    focus: "This household interview has a very high SurveyCTO speed-warning count.",
+    avoid:
+      "Read questions fully. High speed-warning counts mean too many items were on screen for under about two seconds.",
+  },
+  HH_QF_LATE_NIGHT: {
+    focus: "Household interview started late at night.",
+    avoid:
+      "Interview during agreed field hours. Phone or midnight household interviews were not an approved method.",
+  },
+  HH_QF_TIMESTAMP_YEAR: {
+    focus: "Household start/end time has an impossible year.",
+    avoid: "Check tablet date/time before every interview.",
+  },
+  HH_CR_REENUM_COMPLETED: {
+    focus: "A different enumerator re-interviewed a household that was already completed.",
+    avoid:
+      "Do not re-enter another enumerator’s completed household (including by phone). Supervisor-approved corrections only.",
+  },
+  HH_QF_LATE_REINTERVIEW: {
+    focus: "Late-night re-interview of a household that was already completed.",
+    avoid:
+      "Do not reopen completed households at night. If the roster was incomplete, the supervisor must assign the correction.",
+  },
 };
 
 const PREFIX_GUIDANCE: { prefix: string; guidance: RuleGuidance }[] = [
