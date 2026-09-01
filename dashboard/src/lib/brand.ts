@@ -134,7 +134,7 @@ export const FIRMS: Record<FirmId, FirmBrand> = {
   },
   aoe: {
     id: "aoe",
-    name: "Alliance of Experts",
+    name: "Alliance of Excellence",
     shortName: "AoE",
     tagline: "Monitoring & Evaluation Intelligence",
     logo: "/alliance-logo.png",

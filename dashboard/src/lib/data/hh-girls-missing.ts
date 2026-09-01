@@ -11,6 +11,7 @@ import {
   toHhGirlsExportRow,
   type HhGirlsExportRow,
 } from "./hh-girls-revisit";
+import { submissionTimestamp } from "../utils";
 
 export type HhGirlsMissingListKey =
   | "missingFatherSurveys"
@@ -43,7 +44,7 @@ function emptyMissingLists(): Record<HhGirlsMissingListKey, HhGirlsExportRow[]> 
 }
 
 function rowTimestamp(row: HhGirlsRow): number {
-  return new Date(row.SubmissionDate || 0).getTime();
+  return submissionTimestamp(row.SubmissionDate);
 }
 
 function latestRow(rows: HhGirlsRow[]): HhGirlsRow | undefined {

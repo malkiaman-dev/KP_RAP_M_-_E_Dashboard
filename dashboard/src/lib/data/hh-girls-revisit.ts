@@ -16,6 +16,7 @@ import {
   isFatherRespondent,
   isMotherRespondent,
 } from "./hh-girls-metrics";
+import { submissionTimestamp } from "../utils";
 
 export type HhGirlsSurveySlot = "father" | "mother" | "caretaker" | "girls";
 
@@ -495,8 +496,8 @@ function groupSlotSubmissions(
     subs.sort(
       (a, b) =>
         parseAttempt(a) - parseAttempt(b) ||
-        new Date(a.SubmissionDate || 0).getTime() -
-          new Date(b.SubmissionDate || 0).getTime()
+        submissionTimestamp(a.SubmissionDate) -
+          submissionTimestamp(b.SubmissionDate)
     );
   }
 

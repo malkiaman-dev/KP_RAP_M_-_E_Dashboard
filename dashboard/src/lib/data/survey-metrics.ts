@@ -8,6 +8,11 @@ import { isCompletedHouseholdForGirl } from "./hh-girls-completion";
 import type { HhGirlsRow } from "./hh-girls-metrics";
 import { PROTOCOL } from "./protocol";
 import {
+  parseFlexibleDate,
+  submissionTimestamp,
+  toIsoDateString,
+} from "../utils";
+import {
   buildEnumeratorFilterOptions,
   enumeratorIdentityKey,
   matchesEnumeratorFilter,
@@ -102,8 +107,7 @@ export function toggleDashboardFilters(
 }
 
 function parseSubmissionDate(raw: string): Date | null {
-  const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? null : d;
+  return parseFlexibleDate(raw);
 }
 
 function districtLabel(d: string): string {
@@ -121,7 +125,7 @@ function buildSubmissionTrend(rows: SurveyRow[]) {
   for (const r of rows) {
     const parsed = parseSubmissionDate(r.SubmissionDate || "");
     const date = parsed
-      ? parsed.toISOString().slice(0, 10)
+      ? toIsoDateString(parsed)
       : (r.SubmissionDate || "").split(" ")[0];
     if (!date) continue;
     trendMap.set(date, (trendMap.get(date) || 0) + 1);
@@ -154,8 +158,10 @@ export function getFilterOptions(rows: SurveyRow[]): FilterOptions {
     })),
     enumerators: buildEnumeratorFilterOptions(rows),
     dateRange: {
-      start: dates[0]?.toISOString().slice(0, 10) || "",
-      end: dates[dates.length - 1]?.toISOString().slice(0, 10) || "",
+      start: dates[0] ? toIsoDateString(dates[0]) : "",
+      end: dates[dates.length - 1]
+        ? toIsoDateString(dates[dates.length - 1]!)
+        : "",
     },
   };
 }
@@ -411,14 +417,16 @@ export function computeMetrics(
       start: filterOptions.dateRange.start,
       end: filterOptions.dateRange.end,
     },
-    lastSubmissionDate: dates[dates.length - 1]?.toISOString() || "",
+    lastSubmissionDate: dates.length
+      ? toIsoDateString(dates[dates.length - 1]!)
+      : "",
     filterOptions,
     allSubmissions: rows
       .slice()
       .sort(
         (a, b) =>
-          new Date(b.SubmissionDate || 0).getTime() -
-          new Date(a.SubmissionDate || 0).getTime()
+          submissionTimestamp(b.SubmissionDate) -
+          submissionTimestamp(a.SubmissionDate)
       ),
   };
 }

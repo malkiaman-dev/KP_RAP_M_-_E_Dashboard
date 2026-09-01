@@ -4,6 +4,7 @@ import {
   enumeratorIdentityKey,
   matchesEnumeratorFilter,
 } from "./enumerator-identity";
+import { parseFlexibleDate } from "../utils";
 
 export type ErrorSeverity = "CRITICAL" | "FLAG" | "ANOMALY";
 
@@ -159,8 +160,8 @@ export function toggleErrorFilters(
 
 function errorSubmissionDay(raw: string): Date | null {
   if (!raw) return null;
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return null;
+  const parsed = parseFlexibleDate(raw);
+  if (!parsed) return null;
   parsed.setHours(0, 0, 0, 0);
   return parsed;
 }

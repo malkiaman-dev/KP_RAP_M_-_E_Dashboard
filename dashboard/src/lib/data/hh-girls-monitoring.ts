@@ -1,3 +1,4 @@
+import { parseFlexibleDate, toIsoDateString } from "../utils";
 import { isCompletedHouseholdForGirl } from "./hh-girls-completion";
 import {
   districtLabel,
@@ -51,14 +52,13 @@ export interface HhGirlsDailyMonitoringPoint {
 }
 
 function parseSubmissionDate(raw: string): Date | null {
-  const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? null : d;
+  return parseFlexibleDate(raw);
 }
 
 function submissionDateKey(r: HhGirlsRow): string {
   const date = parseSubmissionDate(r.SubmissionDate || "");
   return date
-    ? date.toISOString().slice(0, 10)
+    ? toIsoDateString(date)
     : (r.SubmissionDate || "").slice(0, 10);
 }
 
@@ -79,7 +79,7 @@ function girlKey(r: HhGirlsRow): string {
 }
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return toIsoDateString(new Date());
 }
 
 export type HhGirlsMonitoringFilters = HhGirlsFilters & {

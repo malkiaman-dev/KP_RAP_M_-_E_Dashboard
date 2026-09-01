@@ -65,7 +65,7 @@ export function loadAllSurveys(): SurveyRow[] {
 /** Unfiltered full metrics (reports / legacy). */
 export function loadDashboardMetrics() {
   const signature = `v2|${filesSignature(surveyFilePaths())}`;
-  return getCached("dashboard-metrics-v2", signature, () =>
+  return getCached("dashboard-metrics-v3", signature, () =>
     computeMetrics(loadAllSurveys())
   );
 }
@@ -76,7 +76,7 @@ export function loadDashboardMetrics() {
  */
 export function loadDashboardMetricsForClient() {
   const signature = `v3-fp|${FIELD_PERIOD_START}|${filesSignature(surveyFilePaths())}`;
-  return getCached("dashboard-metrics-client-v3", signature, () => {
+  return getCached("dashboard-metrics-client-v4", signature, () => {
     const allRows = loadAllSurveys();
     const fieldPeriodRows = applyFilters(
       allRows,

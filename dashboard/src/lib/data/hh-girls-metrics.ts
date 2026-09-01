@@ -1,5 +1,9 @@
 import { PROTOCOL } from "./protocol";
 import {
+  parseFlexibleDate,
+  toIsoDateString,
+} from "../utils";
+import {
   isCompletedHouseholdForGirl,
   isParentMarkedUnavailable,
 } from "./hh-girls-completion";
@@ -103,8 +107,7 @@ export function hhGirlsFiltersEqual(a: HhGirlsFilters, b: HhGirlsFilters): boole
 }
 
 function parseSubmissionDate(raw: string): Date | null {
-  const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? null : d;
+  return parseFlexibleDate(raw);
 }
 
 export function districtLabel(d: string): string {
@@ -152,7 +155,7 @@ function buildTrend(rows: HhGirlsRow[]) {
   for (const r of rows) {
     const parsed = parseSubmissionDate(r.SubmissionDate || "");
     const date = parsed
-      ? parsed.toISOString().slice(0, 10)
+      ? toIsoDateString(parsed)
       : (r.SubmissionDate || "").split(" ")[0];
     if (!date) continue;
     trendMap.set(date, (trendMap.get(date) || 0) + 1);
@@ -191,8 +194,10 @@ export function getHhGirlsFilterOptions(
       label,
     })),
     dateRange: {
-      start: dates[0]?.toISOString().slice(0, 10) || "",
-      end: dates[dates.length - 1]?.toISOString().slice(0, 10) || "",
+      start: dates[0] ? toIsoDateString(dates[0]) : "",
+      end: dates[dates.length - 1]
+        ? toIsoDateString(dates[dates.length - 1]!)
+        : "",
     },
   };
 }
@@ -335,7 +340,7 @@ function buildCombinedTrend(household: HhGirlsRow[], girls: HhGirlsRow[]) {
   ) => {
     const parsed = parseSubmissionDate(row.SubmissionDate || "");
     const date = parsed
-      ? parsed.toISOString().slice(0, 10)
+      ? toIsoDateString(parsed)
       : (row.SubmissionDate || "").split(" ")[0];
     if (!date) return;
     if (!trendMap.has(date)) {

@@ -5,6 +5,7 @@ import {
   type HhGirlsRow,
 } from "./hh-girls-metrics";
 import { toHhGirlsExportRow, type HhGirlsExportRow } from "./hh-girls-revisit";
+import { submissionTimestamp } from "../utils";
 
 export type HhGirlsDuplicateListKey =
   | "totalDuplicates"
@@ -145,8 +146,8 @@ function computeSequentialDuplicateIssues(rows: HhGirlsRow[]) {
     const sorted = [...subs].sort(
       (a, b) =>
         parseAttempt(a) - parseAttempt(b) ||
-        new Date(a.SubmissionDate || 0).getTime() -
-          new Date(b.SubmissionDate || 0).getTime()
+        submissionTimestamp(a.SubmissionDate) -
+          submissionTimestamp(b.SubmissionDate)
     );
 
     let sawSuccess = false;

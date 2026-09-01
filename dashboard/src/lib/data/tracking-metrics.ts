@@ -1,5 +1,9 @@
 import { DEFAULT_TRACKING_TARGETS, PROTOCOL } from "./protocol";
-import { toIsoDateString } from "../utils";
+import {
+  parseFlexibleDate,
+  submissionTimestamp,
+  toIsoDateString,
+} from "../utils";
 import {
   buildEnumeratorFilterOptions,
   cleanEnumeratorName as cleanEnumeratorNameBase,
@@ -226,8 +230,7 @@ export function resolveActiveCohort(
 }
 
 function parseDate(raw: string): Date | null {
-  const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? null : d;
+  return parseFlexibleDate(raw);
 }
 
 function districtLabel(d: string, label?: string): string {
@@ -2023,8 +2026,8 @@ export function computeDuplicateDetailMetrics(
       a: RevisitGirlExportRow,
       b: RevisitGirlExportRow
     ) =>
-      new Date(b.submissionDate || 0).getTime() -
-      new Date(a.submissionDate || 0).getTime();
+      submissionTimestamp(b.submissionDate) -
+      submissionTimestamp(a.submissionDate);
 
     for (const key of Object.keys(lists) as DuplicateDetailListKey[]) {
       lists[key].sort(sortByDate);
@@ -2099,8 +2102,8 @@ export type OperationalKpiLists = Record<OperationalKpiKey, OperationalKpiExport
 function latestGirlSubmission(subs: TrackingRow[]): TrackingRow {
   return [...subs].sort(
     (a, b) =>
-      new Date(b.SubmissionDate || 0).getTime() -
-      new Date(a.SubmissionDate || 0).getTime()
+      submissionTimestamp(b.SubmissionDate) -
+      submissionTimestamp(a.SubmissionDate)
   )[0]!;
 }
 
@@ -2502,8 +2505,8 @@ function summarizeByGirl(
   return [...map.entries()].map(([key, subs]) => {
     const sorted = subs.sort(
       (a, b) =>
-        new Date(b.SubmissionDate || 0).getTime() -
-        new Date(a.SubmissionDate || 0).getTime()
+        submissionTimestamp(b.SubmissionDate) -
+        submissionTimestamp(a.SubmissionDate)
     );
     const latest = sorted[0];
     return {
@@ -2730,8 +2733,8 @@ export function computeTrackingMetrics(
   const trendMap = new Map<string, Set<string>>();
   const sortedRows = [...rows].sort(
     (a, b) =>
-      new Date(a.SubmissionDate || 0).getTime() -
-      new Date(b.SubmissionDate || 0).getTime()
+      submissionTimestamp(a.SubmissionDate) -
+      submissionTimestamp(b.SubmissionDate)
   );
   const cumulativeTracked = new Set<string>();
   const trackingTrend: { date: string; count: number }[] = [];
@@ -2739,7 +2742,7 @@ export function computeTrackingMetrics(
   for (const r of sortedRows) {
     const date = parseDate(r.SubmissionDate || "");
     const dateKey = date
-      ? date.toISOString().slice(0, 10)
+      ? toIsoDateString(date)
       : (r.SubmissionDate || "").slice(0, 10);
     if (!dateKey) continue;
     if (isTrackedSubmission(r)) cumulativeTracked.add(girlKey(r));
@@ -2976,8 +2979,10 @@ export function computeTrackingMetrics(
         label: g.label,
       })),
       dateRange: {
-        start: dates[0]?.toISOString().slice(0, 10) || "",
-        end: dates[dates.length - 1]?.toISOString().slice(0, 10) || "",
+        start: dates[0] ? toIsoDateString(dates[0]) : "",
+        end: dates[dates.length - 1]
+          ? toIsoDateString(dates[dates.length - 1]!)
+          : "",
       },
     },
     allSubmissions: includeExportLists
@@ -2985,8 +2990,8 @@ export function computeTrackingMetrics(
           .slice()
           .sort(
             (a, b) =>
-              new Date(b.SubmissionDate || 0).getTime() -
-              new Date(a.SubmissionDate || 0).getTime()
+              submissionTimestamp(b.SubmissionDate) -
+              submissionTimestamp(a.SubmissionDate)
           )
       : rows,
   };
@@ -3032,7 +3037,7 @@ export interface DailyMonitoringPoint {
 function submissionDateKey(r: TrackingRow): string {
   const date = parseDate(r.SubmissionDate || "");
   return date
-    ? date.toISOString().slice(0, 10)
+    ? toIsoDateString(date)
     : (r.SubmissionDate || "").slice(0, 10);
 }
 

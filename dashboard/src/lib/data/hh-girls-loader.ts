@@ -76,7 +76,7 @@ export function loadHhGirlsSurveys() {
 
 export function loadHhGirlsMetrics() {
   const signature = `v9-fp|${filesSignature(hhGirlsFilePaths())}`;
-  return getCached("hh-girls-metrics-v9", signature, () => {
+  return getCached("hh-girls-metrics-v10", signature, () => {
     const { household, girls } = loadHhGirlsSurveys();
     return computeHhGirlsMetrics(household, girls);
   });
@@ -88,7 +88,7 @@ export function loadHhGirlsMetrics() {
  */
 export function loadHhGirlsMetricsForClient() {
   const signature = `v9-fp-client|${FIELD_PERIOD_START}|${filesSignature(hhGirlsFilePaths())}`;
-  return getCached("hh-girls-metrics-client-v9", signature, () => {
+  return getCached("hh-girls-metrics-client-v10", signature, () => {
     const { household, girls } = loadHhGirlsSurveys();
     const filtered = applyHhGirlsDataFilters(
       household,

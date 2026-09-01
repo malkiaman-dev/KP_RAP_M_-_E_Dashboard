@@ -12,6 +12,7 @@ import {
 import { DEFAULT_TRACKING_TARGETS } from "./protocol";
 import { FIELD_PERIOD_START } from "./field-period";
 import { filesSignature, getCached } from "./survey-cache";
+import { parseFlexibleDate, toIsoDateString } from "../utils";
 
 export {
   mergeTrackingExportLists,
@@ -156,7 +157,7 @@ export function loadTrackingSurvey(): TrackingRow[] {
  */
 export function loadTrackingMetricsForClient() {
   const signature = `v8-fast|${FIELD_PERIOD_START}|${filesSignature(trackingFilePaths())}`;
-  return getCached("tracking-metrics-light-v8", signature, () => {
+  return getCached("tracking-metrics-light-v9", signature, () => {
     const allRows = loadTrackingSurvey();
     const fieldPeriodRows = applyTrackingFilters(
       allRows,
@@ -172,10 +173,7 @@ export function loadTrackingMetricsForClient() {
     // Date picker must span the full dataset (incl. March baseline), not only
     // the field-period window used for default KPI aggregates.
     const allDates = allRows
-      .map((r) => {
-        const d = new Date(r.SubmissionDate || "");
-        return Number.isNaN(d.getTime()) ? null : d;
-      })
+      .map((r) => parseFlexibleDate(r.SubmissionDate || ""))
       .filter((d): d is Date => d !== null)
       .sort((a, b) => a.getTime() - b.getTime());
 
@@ -186,8 +184,10 @@ export function loadTrackingMetricsForClient() {
       filterOptions: {
         ...metrics.filterOptions,
         dateRange: {
-          start: allDates[0]?.toISOString().slice(0, 10) || "",
-          end: allDates[allDates.length - 1]?.toISOString().slice(0, 10) || "",
+          start: allDates[0] ? toIsoDateString(allDates[0]) : "",
+          end: allDates[allDates.length - 1]
+            ? toIsoDateString(allDates[allDates.length - 1]!)
+            : "",
         },
       },
     };
@@ -197,7 +197,7 @@ export function loadTrackingMetricsForClient() {
 /** Full metrics including Excel export lists (used by /api/tracking-exports). */
 export function loadTrackingMetrics() {
   const signature = `v4-cross-in-gap|${filesSignature(trackingFilePaths())}`;
-  return getCached("tracking-metrics-full-v4", signature, () =>
+  return getCached("tracking-metrics-full-v5", signature, () =>
     computeTrackingMetrics(loadTrackingSurvey(), DEFAULT_TRACKING_TARGETS)
   );
 }
