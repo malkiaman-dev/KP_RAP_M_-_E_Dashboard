@@ -24,6 +24,7 @@ import pandas as pd
 from utils.logging import add_issue
 
 
+
 # Approximate bounding boxes (lat_min, lat_max, lon_min, lon_max)
 DISTRICT_BBOX: dict[str, tuple[float, float, float, float]] = {
     "1": (31.30, 32.60, 70.30, 71.60),  # D.I. Khan
@@ -470,12 +471,14 @@ def run_speed_checks(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey: str) 
                     survey,
                     i,
                     meta_fn,
-                    "FLAG",
+                    "CRITICAL",
                     f"{prefix_qf}_CONSENT_SPEED",
-                    "Parental and child consent screens were speed-flagged",
+                    "Consent screens were tapped through",
                     (
                         "SurveyCTO speed warnings fired on both parental and child consent fields. "
-                        "Read consent aloud when those screens appear — do not tap through in under two seconds."
+                        "A recorded consent value is not evidence that the procedure was carried out. "
+                        "This is an integrity finding (Track 2), not a routine timing flag. "
+                        "Read consent aloud — do not tap through."
                     ),
                     consent_field,
                     f"parent_consent_fields={parent_n}; child_consent_fields={child_n}; violation_count={'' if vc is None else int(vc)}",
@@ -500,12 +503,13 @@ def run_speed_checks(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey: str) 
                     survey,
                     i,
                     meta_fn,
-                    "FLAG",
+                    "CRITICAL",
                     f"{prefix_qf}_CONSENT_SPEED",
-                    "Consent screens were speed-flagged",
+                    "Consent screens were tapped through",
                     (
                         f"SurveyCTO speed warnings fired on {label} understand and agree consent fields. "
-                        "The consent script must be read when those screens are on the tablet."
+                        "A recorded consent value is not evidence that the procedure was carried out. "
+                        "This is an integrity finding (Track 2). The consent script must be read aloud."
                     ),
                     consent_field,
                     f"consent_fields={','.join(sorted(hit))}; violation_count={'' if vc is None else int(vc)}",
@@ -673,13 +677,14 @@ def run_reinterview_checks(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey:
                 survey,
                 i,
                 meta_fn,
-                "FLAG",
-                f"{prefix_qf}_LATE_REINTERVIEW",
+                "CRITICAL",
+                f"{prefix_cr}_LATE_REINTERVIEW",
                 "Late-night re-interview of an already completed case",
                 (
                     f"A later interview for this girl started at {st.strftime('%Y-%m-%d %H:%M')}, "
-                    "after an earlier completed submission. Night re-entry of completed cases "
-                    "was not an agreed field method."
+                    "after an earlier completed submission. Re-entry of a completed case is an "
+                    "integrity finding (Track 2). The case should stay locked on the server "
+                    "unless PIU/IE approved a re-open. Inform the World Bank team with details."
                 ),
                 ",".join(c for c in [gid_col, resp_col, start_col] if c),
                 f"girl={gid}; start={st.strftime('%Y-%m-%d %H:%M')}",
@@ -687,9 +692,81 @@ def run_reinterview_checks(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey:
     return issues
 
 
+def run_missing_and_village_gps(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey: str) -> list[dict]:
+    """Tablet location off, and points far from other interviews in the same village."""
+    issues: list[dict] = []
+    pairs = _geo_point_pairs(df)
+    cr = "HH_CR" if survey == "Household" else "GL_CE"
+    qf = "HH_QF" if survey == "Household" else "GL_QF"
+    village_col = "village_label" if "village_label" in df.columns else ("village" if "village" in df.columns else None)
+    outlier_m = float(col.get("gps_village_outlier_meters", 2000) or 2000)
+
+    first_pts: dict[Any, dict[str, Any]] = {}
+    for i in df.index:
+        pts = _row_geo_points(df.loc[i], pairs) if pairs else []
+        if not pts:
+            _emit(
+                issues,
+                survey,
+                i,
+                meta_fn,
+                "FLAG",
+                f"{qf}_GPS_MISSING",
+                "Interview GPS missing (tablet location likely off)",
+                (
+                    "No auto-captured GPS point is stored on this form. "
+                    "Every enumerator must keep tablet location on. Restate this in the debrief call."
+                ),
+                pairs[0][0] if pairs else "geo_location1-Latitude",
+                "gps_missing=1",
+            )
+            continue
+        first_pts[i] = pts[0]
+
+    if not village_col or not first_pts:
+        return issues
+
+    by_vil: dict[str, list[Any]] = defaultdict(list)
+    for i, p in first_pts.items():
+        v = str(df.at[i, village_col]).strip() if pd.notna(df.at[i, village_col]) else ""
+        if v and v.lower() not in {"nan", "none"}:
+            by_vil[v].append(i)
+
+    for v, idxs in by_vil.items():
+        if len(idxs) < 4:
+            continue
+        lats = [first_pts[i]["lat"] for i in idxs]
+        lons = [first_pts[i]["lon"] for i in idxs]
+        med_lat = float(pd.Series(lats).median())
+        med_lon = float(pd.Series(lons).median())
+        for i in idxs:
+            p = first_pts[i]
+            dist = _haversine_m(p["lat"], p["lon"], med_lat, med_lon)
+            if dist < outlier_m:
+                continue
+            _emit(
+                issues,
+                survey,
+                i,
+                meta_fn,
+                "CRITICAL",
+                f"{cr}_GPS_REMOTE_FROM_VILLAGE",
+                "GPS is far from other interviews in this village",
+                (
+                    f"This point is {dist / 1000.0:.1f} km from the median of other interviews "
+                    f"in '{v}'. That is a proxy for a remote or wrong location. "
+                    "Resurvey if the location is not the assigned village."
+                ),
+                f"{p['lat_col']},{p['lon_col']},{village_col}",
+                f"lat={p['lat']:.6f}; lon={p['lon']:.6f}; dist_m={dist:.0f}; village={v}",
+            )
+    return issues
+
+
 def run_household_high_frequency(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[dict]:
     issues: list[dict] = []
     issues.extend(run_gps_checks(df, col, meta_fn, "Household"))
+    issues.extend(run_missing_and_village_gps(df, col, meta_fn, "Household"))
     issues.extend(run_speed_checks(df, col, meta_fn, "Household"))
     issues.extend(run_timestamp_checks(df, col, meta_fn, "Household"))
     issues.extend(run_reinterview_checks(df, col, meta_fn, "Household"))
@@ -700,6 +777,7 @@ def run_girls_high_frequency(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> li
     issues: list[dict] = []
     issues.extend(run_reading_test(df, col, meta_fn))
     issues.extend(run_gps_checks(df, col, meta_fn, "Girls"))
+    issues.extend(run_missing_and_village_gps(df, col, meta_fn, "Girls"))
     issues.extend(run_speed_checks(df, col, meta_fn, "Girls"))
     issues.extend(run_timestamp_checks(df, col, meta_fn, "Girls"))
     issues.extend(run_reinterview_checks(df, col, meta_fn, "Girls"))

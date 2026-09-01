@@ -281,7 +281,8 @@ def run_household_protocol(
                     "CRITICAL",
                     "HH_CR_LISTED_GIRL_NOT_IN_ROSTER",
                     "Listed girl missing from siblings roster",
-                    "Listed girl is not marked in the sibling roster and name does not match any sibling entry.",
+                    "Listed girl is not marked in the sibling roster and name does not match any sibling entry. "
+                    "Investigate and resurvey the household if the listed girl was omitted.",
                     ",".join(
                         c
                         for c in [girlname_col, listed_idx_col, "listed_girl_1", "name_sibling_1"]
@@ -310,7 +311,8 @@ def run_household_protocol(
                         "FLAG",
                         "HH_CR_LISTED_GIRL_NOT_FIRST",
                         "Listed girl not first in siblings roster",
-                        f"Listed girl exists in siblings roster but is not the first entry (position={pos}).",
+                        f"Listed girl exists in siblings roster but is not the first entry (position={pos}). "
+                        "The listed girl must be the first siblings-roster row.",
                         f"{listed_idx_col or 'listed_girl_index'},listed_girl_1,name_sibling_1",
                         f"girl={gid_s}; listed_index={listed_idx}; listed_positions={listed_positions}",
                     )

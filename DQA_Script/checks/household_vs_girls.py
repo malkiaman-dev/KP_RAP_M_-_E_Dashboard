@@ -3,6 +3,7 @@ from __future__ import annotations
 import warnings
 import pandas as pd
 from utils.logging import make_issue
+from checks.review_checks import run_hh_girls_gps
 
 
 def run(household_df: pd.DataFrame, girls_df: pd.DataFrame, col: dict) -> list[dict]:
@@ -486,6 +487,8 @@ def run(household_df: pd.DataFrame, girls_df: pd.DataFrame, col: dict) -> list[d
                         m["submission_date"],
                         m["district"],
                     )
-                )
+                    )
+
+    issues.extend(run_hh_girls_gps(household_df, girls_df, max_meters=500.0))
 
     return issues

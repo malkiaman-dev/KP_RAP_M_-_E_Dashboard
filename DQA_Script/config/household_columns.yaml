@@ -19,6 +19,7 @@ columns:
   min_parent_child_gap_years: 12
   dob_age_tolerance_years: 2
   large_household_threshold: 20
+  small_household_threshold: 2
   age_round_ratio_threshold: 0.70
   age_round_min_members: 5
   # Prefer SurveyCTO `duration` (active seconds). Wall-clock start/end is fallback only.
@@ -33,6 +34,10 @@ columns:
   gps_cluster_decimals: 3
   gps_cluster_min_villages: 5
   gps_accuracy_max_meters: 100
+  gps_village_outlier_meters: 2000
+  edu_spend_iqr_mult: 3
+  dk_refuse_min_interviews: 5
+  dk_refuse_rate_multiplier: 3
   late_night_hours: [21, 22, 23, 0, 1, 2, 3, 4]
   expected_year_min: 2025
   expected_year_max: 2027

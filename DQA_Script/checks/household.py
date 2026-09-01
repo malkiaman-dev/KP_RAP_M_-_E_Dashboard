@@ -156,6 +156,7 @@ import pandas as pd
 from utils.logging import add_issue as log_add_issue
 from checks.protocol_extras import run_household_protocol
 from checks.high_frequency import run_household_high_frequency
+from checks.review_checks import run_household_review
 
 YES_SET = {"yes", "y", "1", "true", "t"}
 NO_SET = {"no", "n", "0", "false", "f", "none", "nan", ""}
@@ -1042,16 +1043,35 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             continue
         s = df[id_col].map(_norm_str)
         dup_mask = (s != "") & s.duplicated(keep=False)
-        if dup_mask.any():
-            for i in df.index[dup_mask]:
-                val = s.loc[i]
-                cnt = int((s == val).sum())
+        if not dup_mask.any():
+            continue
+        tmp = pd.DataFrame({"id": s, "_i": df.index})
+        for val, g2 in tmp.loc[dup_mask].groupby("id"):
+            idxs = [int(x) for x in g2["_i"].tolist()]
+            best_i, best_dt = idxs[0], None
+            for i in idxs:
+                dt = _parse_date_any(df.at[i, sub]) if sub and sub in df.columns else None
+                if dt is None and start_col and start_col in df.columns:
+                    dt = _parse_date_any(df.at[i, start_col])
+                if dt is not None and (best_dt is None or dt > best_dt):
+                    best_dt = dt
+                    best_i = i
+            keep_key = _norm_str(df.at[best_i, key]) if key and key in df.columns else ""
+            keep_dt = best_dt.strftime("%Y-%m-%d %H:%M") if best_dt is not None else "(unknown)"
+            retain = (
+                f"Inform the World Bank team with details after investigating. "
+                f"Recommend retain KEY={keep_key} (latest SubmissionDate/start={keep_dt})."
+                if keep_key
+                else "Inform the World Bank team with details after investigating."
+            )
+            cnt = len(idxs)
+            for i in idxs:
                 add_issue(
                     i,
                     "CRITICAL",
                     "HH_CR_09",
                     "Duplicate submission ID",
-                    f"Duplicate {label} found. Each submission must be unique.",
+                    f"Duplicate {label} found. Each submission must be unique. {retain}",
                     id_col,
                     f"{val} (count={cnt})",
                 )
@@ -1929,21 +1949,18 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             if mins is None:
                 continue
 
-            # Implausible duration — not scored as Critical/Quality field error.
-            # A completed HH interview with answers across many modules is unlikely
-            # under these thresholds; often a device/duration technical anomaly.
+            # Under 15 minutes: invalid / integrity track (Track 2).
             if mins < MIN_DURATION_MIN:
-                thr = CRIT_FAST_MIN if mins < CRIT_FAST_MIN else MIN_DURATION_MIN
                 add_issue(
                     i,
-                    "ANOMALY",
+                    "CRITICAL",
                     "HH_AN_FAST_DURATION",
-                    "Implausibly short household interview duration",
+                    "Household duration under 15 minutes (integrity)",
                     (
-                        f"Active duration is {round(mins, 1)} minutes (under {thr:.0f}). "
-                        "A completed household interview with roster, education, and modules "
-                        "filled is rarely possible this quickly — likely a tablet clock/duration "
-                        "glitch or form left/resumed oddly, not simple question-skipping. Verify before coaching."
+                        f"Active duration is {round(mins, 1)} minutes (minimum 15). "
+                        "A completed household interview with consent and roster is not achievable "
+                        "in under 15 minutes. This is invalid and is referred to the integrity track "
+                        "(Track 2), not treated as a routine timing flag."
                     ),
                     field,
                     f"{round(mins, 1)} mins",
@@ -2261,6 +2278,9 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
 
     # High-frequency partner checks: GPS, speed warnings, night re-entry, timestamps
     issues.extend(run_household_high_frequency(df, col, meta))
+
+    # Workplan comments: small HH, primary phone, spelling, edu spend, dk/refuse
+    issues.extend(run_household_review(df, col, meta))
 
     # =========================================================
     # FINAL: allow multiple issues per record, but dedupe within record per field

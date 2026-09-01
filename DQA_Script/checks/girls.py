@@ -6,6 +6,7 @@ import inspect
 import pandas as pd
 from utils.logging import make_issue
 from checks.high_frequency import run_girls_high_frequency
+from checks.review_checks import run_girls_review
 
 
 def run(df: pd.DataFrame, col: dict) -> list[dict]:
@@ -256,8 +257,15 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         keep_key = clean_scalar(df.at[best_i, key]) if (key and key in df.columns) else None
         keep_dt = best_dt.strftime("%Y-%m-%d %H:%M") if best_dt is not None and not pd.isna(best_dt) else "(unknown)"
         if keep_key is not None and not is_missing(keep_key):
-            return f"Retain KEY={keep_key} (latest SubmissionDate/start={keep_dt}); void or correct other duplicates after supervisor review."
-        return f"Retain the latest submission (by SubmissionDate/start={keep_dt}); void or correct other duplicates after supervisor review."
+            return (
+                "Inform the World Bank team with details after investigating. "
+                f"Recommend retain KEY={keep_key} (latest SubmissionDate/start={keep_dt}); "
+                "void or correct other duplicates after supervisor review."
+            )
+        return (
+            "Inform the World Bank team with details after investigating. "
+            f"Retain the latest submission (by SubmissionDate/start={keep_dt})."
+        )
 
     # --------------------------
     # Survey columns
@@ -311,16 +319,22 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     # --------------------------
     if key and key in df.columns:
         dup = df[key].notna() & df.duplicated(subset=[key], keep=False)
-        for i in df.index[dup]:
-            add_issue(
-                i,
-                "CRITICAL",
-                "GL_CE_DUP_KEY",
-                "Duplicate KEY",
-                "The same KEY appears more than once. This is usually a duplicate submission or export issue.",
-                key,
-                f"KEY={clean_scalar(df.at[i, key])}",
-            )
+        if dup.any():
+            tmp = df.loc[dup, [key]].copy()
+            for _, subg in tmp.groupby(key, dropna=False):
+                idxs = list(subg.index)
+                retain_msg = retain_recommendation(idxs)
+                for i in idxs:
+                    add_issue(
+                        i,
+                        "CRITICAL",
+                        "GL_CE_DUP_KEY",
+                        "Duplicate KEY",
+                        "The same KEY appears more than once. This is usually a duplicate submission or export issue. "
+                        + retain_msg,
+                        key,
+                        f"KEY={clean_scalar(df.at[i, key])}",
+                    )
 
     if inst and inst in df.columns:
         dup = df[inst].notna() & df.duplicated(subset=[inst], keep=False)
@@ -717,21 +731,17 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         mins = active_duration_minutes(i)
         if mins is None:
             continue
-        # Implausible duration (ANOMALY) — not Critical/Quality.
-        # Filling demographics + learning (72 word items) + math in under 10–15 minutes
-        # is rarely feasible even when skipping; often a duration/device anomaly.
+        # Under 15 minutes: invalid and integrity track (Track 2), not a routine timing flag.
         if mins < min_survey_min:
-            thr = crit_fast_min if mins < crit_fast_min else min_survey_min
             add_issue(
                 i,
-                "ANOMALY",
+                "CRITICAL",
                 "GL_AN_FAST_DURATION",
-                "Implausibly short Girls interview duration",
+                "Girls duration under 15 minutes (integrity)",
                 (
-                    f"Active duration is {round(mins, 1)} minutes (under {thr:.0f}). "
-                    "The Girls form includes consent, modules, and a reading/math assessment "
-                    "(dozens of items). Completing a submitted interview this quickly is often "
-                    "technically implausible — check tablet duration/clock before treating as rushing."
+                    f"Active duration is {round(mins, 1)} minutes (minimum 15). "
+                    "A completed Girls form with consent, modules and the reading/math assessment "
+                    "is not valid under 15 minutes. Refer to the integrity track (Track 2)."
                 ),
                 dur_field or "duration",
                 f"{round(mins, 1)} mins",
@@ -1287,6 +1297,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
 
     # High-frequency partner checks: reading test, GPS, speed warnings, night re-entry
     issues.extend(run_girls_high_frequency(df, col, meta))
+    issues.extend(run_girls_review(df, col, meta))
 
     # --------------------------
     # FINAL STEP: dedupe issues per record, per field
