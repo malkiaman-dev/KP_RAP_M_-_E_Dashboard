@@ -34,7 +34,7 @@ export async function GET() {
       );
     }
 
-    const gaps = getCached("tracking-gaps-v3", trackingGapsSignature(), () =>
+    const gaps = getCached("tracking-gaps-v4", trackingGapsSignature(), () =>
       toClientTrackingTargetGaps(
         computeTrackingTargetGaps(loadTrackingSurvey())
       )

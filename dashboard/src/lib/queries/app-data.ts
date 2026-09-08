@@ -6,7 +6,7 @@ import type { TrackingMetrics } from "@/lib/data/tracking-metrics";
 
 export const TRACKING_METRICS_QUERY_KEY = ["tracking-metrics", "v5-dates"] as const;
 export const TRACKING_EXPORTS_QUERY_KEY = ["tracking-exports"] as const;
-export const TRACKING_GAPS_QUERY_KEY = ["tracking-gaps", "v4"] as const;
+export const TRACKING_GAPS_QUERY_KEY = ["tracking-gaps", "v5"] as const;
 export const DASHBOARD_METRICS_QUERY_KEY = ["dashboard-metrics", "v3-dates"] as const;
 export const HH_GIRLS_METRICS_QUERY_KEY = ["hh-girls-metrics", "v10-dates"] as const;
 export const HH_GIRLS_EXPORTS_QUERY_KEY = ["hh-girls-exports", "v2"] as const;

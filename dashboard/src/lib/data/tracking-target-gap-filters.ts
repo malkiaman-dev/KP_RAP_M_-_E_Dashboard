@@ -1,5 +1,6 @@
 import type { TrackingCohort } from "./tracking-metrics";
 import type {
+  AssignmentGirlRef,
   TargetGapCohortDistrictSummary,
   TargetGapDistrictSummary,
   TargetGapGirl,
@@ -47,6 +48,48 @@ function sumCohortDistrictRows(
       targetTotal: 0,
     }
   );
+}
+
+/** Filter assignment-frame girl ID refs by the same district/cohort controls. */
+export function filterAssignmentGirlRefs(
+  refs: AssignmentGirlRef[] | undefined,
+  filters: {
+    district?: string;
+    cohort?: "all" | TrackingCohort;
+  }
+): AssignmentGirlRef[] {
+  if (!refs?.length) return [];
+  return refs.filter((g) => {
+    if (filters.district && filters.district !== "all") {
+      if (!matchesDistrict(g.district, g.districtLabel, filters.district)) {
+        return false;
+      }
+    }
+    if (
+      filters.cohort &&
+      filters.cohort !== "all" &&
+      g.cohort !== filters.cohort
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function assignmentKeySet(refs: AssignmentGirlRef[]): Set<string> {
+  const keys = new Set<string>();
+  for (const ref of refs) {
+    if (ref.girlId) keys.add(ref.girlId);
+    if (ref.surveyGirlKey) keys.add(ref.surveyGirlKey);
+  }
+  return keys;
+}
+
+function filterExportRowsByKeys<
+  T extends { rows: Array<{ girlId: string }> },
+>(list: T | undefined, keys: Set<string>): T | undefined {
+  if (!list?.rows.length || keys.size === 0) return list;
+  return { ...list, rows: list.rows.filter((row) => keys.has(row.girlId)) };
 }
 
 /** Filter assignment-frame girls by the same district/cohort controls as Tracking. */
@@ -354,6 +397,13 @@ export function overlayMetricsWithAssignmentFrame<
       inData: number;
       totalSubmissions: number;
     }[];
+    operationalKpiLists?: {
+      uniqueGirlsAttempted: { rows: Array<{ girlId: string }> };
+      trackedGirls: { rows: Array<{ girlId: string }> };
+      attemptedNotTracked: { rows: Array<{ girlId: string }> };
+      successRate: { rows: Array<{ girlId: string }> };
+      dataCoverageRate: { rows: Array<{ girlId: string }> };
+    };
   },
 >(
   metrics: T,
@@ -436,6 +486,64 @@ export function overlayMetricsWithAssignmentFrame<
     },
   ];
 
+  const trackedKeys = assignmentKeySet(
+    filterAssignmentGirlRefs(gaps.trackedGirlRefs, filters)
+  );
+  const frameKeys = assignmentKeySet(
+    filterAssignmentGirlRefs(gaps.frameGirlRefs, filters)
+  );
+  const notAttemptedKeys = assignmentKeySet(
+    filterAssignmentGirlRefs(
+      gaps.notAttemptedGirls.map((g) => ({
+        girlId: g.girlId,
+        surveyGirlKey: g.surveyGirlKey || g.girlId,
+        district: g.district,
+        districtLabel: g.districtLabel,
+        cohort: g.cohort,
+      })),
+      filters
+    )
+  );
+  const attemptedFrameKeys = new Set(
+    [...frameKeys].filter((key) => !notAttemptedKeys.has(key))
+  );
+  const attemptedNotTrackedKeys = assignmentKeySet(
+    filterAssignmentGirlRefs(
+      gaps.attemptedNotTrackedGirls.map((g) => ({
+        girlId: g.girlId,
+        surveyGirlKey: g.surveyGirlKey || g.girlId,
+        district: g.district,
+        districtLabel: g.districtLabel,
+        cohort: g.cohort,
+      })),
+      filters
+    )
+  );
+
+  const lists = metrics.operationalKpiLists;
+  const operationalKpiLists = lists
+    ? {
+        ...lists,
+        uniqueGirlsAttempted:
+          filterExportRowsByKeys(lists.uniqueGirlsAttempted, attemptedFrameKeys) ??
+          lists.uniqueGirlsAttempted,
+        dataCoverageRate:
+          filterExportRowsByKeys(lists.dataCoverageRate, attemptedFrameKeys) ??
+          lists.dataCoverageRate,
+        trackedGirls:
+          filterExportRowsByKeys(lists.trackedGirls, trackedKeys) ??
+          lists.trackedGirls,
+        successRate:
+          filterExportRowsByKeys(lists.successRate, trackedKeys) ??
+          lists.successRate,
+        attemptedNotTracked:
+          filterExportRowsByKeys(
+            lists.attemptedNotTracked,
+            attemptedNotTrackedKeys
+          ) ?? lists.attemptedNotTracked,
+      }
+    : lists;
+
   return {
     ...metrics,
     assignmentPool: frame.targetTotal,
@@ -462,5 +570,6 @@ export function overlayMetricsWithAssignmentFrame<
     },
     cohortProgress,
     trackedByDistrict,
+    ...(operationalKpiLists ? { operationalKpiLists } : {}),
   };
 }

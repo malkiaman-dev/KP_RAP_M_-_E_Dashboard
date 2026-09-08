@@ -24,6 +24,17 @@ export interface TargetGapGirl {
   statusLabel: string;
   reason: string;
   attempts: number;
+  /** Survey `girlKey` when it differs from the listing ID. */
+  surveyGirlKey?: string;
+}
+
+/** Compact assignment-frame identity for filtering KPI Excel downloads. */
+export interface AssignmentGirlRef {
+  girlId: string;
+  surveyGirlKey: string;
+  district: string;
+  districtLabel: string;
+  cohort: TrackingCohort;
 }
 
 export interface TargetGapDistrictSummary {
@@ -62,4 +73,8 @@ export interface TrackingTargetGaps {
    * Kept for scripts / full in-memory compute.
    */
   trackedGirls?: TargetGapGirl[];
+  /** Compact IDs of assignment-frame girls who are successfully tracked. */
+  trackedGirlRefs?: AssignmentGirlRef[];
+  /** Compact IDs of every girl in the official Tracking_Targets lists. */
+  frameGirlRefs?: AssignmentGirlRef[];
 }

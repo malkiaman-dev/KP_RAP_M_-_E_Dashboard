@@ -13,6 +13,7 @@ import {
 } from "./tracking-targets-loader";
 import { PROTOCOL } from "./protocol";
 import type {
+  AssignmentGirlRef,
   TargetGapDistrictSummary,
   TargetGapGirl,
   TargetGapStatus,
@@ -20,6 +21,7 @@ import type {
 } from "./tracking-target-gaps-types";
 
 export type {
+  AssignmentGirlRef,
   TargetGapCohortDistrictSummary,
   TargetGapDistrictSummary,
   TargetGapGirl,
@@ -140,6 +142,7 @@ function classifyTargetGirl(
     statusLabel: STATUS_LABEL[status],
     reason,
     attempts,
+    surveyGirlKey: primaryKey,
   };
 }
 
@@ -162,6 +165,8 @@ export function computeTrackingTargetGaps(
       needsRevisitGirls: [],
       attemptedNotTrackedGirls: [],
       trackedGirls: [],
+      trackedGirlRefs: [],
+      frameGirlRefs: [],
     };
   }
 
@@ -266,11 +271,31 @@ export function computeTrackingTargetGaps(
   };
 }
 
-/** API payload: drop ~3.8k tracked girl rows; clients use byCohortDistrict for KPIs. */
+function toGirlRefs(girls: TargetGapGirl[]): AssignmentGirlRef[] {
+  return girls.map((g) => ({
+    girlId: g.girlId,
+    surveyGirlKey: g.surveyGirlKey || g.girlId,
+    district: g.district,
+    districtLabel: g.districtLabel,
+    cohort: g.cohort,
+  }));
+}
+
+/** API payload: drop full tracked-girl rows; keep compact IDs for Excel filters. */
 export function toClientTrackingTargetGaps(
   gaps: TrackingTargetGaps
 ): TrackingTargetGaps {
-  const { trackedGirls: _omit, ...rest } = gaps;
-  return rest;
+  const { trackedGirls, ...rest } = gaps;
+  const tracked = trackedGirls ?? [];
+  return {
+    ...rest,
+    trackedGirlRefs: toGirlRefs(tracked),
+    frameGirlRefs: toGirlRefs([
+      ...gaps.notAttemptedGirls,
+      ...gaps.needsRevisitGirls,
+      ...gaps.attemptedNotTrackedGirls,
+      ...tracked,
+    ]),
+  };
 }
 
