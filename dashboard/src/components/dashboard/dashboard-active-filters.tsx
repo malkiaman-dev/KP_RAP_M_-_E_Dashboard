@@ -6,6 +6,7 @@ import {
   type DashboardFilters,
 } from "@/lib/data/survey-metrics";
 import { formatDisplayDate } from "@/lib/utils";
+import { HH_GIRLS_COMBINED } from "@/lib/data/survey-filter-shared";
 
 const LABELS: Record<keyof DashboardFilters, string> = {
   district: "District",
@@ -20,6 +21,7 @@ const SURVEY_LABELS: Record<string, string> = {
   tracking: "Tracking",
   household: "Household",
   girls: "Girls",
+  [HH_GIRLS_COMBINED]: "HH & Girls",
 };
 
 const STATUS_LABELS: Record<string, string> = {

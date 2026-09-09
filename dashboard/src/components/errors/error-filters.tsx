@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn, toIsoDateString } from "@/lib/utils";
 import { FilterDateRange, FilterSelect } from "@/components/ui/filter-select";
+import { SurveyFilterSelect } from "@/components/ui/survey-filter-select";
 import type { ErrorFilters, ErrorMetrics } from "@/lib/data/error-metrics";
 import { defaultErrorFilters } from "@/lib/data/error-metrics";
 
@@ -145,14 +146,27 @@ export function ErrorFiltersPanel({
                       <Icon className="h-3 w-3" aria-hidden="true" />
                       {field.label}
                     </label>
-                    <FilterSelect
-                      value={filters[field.key]}
-                      options={field.options}
-                      onChange={(value) =>
-                        onChange({ ...filters, [field.key]: value })
-                      }
-                      aria-label={field.label}
-                    />
+                    {field.key === "survey" ? (
+                      <SurveyFilterSelect
+                        value={filters.survey}
+                        options={field.options}
+                        householdValue="Household"
+                        girlsValue="Girls"
+                        onChange={(value) =>
+                          onChange({ ...filters, survey: value })
+                        }
+                        aria-label={field.label}
+                      />
+                    ) : (
+                      <FilterSelect
+                        value={filters[field.key]}
+                        options={field.options}
+                        onChange={(value) =>
+                          onChange({ ...filters, [field.key]: value })
+                        }
+                        aria-label={field.label}
+                      />
+                    )}
                   </div>
                 );
               })}

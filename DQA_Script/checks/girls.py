@@ -632,7 +632,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 continue
             add_issue(
                 i,
-                "CRITICAL",
+                "FLAG",
                 "GL_CE_CONSENT_PARENT",
                 "Parental consent not confirmed",
                 (

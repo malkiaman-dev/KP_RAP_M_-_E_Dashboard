@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn, formatDisplayDate } from "@/lib/utils";
 import { FilterDateRange, FilterSelect } from "@/components/ui/filter-select";
+import { SurveyFilterSelect } from "@/components/ui/survey-filter-select";
 import type {
   DashboardFilters,
   FilterOptions,
@@ -145,18 +146,25 @@ export function FiltersPanel({
                 options={districtOptions}
                 onChange={(v) => update({ district: v })}
               />
-              <LabeledFilterSelect
-                label="Survey Type"
-                icon={ClipboardList}
-                value={filters.surveyType}
-                options={[
-                  { value: "all", label: "All Surveys" },
-                  { value: "tracking", label: "Tracking" },
-                  { value: "household", label: "Household" },
-                  { value: "girls", label: "Girls" },
-                ]}
-                onChange={(v) => update({ surveyType: v })}
-              />
+              <div>
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <ClipboardList className="h-3 w-3" aria-hidden="true" />
+                  Survey Type
+                </label>
+                <SurveyFilterSelect
+                  value={filters.surveyType}
+                  options={[
+                    { value: "all", label: "All Surveys" },
+                    { value: "tracking", label: "Tracking" },
+                    { value: "household", label: "Household" },
+                    { value: "girls", label: "Girls" },
+                  ]}
+                  householdValue="household"
+                  girlsValue="girls"
+                  onChange={(v) => update({ surveyType: v })}
+                  aria-label="Survey Type"
+                />
+              </div>
               <LabeledFilterSelect
                 label="Enumerator"
                 icon={Users}

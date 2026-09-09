@@ -17,6 +17,7 @@ import {
   enumeratorIdentityKey,
   matchesEnumeratorFilter,
 } from "./enumerator-identity";
+import { HH_GIRLS_COMBINED } from "./survey-filter-shared";
 
 export type SurveyType = "tracking" | "household" | "girls";
 
@@ -173,8 +174,15 @@ export function applyFilters(
   return rows.filter((r) => {
     if (filters.district !== "all" && r.district !== filters.district)
       return false;
-    if (filters.surveyType !== "all" && r.survey_type !== filters.surveyType)
+    if (filters.surveyType === HH_GIRLS_COMBINED) {
+      if (r.survey_type !== "household" && r.survey_type !== "girls")
+        return false;
+    } else if (
+      filters.surveyType !== "all" &&
+      r.survey_type !== filters.surveyType
+    ) {
       return false;
+    }
     if (!matchesEnumeratorFilter(r, filters.enumerator)) return false;
     if (filters.status === "complete" && r.survey_status !== "1") return false;
     if (filters.status === "incomplete" && r.survey_status === "1")

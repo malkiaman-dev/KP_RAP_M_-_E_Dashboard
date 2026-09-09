@@ -395,7 +395,7 @@ def _reading_photo_missing(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list
             "Girls",
             i,
             meta_fn,
-            "CRITICAL",
+            "FLAG",
             "GL_CE_TEST_PHOTO_MISSING",
             "Learning-test photograph missing",
             (

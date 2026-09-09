@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { displayEnumeratorLabel } from "@/lib/data/enumerator-identity";
 import { formatDisplayDate } from "@/lib/utils";
 import { defaultErrorFilters, type ErrorFilters } from "@/lib/data/error-metrics";
+import { HH_GIRLS_COMBINED } from "@/lib/data/survey-filter-shared";
 
 type ChipKey = keyof ErrorFilters | "dateRange";
 
@@ -17,6 +18,9 @@ const LABELS: Record<Exclude<ChipKey, "dateFrom" | "dateTo" | "todayOnly" | "dat
 };
 
 function displayValue(key: keyof ErrorFilters, value: string): string {
+  if (key === "survey" && value === HH_GIRLS_COMBINED) {
+    return "HH & Girls";
+  }
   if (key === "severity") {
     return value === "CRITICAL"
       ? "Critical"

@@ -5,6 +5,7 @@ import {
   matchesEnumeratorFilter,
 } from "./enumerator-identity";
 import { parseFlexibleDate } from "../utils";
+import { HH_GIRLS_COMBINED } from "./survey-filter-shared";
 
 export type ErrorSeverity = "CRITICAL" | "FLAG" | "ANOMALY";
 
@@ -184,7 +185,11 @@ export function applyErrorFilters(
   return rows.filter((r) => {
     if (filters.district !== "all" && r.district !== filters.district)
       return false;
-    if (filters.survey !== "all" && r.survey !== filters.survey) return false;
+    if (filters.survey === HH_GIRLS_COMBINED) {
+      if (r.survey !== "Household" && r.survey !== "Girls") return false;
+    } else if (filters.survey !== "all" && r.survey !== filters.survey) {
+      return false;
+    }
     if (filters.severity !== "all" && r.severity !== filters.severity)
       return false;
     if (filters.ruleId !== "all" && r.ruleId !== filters.ruleId) return false;

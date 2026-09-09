@@ -149,6 +149,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Iterable
 
 import pandas as pd
@@ -849,6 +850,58 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     consent_father_col = _find_existing(df, ["agree_consent_father"])
     consent_mother_col = _find_existing(df, ["agree_consent_mother"])
 
+    # Temporary-unavailability / revisit-schedule columns (also used further
+    # below in the TEMPORARY UNAVAILABILITY FOLLOW UP section). Resolved here
+    # so the pending-parent-survey tracker can flag "needs revisit" cases too.
+    schedule_date_col = _find_existing(df, ["available_date", "schedule_date", "availability_date", "date_available", "avail_date"])
+    slot_col_generic = _find_existing(df, ["available_days_time", "available_days_time_father", "available_days_time_mother"])
+    slot_col_father = _find_existing(df, ["schedule_spouse", "available_days_time_father", "available_days_time"])
+    slot_col_mother = _find_existing(df, ["schedule_resp", "available_days_time_mother", "available_days_time"])
+
+    father_unavail_col = _find_existing(df, ["father_unavailable1", "father_unavailable_reason", "unavailable_reason_father"])
+    father_unavail_other_col = _find_existing(df, ["father_unavailable_other", "father_unavailable_reason_other", "unavailable_reason_father_other"])
+    mother_unavail_col = _find_existing(df, ["mother_unavailable1", "mother_unavailable_reason", "unavailable_reason_mother"])
+    mother_unavail_other_col = _find_existing(df, ["mother_unavailable_other", "mother_unavailable_reason_other", "unavailable_reason_mother_other"])
+
+    def _parent_unavail_info(i: Any, parent: str) -> dict:
+        """Reason a parent's survey is still missing, and whether it needs a revisit."""
+        reason_col = father_unavail_col if parent == "father" else mother_unavail_col
+        other_col = father_unavail_other_col if parent == "father" else mother_unavail_other_col
+        slot_col = (slot_col_father if parent == "father" else slot_col_mother) or slot_col_generic
+
+        if not reason_col or reason_col not in df.columns:
+            return {
+                "reason_recorded": False,
+                "unavailable_reason": "",
+                "needs_revisit": False,
+                "scheduled_date": "",
+                "available_days_time": "",
+            }
+
+        reason_raw = df.at[i, reason_col]
+        reason_recorded = _norm_str(reason_raw) != ""
+        reason_num = _to_num(reason_raw)
+        reason_num_s = str(int(round(reason_num))) if reason_num is not None else _norm_str(reason_raw)
+        other_text = df.at[i, other_col] if (other_col and other_col in df.columns) else None
+
+        is_temporary = reason_num_s in {"1", "2"} or (
+            reason_num_s == "6" and _is_temp_other_text(other_text)
+        )
+
+        sched_raw = df.at[i, schedule_date_col] if (schedule_date_col and schedule_date_col in df.columns) else None
+        sched_dt = _parse_date_any(sched_raw) if sched_raw is not None else None
+        slot_raw = df.at[i, slot_col] if (slot_col and slot_col in df.columns) else None
+
+        return {
+            # True = reason recorded AND indicates temporary unavailability (needs revisit).
+            # False + reason_recorded=False = reason was never asked/filled in, not "confirmed no revisit needed".
+            "reason_recorded": reason_recorded,
+            "unavailable_reason": _decode_single_code(reason_raw, UNAVAILABLE_REASON_MAP),
+            "needs_revisit": bool(reason_recorded and is_temporary),
+            "scheduled_date": sched_dt.date().isoformat() if sched_dt else "",
+            "available_days_time": _decode_multiselect(slot_raw, AVAILABLE_DAYS_TIME_MAP) if slot_raw is not None else "",
+        }
+
     # -------------------------------------------------------------------------
     # HH_AVAIL_RESP_*: If only one parent marked available, respondent should match that parent
     # -------------------------------------------------------------------------
@@ -902,7 +955,14 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
 
     # -------------------------------------------------------------------------
     # Parent survey expectation logic (RESTORED)
+    #
+    # This is a pending-followup situation, not a Track 1/Track 2 data-quality
+    # finding: the matching parent survey may simply not have been collected
+    # yet. It is tracked separately (pending_parent_survey_rows -> its own
+    # CSV) and intentionally NOT added to `issues`, so it never shows up as a
+    # Critical error or a Quality flag on the dashboard.
     # -------------------------------------------------------------------------
+    pending_parent_survey_rows: list[dict] = []
     gid_col = girl_id if (girl_id and girl_id in df.columns) else _col(col, "girl_id", "girl")
     if gid_col and gid_col in df.columns and respondent_code_col and respondent_code_col in df.columns:
         cols = [gid_col, respondent_code_col]
@@ -949,31 +1009,71 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             exp_f, exp_m = _group_expected(subdf)
             has_f, has_m = _group_present(subdf)
 
-            if exp_f and not has_f:
+            if (exp_f and not has_f) or (exp_m and not has_m):
                 idxs = df.index[df[gid_col] == gid].tolist()
-                for i in idxs:
-                    add_issue(
-                        i,
-                        "CRITICAL",
-                        "HH_PARENT_CONSENT_MISSING_FATHER_SURVEY",
-                        "Father consent taken but father survey missing",
-                        "Father consent is marked as agreed, but there is no corresponding father household submission (respondent=1) for this girl.",
-                        f"{gid_col},{respondent_code_col},{consent_father_col}",
-                        f"girl={gid}; expected_father=1; found_father={has_f}",
-                    )
+                rep_i = idxs[0] if idxs else None
 
-            if exp_m and not has_m:
-                idxs = df.index[df[gid_col] == gid].tolist()
-                for i in idxs:
-                    add_issue(
-                        i,
-                        "CRITICAL",
-                        "HH_PARENT_CONSENT_MISSING_MOTHER_SURVEY",
-                        "Mother consent taken but mother survey missing",
-                        "Mother consent is marked as agreed, but there is no corresponding mother household submission (respondent=2) for this girl.",
-                        f"{gid_col},{respondent_code_col},{consent_mother_col}",
-                        f"girl={gid}; expected_mother=1; found_mother={has_m}",
-                    )
+                def _row_with_reason(parent: str):
+                    """Prefer whichever row actually recorded the unavailability reason."""
+                    reason_col = father_unavail_col if parent == "father" else mother_unavail_col
+                    if reason_col and reason_col in df.columns:
+                        for cand in idxs:
+                            if _norm_str(df.at[cand, reason_col]) != "":
+                                return cand
+                    return rep_i
+
+                if rep_i is not None:
+                    m = meta(rep_i)
+                    if exp_f and not has_f:
+                        info = _parent_unavail_info(_row_with_reason("father"), "father")
+                        pending_parent_survey_rows.append(
+                            {
+                                "girl_id": gid_s,
+                                "parent_pending": "father",
+                                "reason": "Father consent agreed but father household survey (respondent=1) not yet submitted",
+                                "unavailable_reason": info["unavailable_reason"],
+                                "needs_revisit": info["needs_revisit"],
+                                "reason_recorded": info["reason_recorded"],
+                                "scheduled_date": info["scheduled_date"],
+                                "available_days_time": info["available_days_time"],
+                                "expected_father": exp_f,
+                                "found_father": has_f,
+                                "expected_mother": exp_m,
+                                "found_mother": has_m,
+                                "household_rows_for_girl": len(idxs),
+                                "enumerator": m.get("enumerator"),
+                                "enumerator_id": m.get("enumerator_id"),
+                                "record_key": m.get("record_key"),
+                                "district": m.get("district"),
+                                "submission_date": _clip(m.get("submission_date")),
+                                "instance_id": df.at[rep_i, inst] if inst and inst in df.columns else None,
+                            }
+                        )
+                    if exp_m and not has_m:
+                        info = _parent_unavail_info(_row_with_reason("mother"), "mother")
+                        pending_parent_survey_rows.append(
+                            {
+                                "girl_id": gid_s,
+                                "parent_pending": "mother",
+                                "reason": "Mother consent agreed but mother household survey (respondent=2) not yet submitted",
+                                "unavailable_reason": info["unavailable_reason"],
+                                "needs_revisit": info["needs_revisit"],
+                                "reason_recorded": info["reason_recorded"],
+                                "scheduled_date": info["scheduled_date"],
+                                "available_days_time": info["available_days_time"],
+                                "expected_father": exp_f,
+                                "found_father": has_f,
+                                "expected_mother": exp_m,
+                                "found_mother": has_m,
+                                "household_rows_for_girl": len(idxs),
+                                "enumerator": m.get("enumerator"),
+                                "enumerator_id": m.get("enumerator_id"),
+                                "record_key": m.get("record_key"),
+                                "district": m.get("district"),
+                                "submission_date": _clip(m.get("submission_date")),
+                                "instance_id": df.at[rep_i, inst] if inst and inst in df.columns else None,
+                            }
+                        )
 
     # -------------------------------------------------------------------------
     # HH_ENUM_NONCONSENT_GT5: enumerator has >5 "consent not agreed" cases
@@ -1910,7 +2010,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         for i in df.index[bad]:
             add_issue(
                 i,
-                "CRITICAL",
+                "FLAG",
                 "HH_CR_06",
                 "Household size mismatch",
                 "Reported household size does not match roster member count, roster may be incomplete.",
@@ -2134,15 +2234,9 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     # =========================================================
     followup_rows: list[dict] = []
 
-    schedule_date_col = _find_existing(df, ["available_date", "schedule_date", "availability_date", "date_available", "avail_date"])
-    slot_col_generic = _find_existing(df, ["available_days_time", "available_days_time_father", "available_days_time_mother"])
-    slot_col_father = _find_existing(df, ["schedule_spouse", "available_days_time_father", "available_days_time"])
-    slot_col_mother = _find_existing(df, ["schedule_resp", "available_days_time_mother", "available_days_time"])
-
-    father_unavail_col = _find_existing(df, ["father_unavailable1", "father_unavailable_reason", "unavailable_reason_father"])
-    father_unavail_other_col = _find_existing(df, ["father_unavailable_other", "father_unavailable_reason_other", "unavailable_reason_father_other"])
-    mother_unavail_col = _find_existing(df, ["mother_unavailable1", "mother_unavailable_reason", "unavailable_reason_mother"])
-    mother_unavail_other_col = _find_existing(df, ["mother_unavailable_other", "mother_unavailable_reason_other", "unavailable_reason_mother_other"])
+    # schedule_date_col / slot_col_* / father_unavail_col* / mother_unavail_col*
+    # are resolved earlier (near respondent_code_col) so the pending-parent-
+    # survey tracker above can reuse them too.
 
     now = datetime.now()
     due_soon_until = now + timedelta(hours=24)
@@ -2265,10 +2359,49 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             "deviceid",
         ],
     )
+    tracker_out_dir = Path(__file__).resolve().parent.parent / "outputs"
     try:
-        tracker_df.to_csv("/mnt/data/followup_tracker.csv", index=False)
+        tracker_out_dir.mkdir(parents=True, exist_ok=True)
+        tracker_df.to_csv(tracker_out_dir / "followup_tracker.csv", index=False)
     except Exception:
         # do not crash data quality run if filesystem is not writable
+        pass
+
+    # Pending parent-survey follow-up (father/mother consent agreed, matching
+    # survey not yet submitted). Not a Critical/Flag finding -- tracked here.
+    pending_parent_df = pd.DataFrame(
+        pending_parent_survey_rows,
+        columns=[
+            "girl_id",
+            "parent_pending",
+            "reason",
+            "needs_revisit",
+            "reason_recorded",
+            "unavailable_reason",
+            "scheduled_date",
+            "available_days_time",
+            "expected_father",
+            "found_father",
+            "expected_mother",
+            "found_mother",
+            "household_rows_for_girl",
+            "enumerator",
+            "enumerator_id",
+            "record_key",
+            "district",
+            "submission_date",
+            "instance_id",
+        ],
+    )
+    if not pending_parent_df.empty:
+        # Highlight revisit-needed cases (respondent temporarily unavailable) at the top.
+        pending_parent_df = pending_parent_df.sort_values(
+            by="needs_revisit", ascending=False, kind="stable"
+        )
+    try:
+        tracker_out_dir.mkdir(parents=True, exist_ok=True)
+        pending_parent_df.to_csv(tracker_out_dir / "Pending_Parent_Survey_Tracker.csv", index=False)
+    except Exception:
         pass
 
     # =========================================================

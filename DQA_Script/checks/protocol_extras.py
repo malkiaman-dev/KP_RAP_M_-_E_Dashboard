@@ -226,7 +226,7 @@ def run_household_protocol(
             f_lab = EDU_LABELS.get(f_edu, "blank") if f_edu is not None else "blank"
             _emit(
                 m_idx,
-                "CRITICAL",
+                "FLAG",
                 "HH_CR_SCHOOLING_PARENT_MISMATCH",
                 "Schooling status mismatch (Mother vs Father)",
                 (
@@ -328,7 +328,7 @@ def run_household_protocol(
                 both = gid_s in both_parents
                 _emit(
                     i,
-                    "CRITICAL" if both else "FLAG",
+                    "FLAG",
                     "HH_CR_TRANSPORT_MODULE_MISSING",
                     "Transport module missing",
                     (
