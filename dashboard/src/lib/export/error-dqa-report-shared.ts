@@ -1,4 +1,5 @@
 import type { ErrorFilters, ErrorMetrics } from "@/lib/data/error-metrics";
+import type { FieldErrorAnalytics } from "@/lib/data/field-error-analytics";
 import { formatDisplayDate, toIsoDateString } from "@/lib/utils";
 
 export type ReportFormat = "docx" | "pdf";
@@ -6,6 +7,8 @@ export type ReportFormat = "docx" | "pdf";
 export interface ErrorReportSection {
   districtLabel: string;
   metrics: ErrorMetrics;
+  /** Per-enumerator mistake + "how to avoid" coaching detail for this scope. */
+  fieldAnalytics: FieldErrorAnalytics;
 }
 
 export interface ErrorReportInput {

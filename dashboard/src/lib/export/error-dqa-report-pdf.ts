@@ -138,7 +138,8 @@ function simpleTable(
   title: string,
   headers: string[],
   rows: string[][],
-  emptyText: string
+  emptyText: string,
+  widths?: string[]
 ): Content {
   const headerRow = headers.map((h) => ({
     text: h,
@@ -176,7 +177,7 @@ function simpleTable(
       {
         table: {
           headerRows: 1,
-          widths: headers.map(() => "*"),
+          widths: widths ?? headers.map(() => "*"),
           body,
         },
         layout: {
@@ -196,7 +197,7 @@ function simpleTable(
 }
 
 function buildSectionContent(section: ErrorReportSection): Content[] {
-  const { districtLabel, metrics } = section;
+  const { districtLabel, metrics, fieldAnalytics } = section;
   const content: Content[] = [
     {
       text: districtLabel,
@@ -240,16 +241,18 @@ function buildSectionContent(section: ErrorReportSection): Content[] {
       "No quality flags in this scope."
     ),
     simpleTable(
-      "Enumerator coaching priorities (lowest scores)",
-      ["Enumerator", "Score", "Critical", "Quality", "Total"],
-      metrics.enumeratorQuality.slice(0, 12).map((e) => [
+      "Enumerator coaching priorities (lowest scores) — top mistake and how to avoid it",
+      ["Enumerator", "Score", "Critical", "Quality", "Top mistake", "How to avoid"],
+      fieldAnalytics.focusEnumerators.map((e) => [
         e.name,
         String(e.score),
         num(e.critical),
         num(e.flag),
-        num(e.total),
+        e.topRuleId ? `${e.topRuleTitle} (${num(e.topRuleCount)}×)` : "—",
+        e.tip,
       ]),
-      "No attributable enumerator errors."
+      "No attributable enumerator errors.",
+      ["14%", "7%", "7%", "7%", "23%", "42%"]
     ),
     sectionTitle("Recap"),
     bulletPanel(buildErrorRecapBullets(districtLabel, metrics)),

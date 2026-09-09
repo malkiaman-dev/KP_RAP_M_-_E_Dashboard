@@ -9,6 +9,7 @@ import {
   type ErrorFilters,
   type ErrorRow,
 } from "@/lib/data/error-metrics";
+import { computeFieldErrorAnalytics } from "@/lib/data/field-error-analytics";
 import { downloadErrorDqaReport } from "@/lib/export/error-dqa-report-download";
 import {
   buildErrorDateRangeLabel,
@@ -62,16 +63,22 @@ export function ErrorReportCard({
   ): ErrorReportSection | null => {
     const rows = baseRows.filter((r) => r.district === districtValue);
     if (rows.length === 0) return null;
+    const metrics = computeErrorMetrics(rows);
     return {
       districtLabel,
-      metrics: computeErrorMetrics(rows),
+      metrics,
+      fieldAnalytics: computeFieldErrorAnalytics(rows, metrics),
     };
   };
 
   const buildAllDistrictsSections = (): ErrorReportSection[] => {
     const overall = computeErrorMetrics(baseRows);
     const sections: ErrorReportSection[] = [
-      { districtLabel: "All Districts", metrics: overall },
+      {
+        districtLabel: "All Districts",
+        metrics: overall,
+        fieldAnalytics: computeFieldErrorAnalytics(baseRows, overall),
+      },
     ];
 
     for (const d of districts) {

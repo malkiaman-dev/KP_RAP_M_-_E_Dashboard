@@ -129,11 +129,11 @@ function cell(
   });
 }
 
-function simpleTable(headers: string[], rows: string[][]) {
-  const colWidth = Math.floor(9000 / headers.length);
+function simpleTable(headers: string[], rows: string[][], widths?: number[]) {
+  const colWidths = widths ?? headers.map(() => Math.floor(9000 / headers.length));
   const headerRow = new TableRow({
-    children: headers.map((h) =>
-      cell(h, { bold: true, fill: COLOR.brandSoft, color: COLOR.brandDark, width: colWidth })
+    children: headers.map((h, i) =>
+      cell(h, { bold: true, fill: COLOR.brandSoft, color: COLOR.brandDark, width: colWidths[i] })
     ),
   });
   const dataRows =
@@ -143,10 +143,10 @@ function simpleTable(headers: string[], rows: string[][]) {
             children: [
               cell("No data in this section.", {
                 fill: COLOR.tile,
-                width: 9000,
+                width: colWidths[0],
               }),
-              ...headers.slice(1).map(() =>
-                cell("", { fill: COLOR.tile, width: colWidth })
+              ...headers.slice(1).map((_, i) =>
+                cell("", { fill: COLOR.tile, width: colWidths[i + 1] })
               ),
             ],
           }),
@@ -158,7 +158,7 @@ function simpleTable(headers: string[], rows: string[][]) {
                 cell(value, {
                   bold: j === 0,
                   fill: i % 2 === 0 ? COLOR.tile : COLOR.white,
-                  width: colWidth,
+                  width: colWidths[j],
                 })
               ),
             })
@@ -227,7 +227,7 @@ function kpiRow(metrics: ErrorReportSection["metrics"]) {
 }
 
 function buildSectionChildren(section: ErrorReportSection) {
-  const { districtLabel, metrics } = section;
+  const { districtLabel, metrics, fieldAnalytics } = section;
   return [
     p(districtLabel, { bold: true, size: 28, color: COLOR.brandDark, spacingAfter: 120 }),
     sectionHeading("Executive summary"),
@@ -267,15 +267,21 @@ function buildSectionChildren(section: ErrorReportSection) {
     ),
     p("", { spacingAfter: 80 }),
     sectionHeading("Enumerator coaching priorities"),
+    p(
+      "Lowest quality scores first. \"Top mistake\" is each enumerator's most frequent rule violation; \"how to avoid\" is the specific coaching note to give them before their next field day.",
+      { size: 15, color: COLOR.subtle, spacingAfter: 100 }
+    ),
     simpleTable(
-      ["Enumerator", "Score", "Critical", "Quality", "Total"],
-      metrics.enumeratorQuality.slice(0, 12).map((e) => [
+      ["Enumerator", "Score", "Critical", "Quality", "Top mistake", "How to avoid"],
+      fieldAnalytics.focusEnumerators.map((e) => [
         e.name,
         String(e.score),
         num(e.critical),
         num(e.flag),
-        num(e.total),
-      ])
+        e.topRuleId ? `${e.topRuleTitle} (${num(e.topRuleCount)}×)` : "—",
+        e.tip,
+      ]),
+      [1300, 600, 700, 700, 2200, 3500]
     ),
     p("", { spacingAfter: 80 }),
     sectionHeading("Recap"),
