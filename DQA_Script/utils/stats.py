@@ -211,7 +211,11 @@ def enumerator_error_percentage_all_surveys(
     out["total_submissions"] = pd.to_numeric(out["total_submissions"], errors="coerce").fillna(0).astype(int)
     out.loc[out["total_submissions"] < 0, "total_submissions"] = 0
 
-    denom = out["total_submissions"].replace({0: pd.NA})
+    # Use float NaN (not pd.NA) so division stays in float64 dtype -- pd.NA
+    # would force an object-dtype result, and object-dtype .round() calls
+    # Python's round() per element, which pd.NA doesn't support.
+    denom = out["total_submissions"].astype(float)
+    denom = denom.where(denom != 0)
 
     out["error_pct"] = (out["total_issues"] / denom * 100).round(2)
     out["critical_error_pct"] = (out["critical_issues"] / denom * 100).round(2)

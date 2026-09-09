@@ -47,6 +47,7 @@ export default async function RootLayout({
       lang="en"
       data-firm={firmId}
       data-firm-locked={locked ? "true" : undefined}
+      data-scroll-behavior="smooth"
       suppressHydrationWarning
       className={`${dmSans.variable} ${geistMono.variable} h-full`}
     >
