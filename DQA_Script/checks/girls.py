@@ -872,14 +872,14 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     # --------------------------
     if age and age in df.columns:
         a = to_num(df[age])
-        bad_age = a.notna() & ((a < 10) | (a > 17))
+        bad_age = a.notna() & ((a < 10) | (a > 18))
         for i in df.index[bad_age]:
             add_issue(
                 i,
-                "CRITICAL",
+                "FLAG",
                 "GL_CE_00",
                 "Age outside expected range",
-                "For Grade 6–8 target girls, age should be between 10 and 17 years. Please verify the age value.",
+                "For Grade 6–8 target girls, age should be between 10 and 18 years. Please verify the age value.",
                 age,
                 f"{int(a.loc[i])} years",
             )
