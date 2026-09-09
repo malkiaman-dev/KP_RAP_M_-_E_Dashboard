@@ -652,7 +652,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         add_issue(
             issues,
             survey="Tracking",
-            severity="ANOMALY",
+            severity="CRITICAL",
             rule_id="TRK_AN_FAST_DURATION",
             title="Implausibly short tracking interview duration",
             cause=(

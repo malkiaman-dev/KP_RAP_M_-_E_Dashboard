@@ -7,7 +7,7 @@ import {
 import { parseFlexibleDate } from "../utils";
 import { HH_GIRLS_COMBINED } from "./survey-filter-shared";
 
-export type ErrorSeverity = "CRITICAL" | "FLAG" | "ANOMALY";
+export type ErrorSeverity = "CRITICAL" | "FLAG";
 
 export interface ErrorRow {
   survey: string;
@@ -70,9 +70,11 @@ export const ERROR_REPORT_EXCLUDED_RULE_IDS = new Set([
 ]);
 
 /**
- * Duration / device anomalies that look like data-quality errors but are often
- * technically implausible (form fully answered yet duration too short/long).
- * Shown on the Implausible Cases tab — not Critical/Quality.
+ * Duration / device rule IDs that used to be shown on a separate "Implausible
+ * Cases" tab (severity ANOMALY). That tab has been removed — these now count
+ * as ordinary Critical errors. Kept only so `error-loader.ts` can normalize
+ * old exported Daily_Error_Log.xlsx files (and legacy rule-id variants) that
+ * still carry the old ANOMALY severity or ID.
  */
 export const ANOMALY_RULE_IDS = new Set([
   "TRK_AN_FAST_DURATION",
@@ -88,21 +90,6 @@ export const ANOMALY_RULE_IDS = new Set([
   "HH_CR_LONG_DURATION",
   "HH_QF_LONG_DURATION_WARN",
 ]);
-
-export function isAnomalyError(row: ErrorRow): boolean {
-  if (row.severity === "ANOMALY") return true;
-  return ANOMALY_RULE_IDS.has((row.ruleId || "").trim());
-}
-
-/** Critical + Quality only (excludes implausible/technical anomalies). */
-export function actualErrorRows(rows: ErrorRow[]): ErrorRow[] {
-  return rows.filter((r) => !isAnomalyError(r));
-}
-
-/** Implausible / technical anomaly cases only. */
-export function anomalyErrorRows(rows: ErrorRow[]): ErrorRow[] {
-  return rows.filter((r) => isAnomalyError(r));
-}
 
 const UNASSIGNED = "-";
 
@@ -256,7 +243,6 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
   const totalErrors = rows.length;
   const criticalErrors = rows.filter((r) => r.severity === "CRITICAL").length;
   const flagErrors = rows.filter((r) => r.severity === "FLAG").length;
-  const anomalyErrors = rows.filter((r) => r.severity === "ANOMALY").length;
 
   const attributable = rows.filter(isEnumeratorAttributable);
   const enumeratorErrors = attributable.length;
@@ -291,7 +277,6 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
   // ---- By survey (stacked critical / flag) ----
   const surveyMap = new Map<string, { critical: number; flag: number }>();
   for (const r of rows) {
-    if (r.severity === "ANOMALY") continue;
     const key = r.survey || "Unknown";
     if (!surveyMap.has(key)) surveyMap.set(key, { critical: 0, flag: 0 });
     const e = surveyMap.get(key)!;
@@ -310,7 +295,6 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
   // ---- By district (stacked critical / flag) ----
   const districtMap = new Map<string, { critical: number; flag: number }>();
   for (const r of rows) {
-    if (r.severity === "ANOMALY") continue;
     const key = r.district || "Unknown";
     if (!districtMap.has(key)) districtMap.set(key, { critical: 0, flag: 0 });
     const e = districtMap.get(key)!;
@@ -349,7 +333,6 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
     { id: string; name: string; district: string; critical: number; flag: number }
   >();
   for (const r of attributable) {
-    if (r.severity === "ANOMALY") continue;
     const key = enumeratorIdentityKey({
       enumerator_id: r.enumeratorId,
       enumerator_name: r.enumeratorName,
@@ -402,7 +385,6 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
   // ---- Daily trend (critical vs quality by submission date) ----
   const dayMap = new Map<string, { critical: number; flag: number }>();
   for (const r of rows) {
-    if (r.severity === "ANOMALY") continue;
     const day = errorSubmissionDay(r.submissionDate);
     if (!day) continue;
     const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
@@ -491,7 +473,6 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
     totalErrors,
     criticalErrors,
     flagErrors,
-    anomalyErrors,
     criticalRate: rate(criticalErrors, totalErrors),
     qualityRate: rate(flagErrors, totalErrors),
     enumeratorErrors,

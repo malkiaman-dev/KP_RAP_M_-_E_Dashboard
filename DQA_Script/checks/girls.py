@@ -731,17 +731,17 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         mins = active_duration_minutes(i)
         if mins is None:
             continue
-        # Under 15 minutes: invalid and integrity track (Track 2), not a routine timing flag.
-        if mins < min_survey_min:
+        # At or under 15 minutes: invalid and integrity track (Track 2), not a routine timing flag.
+        if mins <= min_survey_min:
             add_issue(
                 i,
                 "CRITICAL",
                 "GL_AN_FAST_DURATION",
-                "Girls duration under 15 minutes (integrity)",
+                "Girls duration at or under 15 minutes (integrity)",
                 (
-                    f"Active duration is {round(mins, 1)} minutes (minimum 15). "
+                    f"Active duration is {round(mins, 1)} minutes (floor 15). "
                     "A completed Girls form with consent, modules and the reading/math assessment "
-                    "is not valid under 15 minutes. Refer to the integrity track (Track 2)."
+                    "is not valid this quickly. Refer to the integrity track (Track 2)."
                 ),
                 dur_field or "duration",
                 f"{round(mins, 1)} mins",

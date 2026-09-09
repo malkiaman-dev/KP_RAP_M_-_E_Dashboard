@@ -343,14 +343,6 @@ function SeverityBadge({ severity }: { severity: ErrorRow["severity"] }) {
       </span>
     );
   }
-  if (severity === "ANOMALY") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2.5 py-0.5 text-xs font-medium text-sky-700 dark:text-sky-300">
-        <Flag className="h-3 w-3" />
-        Implausible
-      </span>
-    );
-  }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-gold">
       <Flag className="h-3 w-3" />

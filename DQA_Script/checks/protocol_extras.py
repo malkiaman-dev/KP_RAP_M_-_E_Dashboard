@@ -361,9 +361,10 @@ def run_household_protocol(
             except Exception:
                 dur_min = None
 
-        # Implausible long duration (ANOMALY) — often form left open overnight.
+        # Implausibly long duration — often form left open overnight, but still
+        # a data-quality problem worth surfacing as a Critical error.
         if dur_min is not None and dur_min >= warn_mins:
-            sev = "ANOMALY"
+            sev = "CRITICAL"
             thr = crit_mins if dur_min >= crit_mins else warn_mins
             _emit(
                 i,

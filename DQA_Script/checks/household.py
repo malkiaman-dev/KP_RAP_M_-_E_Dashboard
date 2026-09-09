@@ -2036,10 +2036,12 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             )
 
     # -------------------------------------------------
-    # Implausible fast interview (ANOMALY) — prefer SurveyCTO duration; not Critical/Quality
+    # Fast interview: respondent-aware duration floor (CRITICAL / Track 2)
+    #   Mother (respondent=2): flagged when under 25 minutes
+    #   Father (respondent=1) / unknown respondent: flagged at 15 minutes or under
     # -------------------------------------------------
-    CRIT_FAST_MIN = float(col.get("critical_fast_duration_minutes", 10) or 10)
-    MIN_DURATION_MIN = float(col.get("min_survey_duration_minutes", 15) or 15)
+    MOTHER_MIN_DURATION_MIN = float(col.get("min_survey_duration_minutes_mother", 25) or 25)
+    FATHER_MIN_DURATION_MIN = float(col.get("min_survey_duration_minutes_father", 15) or 15)
     duration_col = _find_existing(df, [col.get("duration") if isinstance(col.get("duration"), str) else None, "duration"])
 
     if duration_col or (start_col and end_col):
@@ -2049,18 +2051,31 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             if mins is None:
                 continue
 
-            # Under 15 minutes: invalid / integrity track (Track 2).
-            if mins < MIN_DURATION_MIN:
+            resp = None
+            if respondent_code_col and respondent_code_col in df.columns:
+                resp_num = _to_num(df.at[i, respondent_code_col])
+                if resp_num is not None:
+                    resp = str(int(round(resp_num)))
+
+            if resp == "2":
+                who, threshold, too_fast = "Mother", MOTHER_MIN_DURATION_MIN, mins < MOTHER_MIN_DURATION_MIN
+                bound = "under"
+            else:
+                who = "Father" if resp == "1" else "Household"
+                threshold, too_fast = FATHER_MIN_DURATION_MIN, mins <= FATHER_MIN_DURATION_MIN
+                bound = "at or under"
+
+            if too_fast:
                 add_issue(
                     i,
                     "CRITICAL",
                     "HH_AN_FAST_DURATION",
-                    "Household duration under 15 minutes (integrity)",
+                    f"{who} household duration {bound} {threshold:.0f} minutes (integrity)",
                     (
-                        f"Active duration is {round(mins, 1)} minutes (minimum 15). "
-                        "A completed household interview with consent and roster is not achievable "
-                        "in under 15 minutes. This is invalid and is referred to the integrity track "
-                        "(Track 2), not treated as a routine timing flag."
+                        f"Active duration is {round(mins, 1)} minutes ({bound} the {threshold:.0f}-minute "
+                        f"floor for a {who.lower()} respondent). A completed household interview with "
+                        "consent and roster is not achievable this quickly. This is invalid and is "
+                        "referred to the integrity track (Track 2), not treated as a routine timing flag."
                     ),
                     field,
                     f"{round(mins, 1)} mins",

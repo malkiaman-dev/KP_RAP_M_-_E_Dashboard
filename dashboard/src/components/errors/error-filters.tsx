@@ -27,11 +27,6 @@ interface ErrorFiltersPanelProps {
   hideDistrict?: boolean;
   /** Show the Today toggle after the date range. */
   showTodayToggle?: boolean;
-  /**
-   * When true, hide Severity (used on Implausible Cases where every row is
-   * anomaly-scoped already).
-   */
-  hideSeverity?: boolean;
 }
 
 export function ErrorFiltersPanel({
@@ -40,7 +35,6 @@ export function ErrorFiltersPanel({
   onChange,
   hideDistrict = false,
   showTodayToggle = true,
-  hideSeverity = false,
 }: ErrorFiltersPanelProps) {
   const [expanded, setExpanded] = useCollapsedOnMobile();
 
@@ -67,19 +61,15 @@ export function ErrorFiltersPanel({
         ...(filterOptions?.surveys || []),
       ],
     },
-    ...(!hideSeverity
-      ? [
-          {
-            key: "severity" as const,
-            label: "Severity",
-            icon: ShieldAlert,
-            options: [
-              { value: "all", label: "All" },
-              ...(filterOptions?.severities || []),
-            ],
-          },
-        ]
-      : []),
+    {
+      key: "severity" as const,
+      label: "Severity",
+      icon: ShieldAlert,
+      options: [
+        { value: "all", label: "All" },
+        ...(filterOptions?.severities || []),
+      ],
+    },
     {
       key: "title" as const,
       label: "Error Title",

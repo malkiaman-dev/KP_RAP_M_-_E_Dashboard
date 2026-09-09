@@ -18,9 +18,6 @@ export {
   defaultErrorFilters,
   excludeCrossSurveyChecks,
   scopeErrorReportRows,
-  actualErrorRows,
-  anomalyErrorRows,
-  isAnomalyError,
   ANOMALY_RULE_IDS,
   ERROR_REPORT_SURVEYS,
   toggleErrorFilters,
@@ -95,11 +92,14 @@ function normalizeSeverity(
   ruleId: string
 ): ErrorSeverity {
   const raw = str(value).toUpperCase();
+  // The old "Implausible Cases" tab (severity ANOMALY) was removed — these
+  // duration/device rules now count as ordinary Critical errors, including
+  // in older exported logs that still carry the old severity or rule ID.
   if (raw === "ANOMALY" || raw === "IMPLAUSIBLE" || raw === "TECHNICAL") {
-    return "ANOMALY";
+    return "CRITICAL";
   }
   if (ANOMALY_RULE_IDS.has(ruleId) || ruleId in LEGACY_RULE_ID_ALIASES) {
-    return "ANOMALY";
+    return "CRITICAL";
   }
   // Older DQA logs split this QF rule into CRITICAL for 4+ girls; keep FLAG only.
   if (FORCE_FLAG_RULE_IDS.has(ruleId)) return "FLAG";

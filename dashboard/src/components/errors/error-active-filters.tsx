@@ -22,11 +22,7 @@ function displayValue(key: keyof ErrorFilters, value: string): string {
     return "HH & Girls";
   }
   if (key === "severity") {
-    return value === "CRITICAL"
-      ? "Critical"
-      : value === "ANOMALY"
-        ? "Implausible"
-        : "Quality";
+    return value === "CRITICAL" ? "Critical" : "Quality";
   }
   if (key === "enumerator") {
     return displayEnumeratorLabel(value);
