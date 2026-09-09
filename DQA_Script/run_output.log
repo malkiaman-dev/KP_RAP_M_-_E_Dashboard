@@ -1,0 +1,21 @@
+[tracking] loading ['Tracking_Survey_NewSample.csv', 'Tracking_Survey_Baseline.csv']
+  loaded Tracking_Survey_NewSample.csv rows=3057 cols=181
+  loaded Tracking_Survey_Baseline.csv rows=1255 cols=176
+[tracking] rows=4312 issues=1932
+[household] loading ['Household_Survey.csv']
+  loaded Household_Survey.csv rows=185 cols=1769
+[household] rows=185 issues=729
+[girls] loading ['Girls_Survey.csv']
+  loaded Girls_Survey.csv rows=133 cols=466
+[girls] rows=133 issues=460
+
+========== TRACKING STATUS ==========
+Successfully tracked girls : 2979
+Not successfully tracked   : 77
+====================================
+
+[tracking_vs_household] issues=2439
+[household_vs_girls] issues=1
+TOTAL issues: 5561
+Wrote outputs -> D:\Tracking Dashboard\Error_log
+Wrote outputs -> D:\Tracking Dashboard\DQA_Script\outputs

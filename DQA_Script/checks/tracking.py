@@ -851,6 +851,19 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
 
     girl_id_occ: dict[str, list[dict]] = {}
 
+    # _is_weak_location_series scans an entire column; compute it once per
+    # column (cached) instead of once per row, since it depends only on the
+    # column, not on row_i. Address/landmark columns repeat across many rows
+    # within the same block, so this avoids an O(rows^2) rescan.
+    _weak_location_cache: dict[str, pd.Series] = {}
+
+    def _weak_location(col_name: str) -> pd.Series:
+        cached = _weak_location_cache.get(col_name)
+        if cached is None:
+            cached = _is_weak_location_series(df[col_name])
+            _weak_location_cache[col_name] = cached
+        return cached
+
     for row_i in df.index:
         seen_in_row: set[str] = set()
         filled_blocks = 0
@@ -960,8 +973,8 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             if active and (address_col or landmark_col):
                 hf_code = _as_code(df.at[row_i, house_found_col]) if house_found_col else ""
                 if hf_code not in {"2", "3"}:
-                    addr_bad = _is_weak_location_series(df[address_col]).at[row_i] if address_col else True
-                    lnd_bad = _is_weak_location_series(df[landmark_col]).at[row_i] if landmark_col else True
+                    addr_bad = _weak_location(address_col).at[row_i] if address_col else True
+                    lnd_bad = _weak_location(landmark_col).at[row_i] if landmark_col else True
                     if bool(addr_bad and lnd_bad):
                         m = meta(row_i)
                         addr_val = _norm(df.at[row_i, address_col]) if address_col else ""
