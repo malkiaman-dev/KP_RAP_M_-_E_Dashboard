@@ -123,11 +123,17 @@ function parseTrackingFile(
     header: true,
     skipEmptyLines: true,
   });
-  return parsed.data.map((row) => {
-    const enriched = { ...row, cohort } as TrackingRow;
-    const session = inferTrackingSession(enriched);
-    return slimTrackingRow(session ? { ...enriched, session } : enriched);
-  });
+  return parsed.data
+    // CSV exports can leave trailing rows that are all-delimiters, no content
+    // (skipEmptyLines only catches textually-empty lines, not a row of blank
+    // fields). A real submission always has a KEY and a SubmissionDate; a row
+    // with neither is export padding, not data.
+    .filter((row) => (row.KEY && row.KEY.trim()) || (row.SubmissionDate && row.SubmissionDate.trim()))
+    .map((row) => {
+      const enriched = { ...row, cohort } as TrackingRow;
+      const session = inferTrackingSession(enriched);
+      return slimTrackingRow(session ? { ...enriched, session } : enriched);
+    });
 }
 
 function readTrackingSurvey(): TrackingRow[] {

@@ -8,7 +8,6 @@ import {
 import { formatDisplayDate } from "@/lib/utils";
 
 const LABELS: Partial<Record<keyof TrackingFilters, string>> = {
-  district: "District",
   trackingGroup: "Tracking group",
   session: "Session",
   enumerator: "Enumerator",
@@ -61,11 +60,6 @@ export function TrackingActiveFilters({
   resetFilters?: TrackingFilters | (() => TrackingFilters);
 }) {
   const resolveLabel = (key: keyof TrackingFilters, value: string) => {
-    if (key === "district") {
-      return (
-        filterOptions?.districts?.find((d) => d.value === value)?.label || value
-      );
-    }
     if (key === "enumerator") {
       return (
         filterOptions?.enumerators?.find((e) => e.value === value)?.label ||
@@ -87,16 +81,23 @@ export function TrackingActiveFilters({
     return displayValue(key, value);
   };
 
-  const chips: { key: keyof TrackingFilters; label: string }[] = [];
+  const chips: { key: string; label: string }[] = [];
+
+  for (const d of filters.district) {
+    chips.push({
+      key: `district:${d}`,
+      label: `District: ${filterOptions?.districts?.find((o) => o.value === d)?.label || d}`,
+    });
+  }
 
   (Object.keys(filters) as (keyof TrackingFilters)[]).forEach((key) => {
-    if (key === "todayOnly" || key === "girlLabel") return;
+    if (key === "district" || key === "todayOnly" || key === "girlLabel") return;
     const value = filters[key];
     if (key === "dateFrom" || key === "dateTo") return;
     if (!value || value === "all") return;
     chips.push({
       key,
-      label: `${LABELS[key]}: ${resolveLabel(key, value)}`,
+      label: `${LABELS[key]}: ${resolveLabel(key, value as string)}`,
     });
   });
 
@@ -142,6 +143,12 @@ export function TrackingActiveFilters({
               onChange({ ...filters, dateFrom: "", dateTo: "" });
             } else if (chip.key === "girl") {
               onChange({ ...filters, girl: "all", girlLabel: "" });
+            } else if (chip.key.startsWith("district:")) {
+              const removed = chip.key.slice("district:".length);
+              onChange({
+                ...filters,
+                district: filters.district.filter((d) => d !== removed),
+              });
             } else {
               onChange({ ...filters, [chip.key]: "all" });
             }

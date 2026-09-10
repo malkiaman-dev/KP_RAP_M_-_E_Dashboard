@@ -5,6 +5,7 @@ import type { HhGirlsMonitoringFilters } from "@/lib/data/hh-girls-monitoring";
 import {
   defaultHhGirlsFilters,
   districtLabel,
+  HH_GIRLS_SURVEY_FILTER_OPTIONS,
   hhGirlsSurveyFilterLabel,
   type HhGirlsFilters,
   type HhGirlsMetrics,
@@ -25,18 +26,16 @@ export function HhGirlsActiveFilters({
   const todayOnly =
     "todayOnly" in filters ? filters.todayOnly === true : false;
 
-  if (filters.district !== "all") {
+  for (const d of filters.district) {
     chips.push({
-      key: "district",
-      label:
-        filterOptions?.districts.find((d) => d.value === filters.district)
-          ?.label || districtLabel(filters.district),
+      key: `district:${d}`,
+      label: filterOptions?.districts.find((o) => o.value === d)?.label || districtLabel(d),
     });
   }
-  if (filters.surveyType !== "all") {
+  if (filters.surveyType.length < HH_GIRLS_SURVEY_FILTER_OPTIONS.length) {
     chips.push({
       key: "surveyType",
-      label: hhGirlsSurveyFilterLabel(filters.surveyType),
+      label: filters.surveyType.map(hhGirlsSurveyFilterLabel).join(" + "),
     });
   }
   if (filters.enumerator !== "all") {
@@ -76,7 +75,16 @@ export function HhGirlsActiveFilters({
                 dateTo: "",
               });
             } else if (chip.key === "surveyType") {
-              onChange({ ...filters, surveyType: "all" });
+              onChange({
+                ...filters,
+                surveyType: HH_GIRLS_SURVEY_FILTER_OPTIONS.map((o) => o.value),
+              });
+            } else if (chip.key.startsWith("district:")) {
+              const removed = chip.key.slice("district:".length);
+              onChange({
+                ...filters,
+                district: filters.district.filter((d) => d !== removed),
+              });
             } else {
               onChange({ ...filters, [chip.key]: "all" });
             }

@@ -97,7 +97,8 @@ export const TRACKING_GROUPS = [
 ] as const;
 
 export interface TrackingFilters {
-  district: string;
+  /** Selected district values. Empty array means "all districts". */
+  district: string[];
   trackingGroup: string;
   session: string;
   enumerator: string;
@@ -116,7 +117,7 @@ export interface TrackingFilters {
 }
 
 export const defaultTrackingFilters: TrackingFilters = {
-  district: "all",
+  district: [],
   trackingGroup: "all",
   session: "all",
   enumerator: "all",
@@ -140,14 +141,22 @@ export function defaultMonitoringFilters(dateFrom = ""): TrackingFilters {
   return createDefaultTrackingFilters(dateFrom);
 }
 
+function sameValues(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const bSet = new Set(b);
+  return a.every((v) => bSet.has(v));
+}
+
 export function trackingFiltersEqual(
   a: TrackingFilters,
   b: TrackingFilters
 ): boolean {
+  if (!sameValues(a.district, b.district)) return false;
+
   return (
-    (Object.keys(defaultTrackingFilters) as (keyof TrackingFilters)[]).every(
-      (key) => a[key] === b[key]
-    )
+    (Object.keys(defaultTrackingFilters) as (keyof TrackingFilters)[])
+      .filter((key) => key !== "district")
+      .every((key) => a[key] === b[key])
   );
 }
 
@@ -164,26 +173,42 @@ export const UNTRACKED_REASON_BY_LABEL: Record<string, UntrackedReasonKey> = {
   "Incomplete survey": "incomplete",
 };
 
+/**
+ * Toggle a single district within the multi-select district filter -- narrows
+ * to just that district, or restores "all districts" (empty array) if it's
+ * already the only one selected. Chart tiles/bars call this instead of
+ * toggleTrackingFilters (which skips district, since it's an array).
+ */
+export function toggleTrackingDistrict(
+  filters: TrackingFilters,
+  district: string
+): TrackingFilters {
+  const isOnlySelected =
+    filters.district.length === 1 && filters.district[0] === district;
+  return {
+    ...filters,
+    district: isOnlySelected ? [] : [district],
+  };
+}
+
 /** Toggle filter values from chart clicks - click again to clear. */
 export function toggleTrackingFilters(
   current: TrackingFilters,
   patch: Partial<TrackingFilters>
 ): TrackingFilters {
   const next = { ...current };
-  for (const [key, value] of Object.entries(patch) as [
-    keyof TrackingFilters,
-    TrackingFilters[keyof TrackingFilters] | undefined,
-  ][]) {
-    if (value === undefined) continue;
-    if (key === "todayOnly") {
-      next.todayOnly = value as boolean;
-      continue;
-    }
-    const strValue = value as string;
-    const isDate = key === "dateFrom" || key === "dateTo";
-    const empty = isDate ? "" : "all";
-    if (!strValue || strValue === empty) continue;
-    next[key] = current[key] === strValue ? empty : strValue;
+  // district is multi-select (string[]) -- handled separately by
+  // toggleTrackingDistrict in chart components, not by this single-value toggle.
+  const keys = (Object.keys(patch) as (keyof TrackingFilters)[]).filter(
+    (key) => key !== "district"
+  );
+  for (const key of keys) {
+    if (key === "dateFrom" || key === "dateTo" || key === "todayOnly") continue;
+    const value = patch[key];
+    if (typeof value !== "string" || !value || value === "all") continue;
+    const currentValue = current[key];
+    if (typeof currentValue !== "string") continue;
+    next[key] = currentValue === value ? "all" : value;
   }
   return next;
 }
@@ -2436,7 +2461,7 @@ export function applyTrackingFilters(
       : null;
 
   return rows.filter((r) => {
-    if (filters.district !== "all" && r.district !== filters.district)
+    if (filters.district.length > 0 && !filters.district.includes(r.district))
       return false;
     if (filters.enumerator !== "all" && enumeratorIdentityKey(r) !== filters.enumerator)
       return false;

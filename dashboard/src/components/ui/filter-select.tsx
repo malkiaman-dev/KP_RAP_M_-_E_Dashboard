@@ -26,7 +26,7 @@ import {
   useDismissiblePanel,
 } from "@/components/ui/use-floating-panel";
 
-const filterFieldClassName = cn(
+export const filterFieldClassName = cn(
   "flex h-10 w-full items-center justify-between rounded-xl border border-border/70",
   "bg-gradient-to-b from-card to-muted/30 px-3.5 text-left text-sm font-medium text-foreground",
   "shadow-sm transition-all duration-200",

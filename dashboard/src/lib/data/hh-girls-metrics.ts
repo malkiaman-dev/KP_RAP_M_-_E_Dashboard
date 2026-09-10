@@ -61,24 +61,29 @@ export interface HhGirlsFilterOptions {
   dateRange: { start: string; end: string };
 }
 
-export type HhGirlsSurveyFilter = "all" | "household" | "girls";
+export type HhGirlsSurveyFilter = "household" | "girls";
 
 export interface HhGirlsFilters {
-  surveyType: HhGirlsSurveyFilter;
-  district: string;
+  /** Selected survey types. Every value selected (the default) means "both". */
+  surveyType: HhGirlsSurveyFilter[];
+  /** Selected district values. Empty array means "all districts". */
+  district: string[];
   enumerator: string;
   village: string;
   dateFrom: string;
   dateTo: string;
+  /** When true, only submissions from today are included. */
+  todayOnly: boolean;
 }
 
 export const defaultHhGirlsFilters: HhGirlsFilters = {
-  surveyType: "all",
-  district: "all",
+  surveyType: ["household", "girls"],
+  district: [],
   enumerator: "all",
   village: "all",
   dateFrom: "",
   dateTo: "",
+  todayOnly: false,
 };
 
 export function createDefaultHhGirlsFilters(dateFrom = ""): HhGirlsFilters {
@@ -89,7 +94,6 @@ export const HH_GIRLS_SURVEY_FILTER_OPTIONS: {
   value: HhGirlsSurveyFilter;
   label: string;
 }[] = [
-  { value: "all", label: "All surveys" },
   { value: "household", label: "Household (HH)" },
   { value: "girls", label: "Girls survey" },
 ];
@@ -100,10 +104,19 @@ export function hhGirlsSurveyFilterLabel(value: HhGirlsSurveyFilter): string {
   );
 }
 
+function sameValues(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const bSet = new Set(b);
+  return a.every((v) => bSet.has(v));
+}
+
 export function hhGirlsFiltersEqual(a: HhGirlsFilters, b: HhGirlsFilters): boolean {
-  return (Object.keys(defaultHhGirlsFilters) as (keyof HhGirlsFilters)[]).every(
-    (key) => a[key] === b[key]
-  );
+  if (!sameValues(a.district, b.district)) return false;
+  if (!sameValues(a.surveyType, b.surveyType)) return false;
+
+  return (
+    ["enumerator", "village", "dateFrom", "dateTo", "todayOnly"] as (keyof HhGirlsFilters)[]
+  ).every((key) => a[key] === b[key]);
 }
 
 function parseSubmissionDate(raw: string): Date | null {
@@ -207,7 +220,7 @@ export function applyHhGirlsFilters(
   filters: HhGirlsFilters
 ): HhGirlsRow[] {
   return rows.filter((r) => {
-    if (filters.district !== "all" && r.district !== filters.district)
+    if (filters.district.length > 0 && !filters.district.includes(r.district))
       return false;
     if (
       filters.enumerator !== "all" &&
@@ -238,11 +251,8 @@ export function applyHhGirlsDataFilters(
   let hh = applyHhGirlsFilters(household, filters);
   let gs = applyHhGirlsFilters(girls, filters);
 
-  if (filters.surveyType === "household") {
-    gs = [];
-  } else if (filters.surveyType === "girls") {
-    hh = [];
-  }
+  if (!filters.surveyType.includes("household")) hh = [];
+  if (!filters.surveyType.includes("girls")) gs = [];
 
   return { household: hh, girls: gs };
 }

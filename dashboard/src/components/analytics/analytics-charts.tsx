@@ -36,9 +36,12 @@ import {
   type ProtocolProgress,
 } from "@/lib/data/analytics-insights";
 import {
+  toggleDashboardDistrict,
   toggleDashboardFilters,
+  toggleDashboardSurveyType,
   type DashboardFilters,
   type DashboardMetrics,
+  type SurveyType,
 } from "@/lib/data/survey-metrics";
 import type { TrackingMetrics } from "@/lib/data/tracking-metrics";
 import { formatDisplayDate } from "@/lib/utils";
@@ -77,6 +80,14 @@ export function AnalyticsCharts({
   const pick = (patch: Partial<DashboardFilters>) =>
     onFilterChange(toggleDashboardFilters(filters, patch));
 
+  const pickSurveyOnly = (surveyType: SurveyType) =>
+    onFilterChange(toggleDashboardSurveyType(filters, surveyType));
+
+  const pickDistrictSurvey = (district: string, surveyType: SurveyType) => {
+    const withDistrict = toggleDashboardDistrict(filters, district);
+    onFilterChange(toggleDashboardSurveyType(withDistrict, surveyType));
+  };
+
   const pickDate = (iso: string) =>
     onFilterChange({
       ...filters,
@@ -84,7 +95,7 @@ export function AnalyticsCharts({
     });
 
   const districtActive = (district: string) =>
-    filters.district === "all" || filters.district === district;
+    filters.district.length === 0 || filters.district.includes(district);
 
   const targetTrend = buildTargetTrend(
     tracking.trackingTrend,
@@ -229,7 +240,7 @@ export function AnalyticsCharts({
                     | undefined;
                   if (!row?.trackingGroup) return;
                   // Cohort is tracking-only; keep district/date filters, clear survey type.
-                  pick({ surveyType: "tracking" });
+                  pickSurveyOnly("tracking");
                 }}
               >
                 {cohortBars.map((row) => (
@@ -288,7 +299,7 @@ export function AnalyticsCharts({
                 onClick={(data) => {
                   const row = barPayload(data);
                   if (!row?.district) return;
-                  pick({ district: row.district, surveyType: "tracking" });
+                  pickDistrictSurvey(row.district, "tracking");
                 }}
               >
                 {dashboard.districtPerformance.map((d) => (
@@ -307,7 +318,7 @@ export function AnalyticsCharts({
                 onClick={(data) => {
                   const row = barPayload(data);
                   if (!row?.district) return;
-                  pick({ district: row.district, surveyType: "household" });
+                  pickDistrictSurvey(row.district, "household");
                 }}
               >
                 {dashboard.districtPerformance.map((d) => (
@@ -326,7 +337,7 @@ export function AnalyticsCharts({
                 onClick={(data) => {
                   const row = barPayload(data);
                   if (!row?.district) return;
-                  pick({ district: row.district, surveyType: "girls" });
+                  pickDistrictSurvey(row.district, "girls");
                 }}
               >
                 {dashboard.districtPerformance.map((d) => (

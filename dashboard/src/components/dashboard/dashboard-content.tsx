@@ -107,13 +107,7 @@ export function DashboardContent() {
     return applyFilters(data.allSubmissions, deferredFilters).slice(0, 100);
   }, [data, deferredFilters]);
 
-  const filtering =
-    filters.district !== deferredFilters.district ||
-    filters.surveyType !== deferredFilters.surveyType ||
-    filters.enumerator !== deferredFilters.enumerator ||
-    filters.status !== deferredFilters.status ||
-    filters.dateFrom !== deferredFilters.dateFrom ||
-    filters.dateTo !== deferredFilters.dateTo;
+  const filtering = !dashboardFiltersEqual(filters, deferredFilters);
 
   if (isError) {
     return (

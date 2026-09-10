@@ -50,20 +50,28 @@ function sumCohortDistrictRows(
   );
 }
 
+/** True if the district/label matches any of the selected needles (empty/omitted = match all). */
+function matchesAnyDistrict(
+  code: string,
+  label: string,
+  needles: string[] | undefined
+): boolean {
+  if (!needles || needles.length === 0) return true;
+  return needles.some((needle) => matchesDistrict(code, label, needle));
+}
+
 /** Filter assignment-frame girl ID refs by the same district/cohort controls. */
 export function filterAssignmentGirlRefs(
   refs: AssignmentGirlRef[] | undefined,
   filters: {
-    district?: string;
+    district?: string[];
     cohort?: "all" | TrackingCohort;
   }
 ): AssignmentGirlRef[] {
   if (!refs?.length) return [];
   return refs.filter((g) => {
-    if (filters.district && filters.district !== "all") {
-      if (!matchesDistrict(g.district, g.districtLabel, filters.district)) {
-        return false;
-      }
+    if (!matchesAnyDistrict(g.district, g.districtLabel, filters.district)) {
+      return false;
     }
     if (
       filters.cohort &&
@@ -96,15 +104,13 @@ function filterExportRowsByKeys<
 export function filterTargetGapGirls(
   girls: TargetGapGirl[],
   filters: {
-    district?: string;
+    district?: string[];
     cohort?: "all" | TrackingCohort;
   }
 ): TargetGapGirl[] {
   return girls.filter((g) => {
-    if (filters.district && filters.district !== "all") {
-      if (!matchesDistrict(g.district, g.districtLabel, filters.district)) {
-        return false;
-      }
+    if (!matchesAnyDistrict(g.district, g.districtLabel, filters.district)) {
+      return false;
     }
     if (
       filters.cohort &&
@@ -125,7 +131,7 @@ export function filterTargetGapGirls(
 export function assignmentFrameCounts(
   gaps: TrackingTargetGaps | undefined,
   filters: {
-    district?: string;
+    district?: string[];
     cohort?: "all" | TrackingCohort;
   } = {}
 ): {
@@ -138,7 +144,7 @@ export function assignmentFrameCounts(
 } | null {
   if (!gaps?.available) return null;
 
-  const districtAll = !filters.district || filters.district === "all";
+  const districtAll = !filters.district || filters.district.length === 0;
   const cohortAll = !filters.cohort || filters.cohort === "all";
 
   if (districtAll && cohortAll) {
@@ -162,8 +168,8 @@ export function assignmentFrameCounts(
       ) {
         return false;
       }
-      if (!districtAll && filters.district) {
-        return matchesDistrict(
+      if (!districtAll) {
+        return matchesAnyDistrict(
           row.district,
           row.districtLabel,
           filters.district
@@ -212,19 +218,19 @@ function remainingOf(frame: AssignmentFrameCounts): number {
 export function frameDistrictSummaries(
   gaps: TrackingTargetGaps | undefined,
   filters: {
-    district?: string;
+    district?: string[];
     cohort?: "all" | TrackingCohort;
   } = {}
 ): TargetGapDistrictSummary[] {
   if (!gaps?.available) return [];
 
   const cohortAll = !filters.cohort || filters.cohort === "all";
-  const districtAll = !filters.district || filters.district === "all";
+  const districtAll = !filters.district || filters.district.length === 0;
 
   if (cohortAll) {
     return gaps.byDistrict.filter((d) => {
       if (districtAll) return true;
-      return matchesDistrict(d.district, d.districtLabel, filters.district!);
+      return matchesAnyDistrict(d.district, d.districtLabel, filters.district);
     });
   }
 
@@ -232,8 +238,8 @@ export function frameDistrictSummaries(
     return gaps.byCohortDistrict
       .filter((row) => {
         if (row.cohort !== filters.cohort) return false;
-        if (!districtAll && filters.district) {
-          return matchesDistrict(
+        if (!districtAll) {
+          return matchesAnyDistrict(
             row.district,
             row.districtLabel,
             filters.district
@@ -409,7 +415,7 @@ export function overlayMetricsWithAssignmentFrame<
   metrics: T,
   gaps: TrackingTargetGaps | undefined,
   filters: {
-    district?: string;
+    district?: string[];
     cohort?: "all" | TrackingCohort;
   } = {}
 ): T {

@@ -100,7 +100,10 @@ export function applyHhGirlsMonitoringFilters(
   }
 
   const match = (r: HhGirlsRow) => {
-    if (effective.district !== "all" && r.district !== effective.district)
+    if (
+      effective.district.length > 0 &&
+      !effective.district.includes(r.district)
+    )
       return false;
     if (
       effective.enumerator !== "all" &&
@@ -128,8 +131,8 @@ export function applyHhGirlsMonitoringFilters(
   let hh = household.filter(match);
   let gs = girls.filter(match);
 
-  if (effective.surveyType === "household") gs = [];
-  else if (effective.surveyType === "girls") hh = [];
+  if (!effective.surveyType.includes("household")) hh = [];
+  if (!effective.surveyType.includes("girls")) gs = [];
 
   return { household: hh, girls: gs };
 }
@@ -138,8 +141,8 @@ export function defaultHhGirlsMonitoringFilters(
   dateFrom = ""
 ): HhGirlsMonitoringFilters {
   return {
-    surveyType: "all",
-    district: "all",
+    surveyType: ["household", "girls"],
+    district: [],
     enumerator: "all",
     village: "all",
     dateFrom,
@@ -161,10 +164,10 @@ export function toggleHhGirlsMonitoringFilters(
     next.enumerator =
       filters.enumerator === patch.enumerator ? "all" : patch.enumerator;
   }
-  if ("district" in patch && patch.district !== undefined) {
-    next.district =
-      filters.district === patch.district ? "all" : patch.district;
-  }
+  // district is multi-select (string[]); the initial `...patch` spread above
+  // already applies a full replacement array when patch.district is passed.
+  // No chart currently click-filters by district, unlike enumerator/village
+  // below (single-value toggle), so there's no per-value toggle to do here.
   if ("village" in patch && patch.village !== undefined) {
     next.village = filters.village === patch.village ? "all" : patch.village;
   }

@@ -45,10 +45,10 @@ function downloadList(rows: TargetGapGirl[], label: string) {
 }
 
 export function TrackingTargetGapsSection({
-  districtFilter = "all",
+  districtFilter = [],
   cohortFilter = "all",
 }: {
-  districtFilter?: string;
+  districtFilter?: string[];
   cohortFilter?: "all" | TrackingCohort;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -65,10 +65,14 @@ export function TrackingTargetGapsSection({
   });
 
   // Prefer page-level filters when set; otherwise local controls.
-  const effectiveDistrict =
-    districtFilter && districtFilter !== "all"
+  const effectiveDistrict: string[] =
+    districtFilter && districtFilter.length > 0
       ? districtFilter
-      : localDistrict;
+      : localDistrict !== "all"
+        ? [localDistrict]
+        : [];
+  const effectiveDistrictLabel =
+    effectiveDistrict.length === 0 ? "all" : effectiveDistrict.join("-");
   const effectiveCohort =
     cohortFilter && cohortFilter !== "all" ? cohortFilter : localCohort;
 
@@ -211,7 +215,7 @@ export function TrackingTargetGapsSection({
                           ? () =>
                               downloadList(
                                 filtered.notAttempted,
-                                `not-attempted-${slug(effectiveDistrict)}`
+                                `not-attempted-${slug(effectiveDistrictLabel)}`
                               )
                           : undefined
                       }
@@ -229,7 +233,7 @@ export function TrackingTargetGapsSection({
                           ? () =>
                               downloadList(
                                 filtered.needsRevisit,
-                                `needs-revisit-${slug(effectiveDistrict)}`
+                                `needs-revisit-${slug(effectiveDistrictLabel)}`
                               )
                           : undefined
                       }
@@ -247,7 +251,7 @@ export function TrackingTargetGapsSection({
                           ? () =>
                               downloadList(
                                 filtered.actionable,
-                                `all-outstanding-${slug(effectiveDistrict)}`
+                                `all-outstanding-${slug(effectiveDistrictLabel)}`
                               )
                           : undefined
                       }
@@ -259,7 +263,7 @@ export function TrackingTargetGapsSection({
               {!isLoading && data && (
                 <>
                   <div className="flex flex-wrap items-end gap-3">
-                    {(!districtFilter || districtFilter === "all") && (
+                    {(!districtFilter || districtFilter.length === 0) && (
                       <div className="min-w-[180px] flex-1">
                         <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                           District
@@ -325,7 +329,7 @@ export function TrackingTargetGapsSection({
                       onClick={() =>
                         downloadList(
                           viewRows,
-                          `${statusView}-${slug(effectiveDistrict)}-${effectiveCohort}`
+                          `${statusView}-${slug(effectiveDistrictLabel)}-${effectiveCohort}`
                         )
                       }
                       className="inline-flex items-center gap-2 rounded-xl bg-teal px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
@@ -342,7 +346,7 @@ export function TrackingTargetGapsSection({
                     })}
                     onDownloadDistrict={(code, label) => {
                       const rows = filterTargetGapGirls(data.actionableGirls, {
-                        district: code,
+                        district: [code],
                         cohort: effectiveCohort,
                       });
                       downloadList(rows, `district-${slug(label)}`);

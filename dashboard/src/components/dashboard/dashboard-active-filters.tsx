@@ -2,26 +2,16 @@
 
 import { X } from "lucide-react";
 import {
+  DASHBOARD_SURVEY_TYPES,
   defaultDashboardFilters,
   type DashboardFilters,
 } from "@/lib/data/survey-metrics";
 import { formatDisplayDate } from "@/lib/utils";
-import { HH_GIRLS_COMBINED } from "@/lib/data/survey-filter-shared";
-
-const LABELS: Record<keyof DashboardFilters, string> = {
-  district: "District",
-  surveyType: "Survey",
-  enumerator: "Enumerator",
-  status: "Status",
-  dateFrom: "From",
-  dateTo: "To",
-};
 
 const SURVEY_LABELS: Record<string, string> = {
   tracking: "Tracking",
   household: "Household",
   girls: "Girls",
-  [HH_GIRLS_COMBINED]: "HH & Girls",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -42,18 +32,19 @@ export function DashboardActiveFilters({
     enumerators?: { value: string; label: string }[];
   };
 }) {
-  const chips: { key: keyof DashboardFilters | "date"; label: string }[] = [];
+  const chips: { key: string; label: string }[] = [];
 
-  if (filters.district !== "all") {
+  for (const d of filters.district) {
     const label =
-      filterOptions?.districts?.find((d) => d.value === filters.district)
-        ?.label || filters.district;
-    chips.push({ key: "district", label: `District: ${label}` });
+      filterOptions?.districts?.find((o) => o.value === d)?.label || d;
+    chips.push({ key: `district:${d}`, label: `District: ${label}` });
   }
-  if (filters.surveyType !== "all") {
+  if (filters.surveyType.length < DASHBOARD_SURVEY_TYPES.length) {
     chips.push({
       key: "surveyType",
-      label: `Survey: ${SURVEY_LABELS[filters.surveyType] || filters.surveyType}`,
+      label: `Survey: ${filters.surveyType
+        .map((t) => SURVEY_LABELS[t] || t)
+        .join(" + ")}`,
     });
   }
   if (filters.enumerator !== "all") {
@@ -96,6 +87,14 @@ export function DashboardActiveFilters({
           onClick={() => {
             if (chip.key === "date") {
               onChange({ ...filters, dateFrom: "", dateTo: "" });
+            } else if (chip.key === "surveyType") {
+              onChange({ ...filters, surveyType: [...DASHBOARD_SURVEY_TYPES] });
+            } else if (chip.key.startsWith("district:")) {
+              const removed = chip.key.slice("district:".length);
+              onChange({
+                ...filters,
+                district: filters.district.filter((d) => d !== removed),
+              });
             } else {
               onChange({ ...filters, [chip.key]: "all" });
             }

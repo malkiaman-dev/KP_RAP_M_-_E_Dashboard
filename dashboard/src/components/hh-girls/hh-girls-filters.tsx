@@ -5,6 +5,7 @@ import { useCollapsedOnMobile } from "@/lib/hooks/use-collapsed-on-mobile";
 import { Filter, Calendar, MapPin, Users, ChevronDown, X, ClipboardList } from "lucide-react";
 import { cn, toIsoDateString } from "@/lib/utils";
 import { FilterDateRange, FilterSelect } from "@/components/ui/filter-select";
+import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import {
   defaultHhGirlsFilters,
   HH_GIRLS_SURVEY_FILTER_OPTIONS,
@@ -30,18 +31,6 @@ export function HhGirlsFiltersPanel({
 
   const fields = [
     {
-      key: "district" as const,
-      label: "District",
-      icon: MapPin,
-      options: [{ value: "all", label: "All" }, ...(filterOptions?.districts || [])],
-    },
-    {
-      key: "surveyType" as const,
-      label: "Survey",
-      icon: ClipboardList,
-      options: HH_GIRLS_SURVEY_FILTER_OPTIONS,
-    },
-    {
       key: "enumerator" as const,
       label: "Enumerator",
       icon: Users,
@@ -59,8 +48,8 @@ export function HhGirlsFiltersPanel({
     "todayOnly" in filters ? filters.todayOnly === true : false;
 
   const hasActive =
-    filters.surveyType !== "all" ||
-    filters.district !== "all" ||
+    filters.surveyType.length < HH_GIRLS_SURVEY_FILTER_OPTIONS.length ||
+    filters.district.length > 0 ||
     filters.enumerator !== "all" ||
     filters.village !== "all" ||
     filters.dateFrom !== "" ||
@@ -106,6 +95,37 @@ export function HhGirlsFiltersPanel({
             className="overflow-visible"
           >
             <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <MapPin className="h-3 w-3" aria-hidden="true" />
+                  District
+                </label>
+                <MultiSelectFilter
+                  values={filters.district}
+                  options={filterOptions?.districts || []}
+                  onChange={(values) => onChange({ ...filters, district: values })}
+                  aria-label="District"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <ClipboardList className="h-3 w-3" aria-hidden="true" />
+                  Survey
+                </label>
+                <MultiSelectFilter
+                  values={filters.surveyType}
+                  options={HH_GIRLS_SURVEY_FILTER_OPTIONS}
+                  mode="guarded"
+                  allLabel="HH & Girls"
+                  onChange={(values) =>
+                    onChange({
+                      ...filters,
+                      surveyType: values as HhGirlsFilters["surveyType"],
+                    })
+                  }
+                  aria-label="Survey"
+                />
+              </div>
               {fields.map((field) => {
                 const Icon = field.icon;
                 return (

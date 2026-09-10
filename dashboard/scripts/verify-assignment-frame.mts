@@ -95,7 +95,10 @@ console.log(`\nSurvey rows loaded: ${survey.length}`);
 console.log("\n=== FILTERED FRAME CHECKS (cohort × district) ===");
 for (const cohort of ["all", "baseline", "new-sample"] as const) {
   for (const district of ["all", "1", "2", "3", "4"]) {
-    const f = assignmentFrameCounts(gaps, { district, cohort });
+    const f = assignmentFrameCounts(gaps, {
+      district: district === "all" ? [] : [district],
+      cohort,
+    });
     if (!f) continue;
     const remaining =
       f.notAttempted + f.attemptedNotTracked + f.needsRevisit;

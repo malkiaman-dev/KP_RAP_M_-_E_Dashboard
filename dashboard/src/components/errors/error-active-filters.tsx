@@ -3,13 +3,18 @@
 import { X } from "lucide-react";
 import { displayEnumeratorLabel } from "@/lib/data/enumerator-identity";
 import { formatDisplayDate } from "@/lib/utils";
-import { defaultErrorFilters, type ErrorFilters } from "@/lib/data/error-metrics";
-import { HH_GIRLS_COMBINED } from "@/lib/data/survey-filter-shared";
+import {
+  defaultErrorFilters,
+  ERROR_REPORT_SURVEYS,
+  type ErrorFilters,
+} from "@/lib/data/error-metrics";
 
 type ChipKey = keyof ErrorFilters | "dateRange";
 
-const LABELS: Record<Exclude<ChipKey, "dateFrom" | "dateTo" | "todayOnly" | "dateRange">, string> = {
-  district: "District",
+const LABELS: Record<
+  Exclude<ChipKey, "dateFrom" | "dateTo" | "todayOnly" | "dateRange" | "district">,
+  string
+> = {
   survey: "Survey",
   severity: "Severity",
   enumerator: "Enumerator",
@@ -18,9 +23,6 @@ const LABELS: Record<Exclude<ChipKey, "dateFrom" | "dateTo" | "todayOnly" | "dat
 };
 
 function displayValue(key: keyof ErrorFilters, value: string): string {
-  if (key === "survey" && value === HH_GIRLS_COMBINED) {
-    return "HH & Girls";
-  }
   if (key === "severity") {
     return value === "CRITICAL" ? "Critical" : "Quality";
   }
@@ -39,14 +41,24 @@ export function ErrorActiveFilters({
   onChange: (filters: ErrorFilters) => void;
   hideDistrict?: boolean;
 }) {
-  const chips: { key: ChipKey; label: string }[] = [];
+  const chips: { key: string; label: string }[] = [];
+
+  if (!hideDistrict) {
+    for (const d of filters.district) {
+      chips.push({ key: `district:${d}`, label: `District: ${d}` });
+    }
+  }
+
+  if (filters.survey.length < ERROR_REPORT_SURVEYS.length) {
+    chips.push({
+      key: "survey",
+      label: `Survey: ${filters.survey.join(" + ")}`,
+    });
+  }
 
   const categorical = (
-    ["district", "survey", "severity", "title", "enumerator", "ruleId"] as const
-  ).filter((key) => {
-    if (hideDistrict && key === "district") return false;
-    return filters[key] !== "all";
-  });
+    ["severity", "title", "enumerator", "ruleId"] as const
+  ).filter((key) => filters[key] !== "all");
 
   for (const key of categorical) {
     chips.push({
@@ -92,6 +104,18 @@ export function ErrorActiveFilters({
                 todayOnly: false,
                 dateFrom: "",
                 dateTo: "",
+              });
+              return;
+            }
+            if (chip.key === "survey") {
+              onChange({ ...filters, survey: [...ERROR_REPORT_SURVEYS] });
+              return;
+            }
+            if (chip.key.startsWith("district:")) {
+              const removed = chip.key.slice("district:".length);
+              onChange({
+                ...filters,
+                district: filters.district.filter((d) => d !== removed),
               });
               return;
             }

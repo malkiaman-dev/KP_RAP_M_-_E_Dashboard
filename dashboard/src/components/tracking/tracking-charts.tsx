@@ -16,6 +16,7 @@ import {
   type TooltipContentProps,
 } from "recharts";
 import {
+  toggleTrackingDistrict,
   toggleTrackingFilters,
   UNTRACKED_REASON_BY_LABEL,
   type TrackingFilters,
@@ -182,7 +183,7 @@ export function TrackingCharts({
     });
 
   const districtActive = (district: string) =>
-    filters.district === "all" || filters.district === district;
+    filters.district.length === 0 || filters.district.includes(district);
 
   const villageActive = (villageId: string) =>
     filters.village === "all" || filters.village === villageId;
@@ -284,7 +285,7 @@ export function TrackingCharts({
               onClick={(data) => {
                 const row = barPayload(data);
                 if (!row?.district) return;
-                pick({ district: row.district });
+                onFilterChange(toggleTrackingDistrict(filters, row.district));
               }}
             >
               {metrics.trackedByDistrict.map((entry) => (
@@ -380,7 +381,7 @@ export function TrackingCharts({
               onClick={(data) => {
                 const row = barPayload(data);
                 if (!row?.district) return;
-                pick({ district: row.district });
+                onFilterChange(toggleTrackingDistrict(filters, row.district));
               }}
             >
               {metrics.trackedByDistrict.map((entry) => (

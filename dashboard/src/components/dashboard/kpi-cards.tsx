@@ -17,10 +17,17 @@ import { useFirm } from "@/components/brand/firm-provider";
 import { PROTOCOL } from "@/lib/data/protocol";
 import {
   toggleDashboardFilters,
+  toggleDashboardSurveyType,
   type DashboardFilters,
   type DashboardMetrics,
+  type SurveyType,
 } from "@/lib/data/survey-metrics";
 import { cn } from "@/lib/utils";
+
+/** A KPI card's click filter: single survey type (not the real array shape) plus any other single-value field. */
+type KpiFilterPatch = Partial<Omit<DashboardFilters, "surveyType">> & {
+  surveyType?: SurveyType;
+};
 
 type SparkKey = "teal" | "deepTeal" | "gold";
 
@@ -75,7 +82,7 @@ export function KpiCards({
     color: string;
     suffix?: string;
     decimals?: number;
-    filterPatch?: Partial<DashboardFilters>;
+    filterPatch?: KpiFilterPatch;
   }[] = [
     {
       key: "totalSubmissions",
@@ -165,9 +172,13 @@ export function KpiCards({
     );
   }
 
-  const pick = (patch?: Partial<DashboardFilters>) => {
+  const pick = (patch?: KpiFilterPatch) => {
     if (!patch || !filters || !onFilterChange) return;
-    onFilterChange(toggleDashboardFilters(filters, patch));
+    const { surveyType, ...rest } = patch;
+    let next = filters;
+    if (Object.keys(rest).length > 0) next = toggleDashboardFilters(next, rest);
+    if (surveyType) next = toggleDashboardSurveyType(next, surveyType);
+    onFilterChange(next);
   };
 
   return (
@@ -193,9 +204,12 @@ export function KpiCards({
             clickable &&
             filters &&
             kpi.filterPatch &&
-            Object.entries(kpi.filterPatch).every(
-              ([key, value]) =>
-                filters[key as keyof DashboardFilters] === value
+            Object.entries(kpi.filterPatch).every(([key, value]) =>
+              key === "surveyType"
+                ? filters.surveyType.length === 1 &&
+                  filters.surveyType[0] === value
+                : filters[key as keyof Omit<DashboardFilters, "surveyType">] ===
+                  value
             );
 
           return (

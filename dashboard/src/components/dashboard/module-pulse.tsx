@@ -6,7 +6,7 @@ import { ArrowRight, Home, MapPin, UserRound } from "lucide-react";
 import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { PROTOCOL } from "@/lib/data/protocol";
 import {
-  toggleDashboardFilters,
+  toggleDashboardSurveyType,
   type DashboardFilters,
   type DashboardMetrics,
 } from "@/lib/data/survey-metrics";
@@ -114,7 +114,9 @@ export function ModulePulse({
       <div className="grid gap-4 lg:grid-cols-3">
         {modules.map((mod, index) => {
           const Icon = mod.icon;
-          const active = filters.surveyType === mod.filterPatch.surveyType;
+          const active = filters.surveyType.includes(
+            mod.filterPatch.surveyType
+          );
 
           return (
             <motion.div
@@ -152,7 +154,10 @@ export function ModulePulse({
                   type="button"
                   onClick={() =>
                     onFilterChange(
-                      toggleDashboardFilters(filters, mod.filterPatch)
+                      toggleDashboardSurveyType(
+                        filters,
+                        mod.filterPatch.surveyType
+                      )
                     )
                   }
                   className={cn(

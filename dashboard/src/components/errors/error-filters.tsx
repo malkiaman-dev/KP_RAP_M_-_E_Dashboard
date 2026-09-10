@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { cn, toIsoDateString } from "@/lib/utils";
 import { FilterDateRange, FilterSelect } from "@/components/ui/filter-select";
-import { SurveyFilterSelect } from "@/components/ui/survey-filter-select";
+import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import type { ErrorFilters, ErrorMetrics } from "@/lib/data/error-metrics";
 import { defaultErrorFilters } from "@/lib/data/error-metrics";
 
@@ -39,27 +39,11 @@ export function ErrorFiltersPanel({
   const [expanded, setExpanded] = useCollapsedOnMobile();
 
   const fields = [
-    ...(!hideDistrict
-      ? [
-          {
-            key: "district" as const,
-            label: "District",
-            icon: MapPin,
-            options: [
-              { value: "all", label: "All" },
-              ...(filterOptions?.districts || []),
-            ],
-          },
-        ]
-      : []),
     {
       key: "survey" as const,
       label: "Survey",
       icon: ClipboardList,
-      options: [
-        { value: "all", label: "All" },
-        ...(filterOptions?.surveys || []),
-      ],
+      options: filterOptions?.surveys || [],
     },
     {
       key: "severity" as const,
@@ -128,6 +112,20 @@ export function ErrorFiltersPanel({
             className="overflow-visible"
           >
             <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {!hideDistrict && (
+                <div>
+                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <MapPin className="h-3 w-3" aria-hidden="true" />
+                    District
+                  </label>
+                  <MultiSelectFilter
+                    values={filters.district}
+                    options={filterOptions?.districts || []}
+                    onChange={(values) => onChange({ ...filters, district: values })}
+                    aria-label="District"
+                  />
+                </div>
+              )}
               {fields.map((field) => {
                 const Icon = field.icon;
                 return (
@@ -137,13 +135,13 @@ export function ErrorFiltersPanel({
                       {field.label}
                     </label>
                     {field.key === "survey" ? (
-                      <SurveyFilterSelect
-                        value={filters.survey}
+                      <MultiSelectFilter
+                        values={filters.survey}
                         options={field.options}
-                        householdValue="Household"
-                        girlsValue="Girls"
-                        onChange={(value) =>
-                          onChange({ ...filters, survey: value })
+                        mode="guarded"
+                        allLabel="All"
+                        onChange={(values) =>
+                          onChange({ ...filters, survey: values })
                         }
                         aria-label={field.label}
                       />

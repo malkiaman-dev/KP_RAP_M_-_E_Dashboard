@@ -83,7 +83,8 @@ export function districtTrackingTarget(district: string): {
 
 /** Resolve success / assignment targets for the active district + cohort filters. */
 export function resolveTrackingTargets(options?: {
-  district?: string;
+  /** Selected districts. Empty (or omitted) means "all districts". */
+  district?: string[];
   cohort?: "all" | "baseline" | "new-sample";
 }): {
   assignmentPool: number;
@@ -94,12 +95,18 @@ export function resolveTrackingTargets(options?: {
   newSampleSuccessTarget: number;
 } {
   const cohort = options?.cohort ?? "all";
-  const district = options?.district && options.district !== "all"
-    ? districtTrackingTarget(options.district)
-    : null;
+  const districtEntries = (options?.district ?? [])
+    .map((d) => districtTrackingTarget(d))
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 
-  const baselineSuccess = district?.baseline ?? PROTOCOL.BASELINE_SUCCESS_TARGET;
-  const endlineSuccess = district?.endline ?? PROTOCOL.ENDLINE_SUCCESS_TARGET;
+  const baselineSuccess =
+    districtEntries.length > 0
+      ? districtEntries.reduce((sum, d) => sum + d.baseline, 0)
+      : PROTOCOL.BASELINE_SUCCESS_TARGET;
+  const endlineSuccess =
+    districtEntries.length > 0
+      ? districtEntries.reduce((sum, d) => sum + d.endline, 0)
+      : PROTOCOL.ENDLINE_SUCCESS_TARGET;
   const baselineAssignment = baselineSuccess;
   const newSampleAssignment = endlineSuccess;
 

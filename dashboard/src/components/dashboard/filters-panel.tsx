@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { cn, formatDisplayDate } from "@/lib/utils";
 import { FilterDateRange, FilterSelect } from "@/components/ui/filter-select";
-import { SurveyFilterSelect } from "@/components/ui/survey-filter-select";
+import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import type {
   DashboardFilters,
   FilterOptions,
@@ -25,10 +25,16 @@ import { createDefaultDashboardFilters } from "@/lib/data/survey-metrics";
 
 export const defaultFilters: DashboardFilters = createDefaultDashboardFilters();
 
+const SURVEY_TYPE_OPTIONS = [
+  { value: "tracking", label: "Tracking" },
+  { value: "household", label: "Household" },
+  { value: "girls", label: "Girls" },
+];
+
 const presets: { id: string; label: string; filters: Partial<DashboardFilters> }[] = [
   // Explicitly clear dates so "All Data" is not stuck on the field-period start.
   { id: "all", label: "All Data", filters: { dateFrom: "", dateTo: "" } },
-  { id: "tracking", label: "Tracking Only", filters: { surveyType: "tracking" } },
+  { id: "tracking", label: "Tracking Only", filters: { surveyType: ["tracking"] } },
   { id: "complete", label: "Completed", filters: { status: "complete" } },
   { id: "revisits", label: "Revisits", filters: { status: "revisit" } },
 ];
@@ -66,11 +72,6 @@ export function FiltersPanel({
     setActivePreset(presetId);
     onChange({ ...baseFilters(), ...preset.filters });
   };
-
-  const districtOptions = [
-    { value: "all", label: "All Districts" },
-    ...(filterOptions?.districts || []),
-  ];
 
   const enumeratorOptions = [
     { value: "all", label: "All Enumerators" },
@@ -139,29 +140,31 @@ export function FiltersPanel({
             transition={{ duration: 0.2 }}
           >
             <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              <LabeledFilterSelect
-                label="District"
-                icon={MapPin}
-                value={filters.district}
-                options={districtOptions}
-                onChange={(v) => update({ district: v })}
-              />
+              <div>
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <MapPin className="h-3 w-3" aria-hidden="true" />
+                  District
+                </label>
+                <MultiSelectFilter
+                  values={filters.district}
+                  options={filterOptions?.districts || []}
+                  onChange={(values) => update({ district: values })}
+                  aria-label="District"
+                />
+              </div>
               <div>
                 <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <ClipboardList className="h-3 w-3" aria-hidden="true" />
                   Survey Type
                 </label>
-                <SurveyFilterSelect
-                  value={filters.surveyType}
-                  options={[
-                    { value: "all", label: "All Surveys" },
-                    { value: "tracking", label: "Tracking" },
-                    { value: "household", label: "Household" },
-                    { value: "girls", label: "Girls" },
-                  ]}
-                  householdValue="household"
-                  girlsValue="girls"
-                  onChange={(v) => update({ surveyType: v })}
+                <MultiSelectFilter
+                  values={filters.surveyType}
+                  options={SURVEY_TYPE_OPTIONS}
+                  mode="guarded"
+                  allLabel="All Surveys"
+                  onChange={(values) =>
+                    update({ surveyType: values as DashboardFilters["surveyType"] })
+                  }
                   aria-label="Survey Type"
                 />
               </div>

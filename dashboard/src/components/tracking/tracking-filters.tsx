@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn, toIsoDateString } from "@/lib/utils";
 import { FilterDateRange, FilterSelect } from "@/components/ui/filter-select";
+import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import type {
   TrackingFilters,
   TrackingMetrics,
@@ -41,15 +42,6 @@ export function TrackingFiltersPanel({
   const [expanded, setExpanded] = useCollapsedOnMobile();
 
   const fields = [
-    {
-      key: "district" as const,
-      label: "District",
-      icon: MapPin,
-      options: [
-        { value: "all", label: "All" },
-        ...(filterOptions?.districts || []),
-      ],
-    },
     {
       key: "trackingGroup" as const,
       label: "Tracking Group",
@@ -128,6 +120,18 @@ export function TrackingFiltersPanel({
             className="overflow-visible"
           >
             <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              <div>
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <MapPin className="h-3 w-3" aria-hidden="true" />
+                  District
+                </label>
+                <MultiSelectFilter
+                  values={filters.district}
+                  options={filterOptions?.districts || []}
+                  onChange={(values) => onChange({ ...filters, district: values })}
+                  aria-label="District"
+                />
+              </div>
               {fields.map((field) => {
                 const Icon = field.icon;
                 return (

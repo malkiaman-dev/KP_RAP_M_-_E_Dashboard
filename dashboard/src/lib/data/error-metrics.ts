@@ -5,7 +5,6 @@ import {
   matchesEnumeratorFilter,
 } from "./enumerator-identity";
 import { parseFlexibleDate } from "../utils";
-import { HH_GIRLS_COMBINED } from "./survey-filter-shared";
 
 export type ErrorSeverity = "CRITICAL" | "FLAG";
 
@@ -31,8 +30,10 @@ export interface ErrorRow {
 }
 
 export interface ErrorFilters {
-  district: string;
-  survey: string;
+  /** Selected district values. Empty array means "all districts". */
+  district: string[];
+  /** Selected surveys. Every value selected (the default) means "all". */
+  survey: string[];
   severity: string;
   enumerator: string;
   ruleId: string;
@@ -44,9 +45,12 @@ export interface ErrorFilters {
   todayOnly: boolean;
 }
 
+/** Surveys shown on the Error Report (enumerator-attributable field checks). */
+export const ERROR_REPORT_SURVEYS = ["Tracking", "Household", "Girls"] as const;
+
 export const defaultErrorFilters: ErrorFilters = {
-  district: "all",
-  survey: "all",
+  district: [],
+  survey: [...ERROR_REPORT_SURVEYS],
   severity: "all",
   enumerator: "all",
   ruleId: "all",
@@ -55,9 +59,6 @@ export const defaultErrorFilters: ErrorFilters = {
   dateTo: "",
   todayOnly: false,
 };
-
-/** Surveys shown on the Error Report (enumerator-attributable field checks). */
-export const ERROR_REPORT_SURVEYS = ["Tracking", "Household", "Girls"] as const;
 
 /**
  * Rules handled elsewhere (revisits) or intentionally not treated as DQA
@@ -128,13 +129,36 @@ export function excludeCrossSurveyChecks(rows: ErrorRow[]): ErrorRow[] {
   return rows.filter((r) => !isCrossSurvey(r));
 }
 
+/**
+ * Toggle a single district within the multi-select district filter -- narrows
+ * to just that district, or restores "all districts" (empty array) if it's
+ * already the only one selected. Chart tiles/bars call this instead of
+ * toggleErrorFilters (which skips district, since it's an array).
+ */
+export function toggleErrorDistrict(
+  filters: ErrorFilters,
+  district: string
+): ErrorFilters {
+  const isOnlySelected =
+    filters.district.length === 1 && filters.district[0] === district;
+  return {
+    ...filters,
+    district: isOnlySelected ? [] : [district],
+  };
+}
+
 /** Toggle filter values from chart clicks - click again to clear. */
 export function toggleErrorFilters(
   current: ErrorFilters,
   patch: Partial<ErrorFilters>
 ): ErrorFilters {
   const next = { ...current };
-  const keys = Object.keys(patch) as (keyof ErrorFilters)[];
+  // survey and district are multi-select (string[]) -- handled separately by
+  // pickSurvey / toggleErrorDistrict in error-charts.tsx, not by this
+  // single-value toggle.
+  const keys = (Object.keys(patch) as (keyof ErrorFilters)[]).filter(
+    (key) => key !== "survey" && key !== "district"
+  );
   for (const key of keys) {
     if (key === "dateFrom" || key === "dateTo" || key === "todayOnly") continue;
     const value = patch[key];
@@ -170,13 +194,9 @@ export function applyErrorFilters(
   const dateTo = filters.todayOnly ? todayIsoLocal() : filters.dateTo;
 
   return rows.filter((r) => {
-    if (filters.district !== "all" && r.district !== filters.district)
+    if (filters.district.length > 0 && !filters.district.includes(r.district))
       return false;
-    if (filters.survey === HH_GIRLS_COMBINED) {
-      if (r.survey !== "Household" && r.survey !== "Girls") return false;
-    } else if (filters.survey !== "all" && r.survey !== filters.survey) {
-      return false;
-    }
+    if (!filters.survey.includes(r.survey)) return false;
     if (filters.severity !== "all" && r.severity !== filters.severity)
       return false;
     if (filters.ruleId !== "all" && r.ruleId !== filters.ruleId) return false;

@@ -49,7 +49,7 @@ export function ErrorReportCard({
 
   const baseRows = useMemo(() => {
     if (!allErrors) return [];
-    return applyErrorFilters(allErrors, { ...filters, district: "all" });
+    return applyErrorFilters(allErrors, { ...filters, district: [] });
   }, [allErrors, filters]);
 
   const dateRangeLabel = useMemo(

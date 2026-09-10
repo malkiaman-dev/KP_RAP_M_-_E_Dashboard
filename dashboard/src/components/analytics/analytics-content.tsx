@@ -19,6 +19,7 @@ import {
   applyFilters,
   computeMetrics,
   createDefaultDashboardFilters,
+  DASHBOARD_SURVEY_TYPES,
   dashboardFiltersEqual,
   type DashboardFilters,
 } from "@/lib/data/survey-metrics";
@@ -126,7 +127,7 @@ export function AnalyticsContent() {
     if (!dashboardQuery.data?.allSubmissions) return undefined;
     const protocolFilters = {
       ...deferredFilters,
-      surveyType: "all",
+      surveyType: [...DASHBOARD_SURVEY_TYPES],
       status: "all",
     };
     if (dashboardFiltersEqual(protocolFilters, FIELD_PERIOD_DASHBOARD)) {
@@ -200,13 +201,7 @@ export function AnalyticsContent() {
     (dashboardQuery.isLoading && !dashboard) ||
     (trackingQuery.isLoading && !tracking) ||
     (hhQuery.isLoading && !hhGirls);
-  const filtering =
-    filters.district !== deferredFilters.district ||
-    filters.surveyType !== deferredFilters.surveyType ||
-    filters.enumerator !== deferredFilters.enumerator ||
-    filters.status !== deferredFilters.status ||
-    filters.dateFrom !== deferredFilters.dateFrom ||
-    filters.dateTo !== deferredFilters.dateTo;
+  const filtering = !dashboardFiltersEqual(filters, deferredFilters);
 
   if (isError) {
     return (

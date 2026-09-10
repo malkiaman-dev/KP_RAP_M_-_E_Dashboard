@@ -49,7 +49,7 @@ export function TrackingStatusReportCard({
 
   const baseRows = useMemo(() => {
     if (!allSubmissions) return [];
-    return applyTrackingFilters(allSubmissions, { ...filters, district: "all" });
+    return applyTrackingFilters(allSubmissions, { ...filters, district: [] });
   }, [allSubmissions, filters]);
 
   const dateRangeLabel = useMemo(

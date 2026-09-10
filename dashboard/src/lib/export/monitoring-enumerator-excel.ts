@@ -24,11 +24,12 @@ export function buildEnumeratorReportFilename(
   districtOptions?: { value: string; label: string }[]
 ): string {
   const district =
-    filters.district === "all"
+    filters.district.length === 0
       ? "All_Districts"
       : sanitizeFilenamePart(
-          districtOptions?.find((d) => d.value === filters.district)?.label ||
-            filters.district
+          filters.district
+            .map((d) => districtOptions?.find((o) => o.value === d)?.label || d)
+            .join("_")
         );
 
   const fmt = (iso: string) => formatDisplayDate(iso) || iso;

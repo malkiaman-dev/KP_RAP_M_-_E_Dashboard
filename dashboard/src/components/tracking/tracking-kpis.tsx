@@ -134,12 +134,12 @@ const kpiConfig: {
 export function TrackingKpis({
   metrics,
   loading,
-  districtFilter = "all",
+  districtFilter = [],
   cohortFilter = "all",
 }: {
   metrics?: TrackingMetrics;
   loading?: boolean;
-  districtFilter?: string;
+  districtFilter?: string[];
   cohortFilter?: "all" | TrackingCohort;
 }) {
   const { data: gaps } = useQuery({

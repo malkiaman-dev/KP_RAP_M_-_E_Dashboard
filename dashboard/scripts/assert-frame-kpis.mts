@@ -77,7 +77,7 @@ add(
   JSON.stringify(m.trackedByDistrict.find((d) => d.district === "4"))
 );
 
-const dikhan = overlayMetricsWithAssignmentFrame(raw, gaps, { district: "1" });
+const dikhan = overlayMetricsWithAssignmentFrame(raw, gaps, { district: ["1"] });
 add(
   "dikhan pool",
   dikhan.assignmentPool === 2170,

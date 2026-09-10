@@ -17,6 +17,8 @@ import {
   type TooltipContentProps,
 } from "recharts";
 import {
+  ERROR_REPORT_SURVEYS,
+  toggleErrorDistrict,
   toggleErrorFilters,
   type ErrorFilters,
   type ErrorMetrics,
@@ -120,6 +122,36 @@ export function ErrorCharts({
     onFilterChange(toggleErrorFilters(filters, next));
   };
 
+  /** survey is multi-select (guarded, all selected by default) -- clicking a
+   *  bar narrows to just that survey; clicking the same one again restores
+   *  the full set. Any other keys in `extra` (e.g. severity) still toggle
+   *  through the normal single-value logic. */
+  const pickSurvey = (survey: string, extra: Partial<ErrorFilters> = {}) => {
+    const isOnlySelected =
+      filters.survey.length === 1 && filters.survey[0] === survey;
+    const rest = { ...extra };
+    if (lockDistrict) delete rest.district;
+    const withRest = toggleErrorFilters(filters, rest);
+    onFilterChange({
+      ...withRest,
+      survey: isOnlySelected ? [...ERROR_REPORT_SURVEYS] : [survey],
+    });
+  };
+
+  /** district is multi-select (clearable) -- clicking a bar narrows to just
+   *  that district; clicking the same one again restores "all districts".
+   *  Any other keys in `extra` (e.g. severity) still toggle through the
+   *  normal single-value logic. Field accounts (lockDistrict) ignore the
+   *  district toggle entirely. */
+  const pickDistrict = (district: string, extra: Partial<ErrorFilters> = {}) => {
+    const rest = { ...extra };
+    if (lockDistrict) delete rest.district;
+    const withRest = toggleErrorFilters(filters, rest);
+    onFilterChange(
+      lockDistrict ? withRest : toggleErrorDistrict(withRest, district)
+    );
+  };
+
   const pickDate = (date: string) => {
     const already =
       !filters.todayOnly &&
@@ -134,10 +166,9 @@ export function ErrorCharts({
   };
 
   const districtActive = (district: string) =>
-    filters.district === "all" || filters.district === district;
+    filters.district.length === 0 || filters.district.includes(district);
 
-  const surveyActive = (survey: string) =>
-    filters.survey === "all" || filters.survey === survey;
+  const surveyActive = (survey: string) => filters.survey.includes(survey);
 
   const ruleActive = (ruleId: string) =>
     filters.ruleId === "all" || filters.ruleId === ruleId;
@@ -300,7 +331,7 @@ export function ErrorCharts({
               onClick={(data) => {
                 const row = barPayload(data);
                 if (!row?.district) return;
-                pick({ district: row.district, severity: "CRITICAL" });
+                pickDistrict(row.district, { severity: "CRITICAL" });
               }}
             >
               {metrics.byDistrict.map((entry) => (
@@ -320,7 +351,7 @@ export function ErrorCharts({
               onClick={(data) => {
                 const row = barPayload(data);
                 if (!row?.district) return;
-                pick({ district: row.district, severity: "FLAG" });
+                pickDistrict(row.district, { severity: "FLAG" });
               }}
             >
               {metrics.byDistrict.map((entry) => (
@@ -449,7 +480,7 @@ export function ErrorCharts({
               onClick={(data) => {
                 const row = barPayload(data);
                 if (!row?.survey) return;
-                pick({ survey: row.survey, severity: "CRITICAL" });
+                pickSurvey(row.survey, { severity: "CRITICAL" });
               }}
             >
               {metrics.bySurvey.map((entry) => (
@@ -469,7 +500,7 @@ export function ErrorCharts({
               onClick={(data) => {
                 const row = barPayload(data);
                 if (!row?.survey) return;
-                pick({ survey: row.survey, severity: "FLAG" });
+                pickSurvey(row.survey, { severity: "FLAG" });
               }}
             >
               {metrics.bySurvey.map((entry) => (

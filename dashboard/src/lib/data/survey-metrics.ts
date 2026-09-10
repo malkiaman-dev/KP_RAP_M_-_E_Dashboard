@@ -17,9 +17,13 @@ import {
   enumeratorIdentityKey,
   matchesEnumeratorFilter,
 } from "./enumerator-identity";
-import { HH_GIRLS_COMBINED } from "./survey-filter-shared";
-
 export type SurveyType = "tracking" | "household" | "girls";
+
+export const DASHBOARD_SURVEY_TYPES: SurveyType[] = [
+  "tracking",
+  "household",
+  "girls",
+];
 
 export interface SurveyRow {
   KEY: string;
@@ -51,8 +55,10 @@ export interface FilterOptions {
 }
 
 export interface DashboardFilters {
-  district: string;
-  surveyType: string;
+  /** Selected district values. Empty array means "all districts". */
+  district: string[];
+  /** Selected survey types. Every value selected (the default) means "all". */
+  surveyType: SurveyType[];
   enumerator: string;
   status: string;
   dateFrom: string;
@@ -60,8 +66,8 @@ export interface DashboardFilters {
 }
 
 export const defaultDashboardFilters: DashboardFilters = {
-  district: "all",
-  surveyType: "all",
+  district: [],
+  surveyType: [...DASHBOARD_SURVEY_TYPES],
   enumerator: "all",
   status: "all",
   dateFrom: "",
@@ -74,18 +80,63 @@ export function createDefaultDashboardFilters(
   return { ...defaultDashboardFilters, dateFrom };
 }
 
+function sameValues(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const bSet = new Set(b);
+  return a.every((v) => bSet.has(v));
+}
+
 export function dashboardFiltersEqual(
   a: DashboardFilters,
   b: DashboardFilters
 ): boolean {
+  if (!sameValues(a.district, b.district)) return false;
+  if (a.surveyType.length !== b.surveyType.length) return false;
+  const bTypes = new Set(b.surveyType);
+  if (!a.surveyType.every((t) => bTypes.has(t))) return false;
+
   return (
-    a.district === b.district &&
-    a.surveyType === b.surveyType &&
     a.enumerator === b.enumerator &&
     a.status === b.status &&
     a.dateFrom === b.dateFrom &&
     a.dateTo === b.dateTo
   );
+}
+
+/**
+ * Toggle a single survey type within the multi-select surveyType filter --
+ * narrows to just that type, or restores the full set if it's already the
+ * only one selected. Chart tiles/bars call this instead of
+ * toggleDashboardFilters (which skips surveyType, since it's an array).
+ */
+export function toggleDashboardSurveyType(
+  filters: DashboardFilters,
+  type: SurveyType
+): DashboardFilters {
+  const isOnlySelected =
+    filters.surveyType.length === 1 && filters.surveyType[0] === type;
+  return {
+    ...filters,
+    surveyType: isOnlySelected ? [...DASHBOARD_SURVEY_TYPES] : [type],
+  };
+}
+
+/**
+ * Toggle a single district within the multi-select district filter -- narrows
+ * to just that district, or restores "all districts" (empty array) if it's
+ * already the only one selected. Chart tiles/bars call this instead of
+ * toggleDashboardFilters (which skips district, since it's an array).
+ */
+export function toggleDashboardDistrict(
+  filters: DashboardFilters,
+  district: string
+): DashboardFilters {
+  const isOnlySelected =
+    filters.district.length === 1 && filters.district[0] === district;
+  return {
+    ...filters,
+    district: isOnlySelected ? [] : [district],
+  };
 }
 
 /** Toggle filter values from chart clicks - click again to clear. */
@@ -94,15 +145,22 @@ export function toggleDashboardFilters(
   patch: Partial<DashboardFilters>
 ): DashboardFilters {
   const next = { ...current };
-  for (const [key, value] of Object.entries(patch) as [
-    keyof DashboardFilters,
-    string | undefined,
-  ][]) {
+  // surveyType and district are multi-select (arrays) -- handled separately
+  // by toggleDashboardSurveyType / toggleDashboardDistrict in the chart
+  // components, not by this single-value toggle.
+  const keys = (Object.keys(patch) as (keyof DashboardFilters)[]).filter(
+    (key) => key !== "surveyType" && key !== "district"
+  );
+  for (const key of keys) {
+    const value = patch[key];
     if (value === undefined) continue;
+    if (typeof value !== "string") continue;
     const isDate = key === "dateFrom" || key === "dateTo";
     const empty = isDate ? "" : "all";
     if (!value || value === empty) continue;
-    next[key] = current[key] === value ? empty : value;
+    const currentValue = current[key];
+    if (typeof currentValue !== "string") continue;
+    next[key] = currentValue === value ? empty : value;
   }
   return next;
 }
@@ -172,17 +230,9 @@ export function applyFilters(
   filters: DashboardFilters
 ): SurveyRow[] {
   return rows.filter((r) => {
-    if (filters.district !== "all" && r.district !== filters.district)
+    if (filters.district.length > 0 && !filters.district.includes(r.district))
       return false;
-    if (filters.surveyType === HH_GIRLS_COMBINED) {
-      if (r.survey_type !== "household" && r.survey_type !== "girls")
-        return false;
-    } else if (
-      filters.surveyType !== "all" &&
-      r.survey_type !== filters.surveyType
-    ) {
-      return false;
-    }
+    if (!filters.surveyType.includes(r.survey_type)) return false;
     if (!matchesEnumeratorFilter(r, filters.enumerator)) return false;
     if (filters.status === "complete" && r.survey_status !== "1") return false;
     if (filters.status === "incomplete" && r.survey_status === "1")

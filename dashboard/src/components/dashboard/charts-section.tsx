@@ -36,9 +36,12 @@ import {
 } from "@/lib/chart-cross-filter";
 import { hexToRgba, paletteGradient } from "@/lib/brand";
 import {
-  toggleDashboardFilters,
+  DASHBOARD_SURVEY_TYPES,
+  toggleDashboardDistrict,
+  toggleDashboardSurveyType,
   type DashboardFilters,
   type DashboardMetrics,
+  type SurveyType,
 } from "@/lib/data/survey-metrics";
 import { formatDisplayDate } from "@/lib/utils";
 
@@ -52,7 +55,7 @@ interface ChartsSectionProps {
 const chartDateTickFormatter = (value: string) =>
   formatDisplayDate(value) || value;
 
-const SURVEY_TYPE_BY_NAME: Record<string, string> = {
+const SURVEY_TYPE_BY_NAME: Record<string, SurveyType> = {
   Tracking: "tracking",
   Household: "household",
   Girls: "girls",
@@ -83,8 +86,11 @@ export function ChartsSection({
     );
   }
 
-  const pick = (patch: Partial<DashboardFilters>) =>
-    onFilterChange(toggleDashboardFilters(filters, patch));
+  /** District bars that also narrow to one survey type (District Quality chart). */
+  const pickDistrictSurvey = (district: string, surveyType: SurveyType) => {
+    const withDistrict = toggleDashboardDistrict(filters, district);
+    onFilterChange(toggleDashboardSurveyType(withDistrict, surveyType));
+  };
 
   const pickDate = (iso: string) =>
     onFilterChange({
@@ -93,7 +99,7 @@ export function ChartsSection({
     });
 
   const districtActive = (district: string) =>
-    filters.district === "all" || filters.district === district;
+    filters.district.length === 0 || filters.district.includes(district);
 
   const volumeByDistrict = [...metrics.districtPerformance].sort(
     (a, b) => b.submissions - a.submissions
@@ -228,14 +234,17 @@ export function ChartsSection({
                     const surveyType = name
                       ? SURVEY_TYPE_BY_NAME[name]
                       : undefined;
-                    if (surveyType) pick({ surveyType });
+                    if (surveyType)
+                      onFilterChange(toggleDashboardSurveyType(filters, surveyType));
                   }}
                 >
                   {metrics.surveyDistribution.map((entry, index) => {
                     const surveyType = SURVEY_TYPE_BY_NAME[entry.name];
                     const selected =
-                      surveyType && filters.surveyType === surveyType;
-                    const dim = filters.surveyType !== "all" && !selected;
+                      surveyType && filters.surveyType.includes(surveyType);
+                    const dim =
+                      filters.surveyType.length < DASHBOARD_SURVEY_TYPES.length &&
+                      !selected;
                     return (
                       <Cell
                         key={entry.name}
@@ -277,7 +286,8 @@ export function ChartsSection({
                   type="button"
                   onClick={() => {
                     const surveyType = SURVEY_TYPE_BY_NAME[d.name];
-                    if (surveyType) pick({ surveyType });
+                    if (surveyType)
+                      onFilterChange(toggleDashboardSurveyType(filters, surveyType));
                   }}
                   className="flex items-center gap-2 rounded-lg px-2 py-1 text-xs transition-colors hover:bg-muted/60"
                 >
@@ -340,7 +350,7 @@ export function ChartsSection({
                 onClick={(data) => {
                   const row = barPayload(data);
                   if (!row?.district) return;
-                  pick({ district: row.district, surveyType: "tracking" });
+                  pickDistrictSurvey(row.district, "tracking");
                 }}
               >
                 {metrics.districtPerformance.map((d) => (
@@ -359,7 +369,7 @@ export function ChartsSection({
                 onClick={(data) => {
                   const row = barPayload(data);
                   if (!row?.district) return;
-                  pick({ district: row.district, surveyType: "household" });
+                  pickDistrictSurvey(row.district, "household");
                 }}
               >
                 {metrics.districtPerformance.map((d) => (
@@ -378,7 +388,7 @@ export function ChartsSection({
                 onClick={(data) => {
                   const row = barPayload(data);
                   if (!row?.district) return;
-                  pick({ district: row.district, surveyType: "girls" });
+                  pickDistrictSurvey(row.district, "girls");
                 }}
               >
                 {metrics.districtPerformance.map((d) => (
@@ -487,7 +497,7 @@ export function ChartsSection({
                 onClick={(data) => {
                   const row = barPayload(data);
                   if (!row?.district) return;
-                  pick({ district: row.district });
+                  onFilterChange(toggleDashboardDistrict(filters, row.district));
                 }}
               >
                 {volumeByDistrict.map((d) => (
@@ -511,7 +521,7 @@ export function ChartsSection({
               const intensity = Math.round(
                 (d.trackingRate + d.hhCompletion + d.girlsCompletion) / 3
               );
-              const selected = filters.district === d.district;
+              const selected = filters.district.includes(d.district);
               return (
                 <motion.button
                   key={d.district}
@@ -521,7 +531,7 @@ export function ChartsSection({
                   transition={{ delay: i * 0.08 }}
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => pick({ district: d.district })}
+                  onClick={() => onFilterChange(toggleDashboardDistrict(filters, d.district))}
                   className="cursor-pointer rounded-xl border p-4 text-left transition-shadow hover:shadow-md"
                   style={{
                     background: paletteGradient(palette, intensity),

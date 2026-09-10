@@ -55,7 +55,7 @@ export function HhGirlsProgressReportCard({
     }
     return applyHhGirlsMonitoringFilters(allHousehold, allGirls, {
       ...filters,
-      district: "all",
+      district: [],
     });
   }, [allHousehold, allGirls, filters]);
 

@@ -163,6 +163,7 @@ export default function HhGirlsSurveyPage() {
         filterOptions={data?.filterOptions}
         filters={filters}
         onChange={setFilters}
+        showTodayToggle
         resetFilters={() => createDefaultHhGirlsFilters(fieldDateFrom)}
       />
 
