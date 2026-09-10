@@ -420,7 +420,7 @@ export function overlayMetricsWithAssignmentFrame<
   } = {}
 ): T {
   const frame = assignmentFrameCounts(gaps, filters);
-  if (!frame) return metrics;
+  if (!frame || !gaps) return metrics;
 
   const remaining = remainingOf(frame);
   const successRate =
