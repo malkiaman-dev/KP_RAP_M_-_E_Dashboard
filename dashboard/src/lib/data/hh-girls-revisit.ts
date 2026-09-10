@@ -150,6 +150,38 @@ function revisitForLabel(slot: HhGirlsSurveySlot): string {
   return "Girl";
 }
 
+/** Reason a slot could not be completed, sourced from that submission's own answers. */
+function revisitReason(
+  row: HhGirlsRow,
+  slot: HhGirlsSurveySlot
+): { code: string; reason: string; other: string } {
+  if (slot === "father") {
+    const code = (row.father_unavailable1 || "").trim();
+    return {
+      code,
+      reason: parentUnavailableLabel(code),
+      other: (row.father_unavailable_other || "").trim(),
+    };
+  }
+  if (slot === "mother") {
+    const code = (row.mother_unavailable1 || "").trim();
+    return {
+      code,
+      reason: parentUnavailableLabel(code),
+      other: (row.mother_unavailable_other || "").trim(),
+    };
+  }
+  if (slot === "girls") {
+    const code = (row.girl_available_reason || "").trim();
+    return {
+      code,
+      reason: girlUnavailableLabel(code),
+      other: (row.girl_available_reason_other || "").trim(),
+    };
+  }
+  return { code: "", reason: "", other: "" };
+}
+
 function toRevisitExportRow(
   row: HhGirlsRow,
   slot: HhGirlsSurveySlot,
@@ -157,11 +189,16 @@ function toRevisitExportRow(
 ): HhGirlsExportRow {
   const base = toHhGirlsExportRow(row, category);
   const who = revisitForLabel(slot);
+  const { code, reason, other } = revisitReason(row, slot);
   return {
     ...base,
     surveyType: slotLabel(slot),
     revisitFor: who,
     category: category.startsWith(who) ? category : `${who} revisit · ${category}`,
+    unavailableCode: code,
+    unavailableReason: reason,
+    unavailableOther: other,
+    exportReason: other ? `${reason} — ${other}` : reason,
   };
 }
 
