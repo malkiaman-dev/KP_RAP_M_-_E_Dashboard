@@ -18,6 +18,10 @@ const SURVEY_FILES = [
 
 export type DqaStatus = "fresh" | "stale" | "regenerating" | "missing" | "unavailable";
 
+/** Survey modules the Python DQA pipeline can run independently. */
+export type DqaModule = "tracking" | "household" | "girls";
+export const ALL_DQA_MODULES: DqaModule[] = ["tracking", "household", "girls"];
+
 let inFlight: Promise<void> | null = null;
 let lastRunError: string | null = null;
 let lastRunAt = 0;
@@ -61,22 +65,32 @@ export function getDqaLastError(): string | null {
   return lastRunError;
 }
 
-async function runPythonDqa(): Promise<void> {
+/** Only pass --modules when it's a real subset; omit it to run everything (default script behavior). */
+function moduleArgs(modules?: DqaModule[]): string[] {
+  if (!modules || modules.length === 0 || modules.length >= ALL_DQA_MODULES.length) {
+    return [];
+  }
+  return ["--modules", modules.join(",")];
+}
+
+async function runPythonDqa(modules?: DqaModule[]): Promise<void> {
   const script = path.join(DQA_DIR, "run_dqa.py");
   if (!fs.existsSync(script)) {
     throw new Error("DQA_Script/run_dqa.py not found");
   }
 
+  const extraArgs = moduleArgs(modules);
+
   // Prefer `py -3` on Windows, then `python`, then `python3`
   const commands: Array<{ cmd: string; args: string[] }> = process.platform === "win32"
     ? [
-        { cmd: "py", args: ["-3", script] },
-        { cmd: "python", args: [script] },
-        { cmd: "python3", args: [script] },
+        { cmd: "py", args: ["-3", script, ...extraArgs] },
+        { cmd: "python", args: [script, ...extraArgs] },
+        { cmd: "python3", args: [script, ...extraArgs] },
       ]
     : [
-        { cmd: "python3", args: [script] },
-        { cmd: "python", args: [script] },
+        { cmd: "python3", args: [script, ...extraArgs] },
+        { cmd: "python", args: [script, ...extraArgs] },
       ];
 
   let lastError: unknown = null;
@@ -105,8 +119,12 @@ async function runPythonDqa(): Promise<void> {
 
 /**
  * Run DQA now and wait for completion. Used by publish and explicit refresh.
+ * `modules` limits the run to a subset (e.g. skip Tracking while it isn't
+ * being collected) — omit it (or pass all modules) to run everything.
  */
-export async function runDqaNow(): Promise<{ ok: boolean; message: string }> {
+export async function runDqaNow(
+  modules?: DqaModule[]
+): Promise<{ ok: boolean; message: string }> {
   if (inFlight) {
     try {
       await inFlight;
@@ -121,13 +139,20 @@ export async function runDqaNow(): Promise<{ ok: boolean; message: string }> {
 
   inFlight = (async () => {
     lastRunError = null;
-    await runPythonDqa();
+    await runPythonDqa(modules);
     lastRunAt = Date.now();
   })();
 
   try {
     await inFlight;
-    return { ok: true, message: "Error report regenerated from latest survey files." };
+    const scope =
+      modules && modules.length > 0 && modules.length < ALL_DQA_MODULES.length
+        ? modules.join(" + ")
+        : "all surveys";
+    return {
+      ok: true,
+      message: `Error report regenerated from latest survey files (${scope}).`,
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "DQA regeneration failed";
     lastRunError = message;

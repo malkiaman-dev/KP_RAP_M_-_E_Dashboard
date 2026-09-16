@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 import pandas as pd
@@ -28,11 +29,12 @@ from checks import (
 
 # Active survey modules only: Tracking (baseline + new sample), Household, Girls.
 # Listing / School / Driver checks are intentionally excluded.
-SURVEYS = [
+ALL_SURVEYS = [
     ("tracking", tracking),
     ("household", household),
     ("girls", girls),
 ]
+MODULE_NAMES = [name for name, _ in ALL_SURVEYS]
 
 
 def _resolve_input_files(cfg: dict, name: str) -> list[str]:
@@ -108,7 +110,22 @@ def _write_outputs(error_log_raw: pd.DataFrame, dfs: dict[str, pd.DataFrame], ou
         print(f"Wrote outputs -> {out_dir}")
 
 
-def run_all(data_dirs: list[Path], config_dir: Path, out_dirs: list[Path]) -> None:
+def run_all(
+    data_dirs: list[Path],
+    config_dir: Path,
+    out_dirs: list[Path],
+    modules: list[str] | None = None,
+) -> None:
+    """Run DQA for the given survey modules (default: all active modules).
+
+    `modules` filters which single-survey checks run (e.g. only
+    ["household", "girls"] to skip Tracking when it isn't being collected).
+    Cross-survey checks still only run when both sides of the comparison
+    were included, so they are naturally skipped for a partial run.
+    """
+    selected = set(modules) if modules else set(MODULE_NAMES)
+    surveys = [(name, mod) for name, mod in ALL_SURVEYS if name in selected]
+
     issues_all: list[dict] = []
     dfs: dict[str, pd.DataFrame] = {}
     cfgs: dict[str, dict] = {}
@@ -116,7 +133,7 @@ def run_all(data_dirs: list[Path], config_dir: Path, out_dirs: list[Path]) -> No
     # -------------------------
     # 1) Single-survey checks
     # -------------------------
-    for name, mod in SURVEYS:
+    for name, mod in surveys:
         cfg_path = config_dir / f"{name}_columns.yaml"
         if not cfg_path.exists():
             print(f"[{name}] SKIP: missing config {cfg_path.name}")
@@ -193,6 +210,20 @@ def run_all(data_dirs: list[Path], config_dir: Path, out_dirs: list[Path]) -> No
     _write_outputs(error_log_raw, dfs, out_dirs)
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run KPRAP DQA checks")
+    parser.add_argument(
+        "--modules",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated survey modules to run: "
+            f"{', '.join(MODULE_NAMES)} (default: all)"
+        ),
+    )
+    return parser.parse_args()
+
+
 def main():
     root = Path(__file__).resolve().parent
     project_root = root.parent
@@ -209,7 +240,16 @@ def main():
         root / "outputs",
     ]
 
-    run_all(data_dirs, root / "config", out_dirs)
+    args = parse_args()
+    modules = None
+    if args.modules:
+        requested = {m.strip() for m in args.modules.split(",") if m.strip()}
+        unknown = requested - set(MODULE_NAMES)
+        if unknown:
+            raise SystemExit(f"Unknown module(s): {', '.join(sorted(unknown))}")
+        modules = [name for name in MODULE_NAMES if name in requested]
+
+    run_all(data_dirs, root / "config", out_dirs, modules=modules)
 
 
 if __name__ == "__main__":

@@ -29,6 +29,8 @@ const nextConfig: NextConfig = {
     "/api/hh-girls/exports": ["../Surveys/**/*"],
     "/api/metrics": ["../Surveys/**/*"],
     "/api/errors": ["../Error_log/**/*"],
+    "/api/surveys/upload": ["../Surveys/**/*"],
+    "/api/surveys/generate-errors": ["../Surveys/**/*", "../Error_log/**/*"],
     // Auth routes read these via fs at runtime — without an explicit include,
     // Vercel can keep serving a stale traced copy after credentials change.
     "/api/login": ["./data/credentials.json", "./data/permissions.json"],

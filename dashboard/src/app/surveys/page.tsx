@@ -110,6 +110,7 @@ export default function SurveysPage() {
           { href: "/", label: "Dashboard" },
           { href: "/analytics", label: "Analytics" },
           { href: "/monitoring", label: "Monitoring" },
+          { href: "/surveys/upload", label: "Upload Data" },
         ]}
         stats={[
           {

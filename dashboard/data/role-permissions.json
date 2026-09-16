@@ -5,6 +5,7 @@
       "/analytics",
       "/reports",
       "/surveys",
+      "/surveys/upload",
       "/tracking",
       "/surveys/hh-girls",
       "/surveys/errors",

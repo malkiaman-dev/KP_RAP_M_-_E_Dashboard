@@ -110,6 +110,7 @@ export default function ErrorReportPage() {
         description="Critical and quality issues across Tracking, Household, and Girls."
         loading={isLoading}
         links={[
+          { href: "/surveys/upload", label: "Upload Data" },
           { href: "/surveys", label: "All Surveys" },
           { href: "/monitoring", label: "Monitoring" },
           { href: "/analytics", label: "Analytics" },

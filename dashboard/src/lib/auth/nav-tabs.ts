@@ -15,6 +15,12 @@ export const NAV_TABS: NavTab[] = [
   },
   { href: "/reports", label: "Reports", section: "Overview", apis: ["/api/tracking", "/api/hh-girls", "/api/errors"] },
   { href: "/surveys", label: "All Surveys", section: "Surveys", apis: ["/api/metrics", "/api/errors"] },
+  {
+    href: "/surveys/upload",
+    label: "Upload Data",
+    section: "Surveys",
+    apis: ["/api/surveys/upload", "/api/surveys/generate-errors"],
+  },
   { href: "/tracking", label: "Tracking", section: "Surveys", apis: ["/api/tracking"] },
   {
     href: "/surveys/hh-girls",
