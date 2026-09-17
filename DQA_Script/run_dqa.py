@@ -18,6 +18,7 @@ from utils.stats import (
     enumerator_error_percentage_all_surveys,
 )
 from utils.context_enrich import enrich_issues_with_context
+from utils.duplicate_family import dedupe_duplicate_family_issues
 
 from checks import (
     tracking,
@@ -198,12 +199,20 @@ def run_all(
         issues_all.extend(out)
 
     # -------------------------
-    # 4) Attach girl / village / school context for Error Detail Log
+    # 4) Collapse the same case across duplicate-family rules to one category
+    # -------------------------
+    before_dedupe = len(issues_all)
+    issues_all = dedupe_duplicate_family_issues(issues_all)
+    if before_dedupe != len(issues_all):
+        print(f"[dedupe] duplicate-family issues: {before_dedupe} -> {len(issues_all)}")
+
+    # -------------------------
+    # 5) Attach girl / village / school context for Error Detail Log
     # -------------------------
     issues_all = enrich_issues_with_context(issues_all, dfs)
 
     # -------------------------
-    # 5) Write Excel outputs
+    # 6) Write Excel outputs
     # -------------------------
     print("TOTAL issues:", len(issues_all))
     error_log_raw = issues_to_df(issues_all)
