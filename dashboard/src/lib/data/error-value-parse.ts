@@ -25,7 +25,7 @@ export function stripContextFromValue(value?: string): string {
     .filter(Boolean)
     .filter((p) => {
       const key = p.split("=")[0]?.trim().toLowerCase();
-      return !["girl_name", "girlname", "village", "school"].includes(key || "");
+      return !["girl_name", "girlname", "village", "school", "respondent_type"].includes(key || "");
     });
   return parts.join("; ");
 }

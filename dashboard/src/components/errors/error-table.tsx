@@ -42,6 +42,7 @@ function contextFields(e: ErrorRow): {
   girlName: string;
   village: string;
   school: string;
+  respondentType: string;
   valueEntered: string;
 } {
   const parts = parseErrorValueParts(e.value);
@@ -49,6 +50,7 @@ function contextFields(e: ErrorRow): {
     girlName: e.girlName || parts.girl_name || parts.girlname || "",
     village: e.villageName || parts.village || "",
     school: e.schoolName || parts.school || "",
+    respondentType: parts.respondent_type || "",
     valueEntered: stripContextFromValue(e.value) || e.value || "",
   };
 }
@@ -264,6 +266,12 @@ export function ErrorTable({
                             label="School"
                             value={displayOrDash(ctx.school)}
                           />
+                          {ctx.respondentType ? (
+                            <Detail
+                              label="Respondent"
+                              value={displayOrDash(ctx.respondentType)}
+                            />
+                          ) : null}
                           <Detail
                             label="Value entered"
                             value={displayOrDash(ctx.valueEntered)}

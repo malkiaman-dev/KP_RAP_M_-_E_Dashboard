@@ -249,6 +249,11 @@ def _resp_code(x: Any) -> str:
     return _norm_str(x)
 
 
+def _respondent_label(code: str) -> str:
+    """Human-readable respondent type for the `respondent` code (1=Father, 2=Mother)."""
+    return {"1": "Father", "2": "Mother"}.get(code, "Unknown")
+
+
 def _col(col: dict, key: str, fallback: str | None = None) -> str | None:
     v = col.get(key)
     return v if v else fallback
@@ -1273,18 +1278,28 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                     for i in idxs:
                         if i == keep_i:
                             continue
+                        resp_code = (
+                            _resp_code(df.at[i, respondent_code_col])
+                            if respondent_code_col and respondent_code_col in df.columns
+                            else ""
+                        )
+                        resp_label = _respondent_label(resp_code) if resp_code else "Unknown"
+                        # respondent_type goes first: the value string gets clipped to
+                        # MAX_VALUE_LEN, and this field must survive that truncation.
+                        value_parts = [f"respondent_type={resp_label}"]
+                        value_parts += [f"{c}={_clip(df.at[i, c])}" for c in dup_key_cols]
                         add_issue(
                             i,
                             "CRITICAL",
                             "HH_CR_10",
-                            "Exact duplicate record",
+                            f"Exact duplicate record ({resp_label} survey)",
                             (
-                                "Duplicate household record detected for the same respondent "
+                                f"Duplicate household record detected for the same respondent ({resp_label}) "
                                 "(same identity and location fields, and same respondent code). "
                                 + retain_msg
                             ),
                             ", ".join(dup_key_cols),
-                            "; ".join([f"{c}={_clip(df.at[i, c])}" for c in dup_key_cols[:7]]),
+                            "; ".join(value_parts),
                         )
 
     # =========================================================
@@ -1320,6 +1335,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             if not mismatched:
                 continue
             retain_msg, keep_i = _retain_recommendation(idxs)
+            resp_label = _respondent_label(_resp_code(respv))
             for i in idxs:
                 if i == keep_i:
                     continue
@@ -1327,14 +1343,14 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                     i,
                     "CRITICAL",
                     "HH_CR_SAME_RESP_MISMATCH",
-                    "Same respondent duplicate with conflicting fields",
+                    f"Same respondent duplicate with conflicting fields ({resp_label} survey)",
                     (
-                        f"Girl ID {gidv} has multiple household submissions for the same respondent code ({respv}), "
+                        f"Girl ID {gidv} has multiple household submissions for the same respondent ({resp_label}), "
                         f"but key fields differ ({', '.join(mismatched)}). "
                         + retain_msg
                     ),
                     f"{gid_col},{respondent_code_col}",
-                    f"girl={gidv}; respondent={respv}; mismatched={','.join(mismatched)}",
+                    f"girl={gidv}; respondent_type={resp_label}; mismatched={','.join(mismatched)}",
                 )
 
     # =========================================================
