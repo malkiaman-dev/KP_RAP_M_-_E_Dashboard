@@ -1165,7 +1165,11 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 else "Inform the World Bank team with details after investigating."
             )
             cnt = len(idxs)
+            # Flag only the record(s) not being retained — one entry per duplicate
+            # group (not one per enumerator who submitted a copy).
             for i in idxs:
+                if i == best_i:
+                    continue
                 add_issue(
                     i,
                     "CRITICAL",
@@ -1217,8 +1221,10 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     # =========================================================
     # HH_CR_10: Exact duplicate records (identity + location), ONLY IF SAME RESPONDENT
     # =========================================================
-    def _retain_recommendation(idxs: list) -> str:
-        """Prefer latest SubmissionDate; fall back to latest starttime; include KEY."""
+    def _retain_recommendation(idxs: list) -> tuple[str, Any]:
+        """Prefer latest SubmissionDate; fall back to latest starttime; include KEY.
+        Returns (message, index_to_retain) — the retained index is excluded from
+        the emitted issues so a duplicate group surfaces under one enumerator only."""
         best_i = idxs[0]
         best_dt = None
         for i in idxs:
@@ -1233,8 +1239,14 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         keep_key = _norm_str(df.at[best_i, key]) if (key and key in df.columns) else ""
         keep_dt = best_dt.strftime("%Y-%m-%d %H:%M") if best_dt is not None else "(unknown)"
         if keep_key:
-            return f"Retain KEY={keep_key} (latest SubmissionDate/start={keep_dt}); void or correct other same-respondent duplicates after supervisor review."
-        return f"Retain the latest submission (by SubmissionDate/start={keep_dt}); void or correct other same-respondent duplicates after supervisor review."
+            return (
+                f"Retain KEY={keep_key} (latest SubmissionDate/start={keep_dt}); void or correct other same-respondent duplicates after supervisor review.",
+                best_i,
+            )
+        return (
+            f"Retain the latest submission (by SubmissionDate/start={keep_dt}); void or correct other same-respondent duplicates after supervisor review.",
+            best_i,
+        )
 
     sig_cols = [c for c in [district, gid_col, girl_name_label, father_name_label, address_label, landmark_label, village_label] if c and c in df.columns]
     dup_key_cols = list(sig_cols)
@@ -1257,8 +1269,10 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                     idxs = list(idxs)
                     if len(idxs) < 2:
                         continue
-                    retain_msg = _retain_recommendation(idxs)
+                    retain_msg, keep_i = _retain_recommendation(idxs)
                     for i in idxs:
+                        if i == keep_i:
+                            continue
                         add_issue(
                             i,
                             "CRITICAL",
@@ -1305,8 +1319,10 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                     mismatched.append(c)
             if not mismatched:
                 continue
-            retain_msg = _retain_recommendation(idxs)
+            retain_msg, keep_i = _retain_recommendation(idxs)
             for i in idxs:
+                if i == keep_i:
+                    continue
                 add_issue(
                     i,
                     "CRITICAL",

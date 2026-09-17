@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import warnings
 import inspect
+from typing import Any
 import pandas as pd
 from utils.logging import make_issue
 from checks.high_frequency import run_girls_high_frequency
@@ -239,8 +240,10 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 return (et - st).total_seconds() / 60.0
         return None
 
-    def retain_recommendation(idxs) -> str:
-        """Recommend the latest SubmissionDate (else starttime) KEY among a duplicate group."""
+    def retain_recommendation(idxs) -> tuple[str, Any]:
+        """Recommend the latest SubmissionDate (else starttime) KEY among a duplicate group.
+        Returns (message, index_to_retain) — the retained index is excluded from the
+        emitted issues so a duplicate group surfaces under one enumerator only."""
         idxs = list(idxs)
         best_i = idxs[0]
         best_dt = None
@@ -257,13 +260,19 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         keep_dt = best_dt.strftime("%Y-%m-%d %H:%M") if best_dt is not None and not pd.isna(best_dt) else "(unknown)"
         if keep_key is not None and not is_missing(keep_key):
             return (
-                "Inform the World Bank team with details after investigating. "
-                f"Recommend retain KEY={keep_key} (latest SubmissionDate/start={keep_dt}); "
-                "void or correct other duplicates after supervisor review."
+                (
+                    "Inform the World Bank team with details after investigating. "
+                    f"Recommend retain KEY={keep_key} (latest SubmissionDate/start={keep_dt}); "
+                    "void or correct other duplicates after supervisor review."
+                ),
+                best_i,
             )
         return (
-            "Inform the World Bank team with details after investigating. "
-            f"Retain the latest submission (by SubmissionDate/start={keep_dt})."
+            (
+                "Inform the World Bank team with details after investigating. "
+                f"Retain the latest submission (by SubmissionDate/start={keep_dt})."
+            ),
+            best_i,
         )
 
     # --------------------------
@@ -322,8 +331,10 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             tmp = df.loc[dup, [key]].copy()
             for _, subg in tmp.groupby(key, dropna=False):
                 idxs = list(subg.index)
-                retain_msg = retain_recommendation(idxs)
+                retain_msg, keep_i = retain_recommendation(idxs)
                 for i in idxs:
+                    if i == keep_i:
+                        continue
                     add_issue(
                         i,
                         "CRITICAL",
@@ -337,16 +348,23 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
 
     if inst and inst in df.columns:
         dup = df[inst].notna() & df.duplicated(subset=[inst], keep=False)
-        for i in df.index[dup]:
-            add_issue(
-                i,
-                "CRITICAL",
-                "GL_CE_DUP_INSTANCE",
-                "Duplicate instanceID",
-                "The same instanceID appears more than once. This is usually a duplicate submission or export issue.",
-                inst,
-                f"instanceID={clean_scalar(df.at[i, inst])}",
-            )
+        if dup.any():
+            tmp = df.loc[dup, [inst]].copy()
+            for _, subg in tmp.groupby(inst, dropna=False):
+                idxs = list(subg.index)
+                _, keep_i = retain_recommendation(idxs)
+                for i in idxs:
+                    if i == keep_i:
+                        continue
+                    add_issue(
+                        i,
+                        "CRITICAL",
+                        "GL_CE_DUP_INSTANCE",
+                        "Duplicate instanceID",
+                        "The same instanceID appears more than once. This is usually a duplicate submission or export issue.",
+                        inst,
+                        f"instanceID={clean_scalar(df.at[i, inst])}",
+                    )
 
     # --------------------------
     # 1) Missing linkage IDs (CRITICAL)
@@ -389,8 +407,10 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             tmp = df.loc[dup_mask, [village, girl]].copy()
             for (_, _), subg in tmp.groupby([village, girl], dropna=False):
                 idxs = list(subg.index)
-                retain_msg = retain_recommendation(idxs)
+                retain_msg, keep_i = retain_recommendation(idxs)
                 for i in idxs:
+                    if i == keep_i:
+                        continue
                     add_issue(
                         i,
                         "CRITICAL",
@@ -445,7 +465,9 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                     v = df.at[i, village]
                     g = df.at[i, girl]
                     group_idxs = df.index[(df[village] == v) & (df[girl] == g)].tolist()
-                    retain_msg = retain_recommendation(group_idxs) if group_idxs else ""
+                    retain_msg, keep_i = retain_recommendation(group_idxs) if group_idxs else ("", None)
+                    if i == keep_i:
+                        continue
                     add_issue(
                         i,
                         "CRITICAL",
@@ -487,7 +509,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                         vals.add(str(clean_scalar(v)).strip().lower())
                     if len(vals) > 1:
                         mismatched.append(c)
-                retain_msg = retain_recommendation(idxs)
+                retain_msg, keep_i = retain_recommendation(idxs)
                 code = "GL_CE_DUP_GIRL_MISMATCH" if mismatched else "GL_CE_DUP_GIRL_ID"
                 title = (
                     "Duplicate girl ID with conflicting fields"
@@ -501,6 +523,8 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                     + retain_msg
                 )
                 for i in idxs:
+                    if i == keep_i:
+                        continue
                     add_issue(
                         i,
                         "CRITICAL",
@@ -561,16 +585,23 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
 
     if len(dup_subset) >= 5:
         exact_dup = df.duplicated(subset=dup_subset, keep=False)
-        for i in df.index[exact_dup]:
-            add_issue(
-                i,
-                "CRITICAL",
-                "GL_CE_EXACT_DUP",
-                "Exact duplicate record",
-                "This record is an exact duplicate of another record (same values across almost all fields). Please remove or confirm why it exists.",
-                "multiple_columns",
-                "Exact duplicate detected",
-            )
+        if exact_dup.any():
+            tmp = df.loc[exact_dup, dup_subset].copy()
+            for _, subg in tmp.groupby(dup_subset, dropna=False):
+                idxs = list(subg.index)
+                _, keep_i = retain_recommendation(idxs)
+                for i in idxs:
+                    if i == keep_i:
+                        continue
+                    add_issue(
+                        i,
+                        "CRITICAL",
+                        "GL_CE_EXACT_DUP",
+                        "Exact duplicate record",
+                        "This record is an exact duplicate of another record (same values across almost all fields). Please remove or confirm why it exists.",
+                        "multiple_columns",
+                        "Exact duplicate detected",
+                    )
 
     # --------------------------
     # 4) Label completeness (FLAG)

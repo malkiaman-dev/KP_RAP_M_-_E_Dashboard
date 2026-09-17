@@ -55,6 +55,7 @@ from __future__ import annotations
 import re
 import warnings
 from difflib import SequenceMatcher
+from typing import Any
 import pandas as pd
 from utils.logging import add_issue
 from checks.protocol_extras import run_tracking_protocol
@@ -792,52 +793,81 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
 
     # =========================================================
     # DUPLICATE SUBMISSIONS (INSTANCEID / KEY)
+    # Flag only the non-retained record(s) in each duplicate group, so a
+    # duplicate surfaces under one enumerator, not every enumerator involved.
     # =========================================================
+    def _pick_latest(idxs: list) -> Any:
+        best_i, best_dt = idxs[0], None
+        for i in idxs:
+            dt = None
+            if sub in df.columns:
+                dt = _parse_dt(pd.Series([df.at[i, sub]], index=[i])).iloc[0]
+            if (dt is None or pd.isna(dt)) and start_col in df.columns:
+                dt = _parse_dt(pd.Series([df.at[i, start_col]], index=[i])).iloc[0]
+            if dt is not None and not pd.isna(dt) and (best_dt is None or dt > best_dt):
+                best_dt = dt
+                best_i = i
+        return best_i
+
     if inst in df.columns:
         dup = df[inst].map(_norm)
         dup_mask = dup.ne("") & dup.duplicated(keep=False)
-        for i in df.index[dup_mask.fillna(False)]:
-            m = meta(i)
-            add_issue(
-                issues,
-                survey="Tracking",
-                severity="CRITICAL",
-                rule_id="TRK_CE_DUP_INSTANCE",
-                title="Duplicate submission (instanceID)",
-                cause="Same instanceID appears more than once (duplicate export or re-submission).",
-                field=inst,
-                value=_norm(df.at[i, inst]),
-                record_key=m["record_key"],
-                instance_id=m["instance_id"],
-                enumerator=m["enumerator"],
-                enumerator_id=m["enumerator_id"],
-                deviceid=m["deviceid"],
-                submission_date=m["submission_date"],
-                district=m["district"],
-            )
+        if dup_mask.any():
+            tmp = pd.DataFrame({"v": dup, "_i": df.index})
+            for _, subg in tmp.loc[dup_mask.fillna(False)].groupby("v"):
+                idxs = list(subg["_i"])
+                keep_i = _pick_latest(idxs)
+                for i in idxs:
+                    if i == keep_i:
+                        continue
+                    m = meta(i)
+                    add_issue(
+                        issues,
+                        survey="Tracking",
+                        severity="CRITICAL",
+                        rule_id="TRK_CE_DUP_INSTANCE",
+                        title="Duplicate submission (instanceID)",
+                        cause="Same instanceID appears more than once (duplicate export or re-submission).",
+                        field=inst,
+                        value=_norm(df.at[i, inst]),
+                        record_key=m["record_key"],
+                        instance_id=m["instance_id"],
+                        enumerator=m["enumerator"],
+                        enumerator_id=m["enumerator_id"],
+                        deviceid=m["deviceid"],
+                        submission_date=m["submission_date"],
+                        district=m["district"],
+                    )
 
     if key in df.columns:
         rk = df[key].map(_norm)
         rk_mask = rk.ne("") & rk.duplicated(keep=False)
-        for i in df.index[rk_mask.fillna(False)]:
-            m = meta(i)
-            add_issue(
-                issues,
-                survey="Tracking",
-                severity="FLAG",
-                rule_id="TRK_QF_DUP_RECORD_KEY",
-                title="Duplicate record key",
-                cause="Same record key appears more than once.",
-                field=key,
-                value=_norm(df.at[i, key]),
-                record_key=m["record_key"],
-                instance_id=m["instance_id"],
-                enumerator=m["enumerator"],
-                enumerator_id=m["enumerator_id"],
-                deviceid=m["deviceid"],
-                submission_date=m["submission_date"],
-                district=m["district"],
-            )
+        if rk_mask.any():
+            tmp = pd.DataFrame({"v": rk, "_i": df.index})
+            for _, subg in tmp.loc[rk_mask.fillna(False)].groupby("v"):
+                idxs = list(subg["_i"])
+                keep_i = _pick_latest(idxs)
+                for i in idxs:
+                    if i == keep_i:
+                        continue
+                    m = meta(i)
+                    add_issue(
+                        issues,
+                        survey="Tracking",
+                        severity="FLAG",
+                        rule_id="TRK_QF_DUP_RECORD_KEY",
+                        title="Duplicate record key",
+                        cause="Same record key appears more than once.",
+                        field=key,
+                        value=_norm(df.at[i, key]),
+                        record_key=m["record_key"],
+                        instance_id=m["instance_id"],
+                        enumerator=m["enumerator"],
+                        enumerator_id=m["enumerator_id"],
+                        deviceid=m["deviceid"],
+                        submission_date=m["submission_date"],
+                        district=m["district"],
+                    )
 
     # =========================================================
     # BLOCK LEVEL CHECKS
