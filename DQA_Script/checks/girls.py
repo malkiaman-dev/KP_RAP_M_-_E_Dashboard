@@ -231,8 +231,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         if duration_col and duration_col in df.columns:
             raw = to_num(pd.Series([df.at[i, duration_col]])).iloc[0]
             if pd.notna(raw) and float(raw) >= 0:
-                r = float(raw)
-                return r / 60.0 if r > 500 else r
+                return float(raw) / 60.0
         if starttime and endtime and starttime in df.columns and endtime in df.columns:
             st = safe_to_datetime(pd.Series([df.at[i, starttime]], index=[i])).iloc[0]
             et = safe_to_datetime(pd.Series([df.at[i, endtime]], index=[i])).iloc[0]

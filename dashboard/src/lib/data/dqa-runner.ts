@@ -26,6 +26,53 @@ let inFlight: Promise<void> | null = null;
 let lastRunError: string | null = null;
 let lastRunAt = 0;
 
+/** Candidate interpreter, resolved lazily and cached for the life of this server instance. */
+let pythonCommand: { cmd: string; args: string[] } | null | undefined = undefined;
+
+/** Interpreters to try, in order, for the current platform. */
+function pythonCandidates(): Array<{ cmd: string; args: string[] }> {
+  return process.platform === "win32"
+    ? [
+        { cmd: "py", args: ["-3"] },
+        { cmd: "python", args: [] },
+        { cmd: "python3", args: [] },
+      ]
+    : [
+        { cmd: "python3", args: [] },
+        { cmd: "python", args: [] },
+      ];
+}
+
+/**
+ * Finds a working Python interpreter by probing `--version`, caching the
+ * result (including "none found") so repeated status checks don't re-spawn.
+ * Returns null when no interpreter is available on this server (e.g. a
+ * Vercel serverless function, which ships no Python runtime).
+ */
+async function resolvePythonCommand(): Promise<{ cmd: string; args: string[] } | null> {
+  if (pythonCommand !== undefined) return pythonCommand;
+
+  for (const candidate of pythonCandidates()) {
+    try {
+      await execFileAsync(candidate.cmd, [...candidate.args, "--version"], {
+        windowsHide: true,
+        timeout: 5000,
+      });
+      pythonCommand = candidate;
+      return pythonCommand;
+    } catch {
+      // try next candidate
+    }
+  }
+
+  pythonCommand = null;
+  return null;
+}
+
+export async function isPythonAvailable(): Promise<boolean> {
+  return (await resolvePythonCommand()) !== null;
+}
+
 function fileMtimeMs(filePath: string): number {
   try {
     return fs.statSync(filePath).mtimeMs;
@@ -81,40 +128,22 @@ async function runPythonDqa(modules?: DqaModule[]): Promise<void> {
 
   const extraArgs = moduleArgs(modules);
 
-  // Prefer `py -3` on Windows, then `python`, then `python3`
-  const commands: Array<{ cmd: string; args: string[] }> = process.platform === "win32"
-    ? [
-        { cmd: "py", args: ["-3", script, ...extraArgs] },
-        { cmd: "python", args: [script, ...extraArgs] },
-        { cmd: "python3", args: [script, ...extraArgs] },
-      ]
-    : [
-        { cmd: "python3", args: [script, ...extraArgs] },
-        { cmd: "python", args: [script, ...extraArgs] },
-      ];
-
-  let lastError: unknown = null;
-  for (const { cmd, args } of commands) {
-    try {
-      await execFileAsync(cmd, args, {
-        cwd: DQA_DIR,
-        windowsHide: true,
-        maxBuffer: 20 * 1024 * 1024,
-        timeout: 20 * 60 * 1000, // DQA can take several minutes on full exports
-      });
-      return;
-    } catch (err) {
-      lastError = err;
-      const msg = err instanceof Error ? err.message : String(err);
-      // Try next interpreter if command missing
-      if (/ENOENT|not recognized|not found/i.test(msg)) continue;
-      throw err;
-    }
+  const python = await resolvePythonCommand();
+  if (!python) {
+    throw new Error(
+      "Error log generation requires Python, which isn't installed on this server. " +
+        "This feature only runs where Python and DQA_Script are available " +
+        "(e.g. a self-hosted deployment) — it can't run on Vercel's serverless functions. " +
+        "Generate Daily_Error_Log.xlsx elsewhere and upload it directly instead."
+    );
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("Python is not available to run DQA_Script/run_dqa.py");
+  await execFileAsync(python.cmd, [...python.args, script, ...extraArgs], {
+    cwd: DQA_DIR,
+    windowsHide: true,
+    maxBuffer: 20 * 1024 * 1024,
+    timeout: 20 * 60 * 1000, // DQA can take several minutes on full exports
+  });
 }
 
 /**

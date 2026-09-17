@@ -350,8 +350,8 @@ def run_household_protocol(
         if duration_col in df.columns:
             raw = _to_num(df.at[i, duration_col])
             if raw is not None and raw >= 0:
-                # Seconds if large; otherwise already minutes
-                dur_min = float(raw) / 60.0 if float(raw) > 500 else float(raw)
+                # SurveyCTO `duration` is always in seconds
+                dur_min = float(raw) / 60.0
         if dur_min is None and start_col in df.columns and end_col in df.columns:
             try:
                 st = pd.to_datetime(df.at[i, start_col], errors="coerce", dayfirst=True)

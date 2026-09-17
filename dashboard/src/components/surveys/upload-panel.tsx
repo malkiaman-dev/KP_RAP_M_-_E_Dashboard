@@ -10,6 +10,7 @@ import {
   FileSpreadsheet,
   Loader2,
   RefreshCw,
+  ServerOff,
   ShieldAlert,
   Sparkles,
   UploadCloud,
@@ -66,6 +67,15 @@ async function fetchFileStatuses(): Promise<SurveyFileStatus[]> {
   if (!res.ok) throw new Error("Failed to load survey file status");
   const data = await res.json();
   return data.files as SurveyFileStatus[];
+}
+
+const DQA_STATUS_QUERY_KEY = ["dqa-status"] as const;
+
+async function fetchDqaAvailability(): Promise<boolean> {
+  const res = await fetch("/api/surveys/generate-errors");
+  if (!res.ok) return true; // fail open — let the generate button surface any real error
+  const data = await res.json();
+  return Boolean(data.pythonAvailable);
 }
 
 function formatSize(bytes: number): string {
@@ -243,6 +253,13 @@ export function UploadPanel() {
     queryFn: fetchFileStatuses,
   });
 
+  const { data: pythonAvailable, isLoading: isCheckingDqa } = useQuery({
+    queryKey: [...DQA_STATUS_QUERY_KEY],
+    queryFn: fetchDqaAvailability,
+    staleTime: 60_000,
+  });
+  const dqaUnavailable = pythonAvailable === false;
+
   const [generating, setGenerating] = useState(false);
   const [genResult, setGenResult] = useState<string | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
@@ -385,97 +402,117 @@ export function UploadPanel() {
         </div>
 
         <div className="mt-4 space-y-3">
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Survey types to check
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {MODULE_OPTIONS.map((opt) => {
-                const checked = selectedOptions[opt.key];
-                return (
-                  <label
-                    key={opt.key}
-                    className={cn(
-                      "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-colors",
-                      checked
-                        ? "border-teal/40 bg-teal/5"
-                        : "border-border bg-background hover:bg-muted/40",
-                      generating && "cursor-not-allowed opacity-60"
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={generating}
-                      onChange={() => toggleOption(opt.key)}
-                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-teal focus:ring-teal/30 disabled:cursor-not-allowed"
-                    />
-                    <span>
-                      <span className="block text-sm font-medium text-foreground">
-                        {opt.label}
-                      </span>
-                      <span className="block text-xs text-muted-foreground">
-                        {opt.description}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
+          {dqaUnavailable ? (
+            <div className="flex items-start gap-3 rounded-xl bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+              <ServerOff className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <p className="font-medium text-foreground">
+                  Not available on this deployment
+                </p>
+                <p className="mt-0.5">
+                  Error log generation runs the Python DQA pipeline, which
+                  isn&apos;t installed on this server. Generate
+                  Daily_Error_Log.xlsx from an environment with Python (e.g. a
+                  self-hosted instance) and it will appear on the Error Report
+                  tab automatically.
+                </p>
+              </div>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Uncheck a survey type to skip it and finish faster — e.g. skip
-              Tracking while only HH/Girls is being collected.
-            </p>
-          </div>
+          ) : (
+            <>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Survey types to check
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {MODULE_OPTIONS.map((opt) => {
+                    const checked = selectedOptions[opt.key];
+                    return (
+                      <label
+                        key={opt.key}
+                        className={cn(
+                          "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-colors",
+                          checked
+                            ? "border-teal/40 bg-teal/5"
+                            : "border-border bg-background hover:bg-muted/40",
+                          generating && "cursor-not-allowed opacity-60"
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={generating}
+                          onChange={() => toggleOption(opt.key)}
+                          className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-teal focus:ring-teal/30 disabled:cursor-not-allowed"
+                        />
+                        <span>
+                          <span className="block text-sm font-medium text-foreground">
+                            {opt.label}
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            {opt.description}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Uncheck a survey type to skip it and finish faster — e.g.
+                  skip Tracking while only HH/Girls is being collected.
+                </p>
+              </div>
 
-          {generating && <GenerationProgress />}
+              {generating && <GenerationProgress />}
 
-          {genError && (
-            <motion.p
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-start gap-2 rounded-lg bg-red-500/10 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400"
-            >
-              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-              {genError}
-            </motion.p>
+              {genError && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start gap-2 rounded-lg bg-red-500/10 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400"
+                >
+                  <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                  {genError}
+                </motion.p>
+              )}
+              {genResult && !genError && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start gap-2 rounded-lg bg-teal/10 px-3 py-2 text-sm font-medium text-teal"
+                >
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  {genResult}
+                </motion.p>
+              )}
+
+              <button
+                type="button"
+                onClick={handleGenerateErrors}
+                disabled={generating || selectedModules.length === 0 || isCheckingDqa}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60 sm:w-auto sm:px-6"
+              >
+                {generating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Regenerating error log…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    {selectedModules.length === 0
+                      ? "Select a survey type"
+                      : "Generate error log"}
+                  </>
+                )}
+              </button>
+
+              <p className="text-xs text-muted-foreground">
+                This can take a few minutes on full exports. Runs where
+                Python/DQA_Script is available on the server.
+              </p>
+            </>
           )}
-          {genResult && !genError && (
-            <motion.p
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-start gap-2 rounded-lg bg-teal/10 px-3 py-2 text-sm font-medium text-teal"
-            >
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-              {genResult}
-            </motion.p>
-          )}
-
-          <button
-            type="button"
-            onClick={handleGenerateErrors}
-            disabled={generating || selectedModules.length === 0}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60 sm:w-auto sm:px-6"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Regenerating error log…
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                {selectedModules.length === 0
-                  ? "Select a survey type"
-                  : "Generate error log"}
-              </>
-            )}
-          </button>
-
-          <p className="text-xs text-muted-foreground">
-            This can take a few minutes on full exports. Runs where
-            Python/DQA_Script is available on the server.
-          </p>
         </div>
       </motion.div>
     </div>

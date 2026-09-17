@@ -633,8 +633,8 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     dur_min = pd.Series(pd.NA, index=df.index, dtype="Float64")
     if duration_col and duration_col in df.columns:
         raw = pd.to_numeric(df[duration_col], errors="coerce")
-        # seconds if large; otherwise already minutes
-        mins = raw.where(raw <= 500, raw / 60.0)
+        # SurveyCTO `duration` is always in seconds
+        mins = raw / 60.0
         dur_min = mins.where(raw.notna() & (raw >= 0))
     need_fallback = dur_min.isna()
     if need_fallback.any() and start_col in df.columns and end_col in df.columns:

@@ -390,8 +390,8 @@ def _duration_minutes(
     if duration_col and duration_col in row.index:
         raw = _to_num(row[duration_col])
         if raw is not None and raw >= 0:
-            # Seconds if large; otherwise already minutes
-            return float(raw) / 60.0 if float(raw) > 500 else float(raw)
+            # SurveyCTO `duration` is always in seconds
+            return float(raw) / 60.0
 
     if start_col and end_col and start_col in row.index and end_col in row.index:
         st = _parse_date_any(row[start_col])
