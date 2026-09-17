@@ -18,7 +18,11 @@ from utils.stats import (
     enumerator_error_percentage_all_surveys,
 )
 from utils.context_enrich import enrich_issues_with_context
-from utils.duplicate_family import dedupe_duplicate_family_issues
+from utils.duplicate_family import (
+    dedupe_duplicate_family_issues,
+    recategorize_household_duplicates,
+    recategorize_girls_duplicates,
+)
 
 from checks import (
     tracking,
@@ -205,6 +209,8 @@ def run_all(
     issues_all = dedupe_duplicate_family_issues(issues_all)
     if before_dedupe != len(issues_all):
         print(f"[dedupe] duplicate-family issues: {before_dedupe} -> {len(issues_all)}")
+    recategorize_household_duplicates(issues_all, dfs.get("household"))
+    recategorize_girls_duplicates(issues_all)
 
     # -------------------------
     # 5) Attach girl / village / school context for Error Detail Log

@@ -173,15 +173,25 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoid:
       "Enter neighbour phones as 03XXXXXXXXX, or leave blank if none exists.",
   },
-  HH_CR_10: {
-    focus: "Exact duplicate household record for the same respondent.",
+  HH_DUP_BOTH_PARENTS: {
+    focus: "Household duplicated for both the Father and Mother respondent.",
     avoid:
-      "Do not re-submit the same respondent interview. If a duplicate exists, keep the latest complete KEY and void the rest after supervisor review.",
+      "Do not re-submit an interview that already exists for either parent. Keep the latest complete KEY per respondent and void the rest after supervisor review.",
   },
-  HH_CR_SAME_RESP_MISMATCH: {
-    focus: "Same girl + same respondent submitted more than once with conflicting identity/location fields.",
+  HH_DUP_FATHER: {
+    focus: "Father household survey duplicated for this girl (Mother not duplicated).",
     avoid:
-      "Never create a second interview for the same respondent. Confirm which KEY to retain (latest complete) and correct conflicting fields with supervisor guidance.",
+      "Do not re-submit the Father interview. Keep the latest complete KEY and void the rest after supervisor review.",
+  },
+  HH_DUP_MOTHER: {
+    focus: "Mother household survey duplicated for this girl (Father not duplicated).",
+    avoid:
+      "Do not re-submit the Mother interview. Keep the latest complete KEY and void the rest after supervisor review.",
+  },
+  HH_DUP_OTHER: {
+    focus: "Duplicate household record where the respondent (Father/Mother) could not be determined.",
+    avoid:
+      "Confirm the respondent for each copy, keep the latest complete KEY, and void the rest after supervisor review.",
   },
   HH_CR_13: {
     focus: "Parent age is unrealistically low.",
