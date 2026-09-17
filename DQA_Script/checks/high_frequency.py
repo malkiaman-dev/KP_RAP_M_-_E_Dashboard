@@ -644,9 +644,13 @@ def run_reinterview_checks(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey:
 
         if len(uniq_enums) >= 2:
             who = f"girl={gid}" + (f"; respondent={resp}" if resp else "")
+            keep = ordered[-1]
+            keep_key = df.at[keep, key_col] if key_col else ""
+            # Flag only the earlier, non-retained re-interview(s) — the retained
+            # (latest) record's enumerator should not also show up in the log.
             for i in ordered:
-                keep = ordered[-1]
-                keep_key = df.at[keep, key_col] if key_col else ""
+                if i == keep:
+                    continue
                 _emit(
                     issues,
                     survey,
