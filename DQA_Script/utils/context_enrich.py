@@ -75,6 +75,17 @@ CONTEXT_COLS = {
 }
 
 
+def _respondent_label(code: Any) -> str:
+    if _blank(code):
+        return ""
+    try:
+        n = float(code)
+        c = str(int(round(n)))
+    except (TypeError, ValueError):
+        c = str(code).strip()
+    return {"1": "Father", "2": "Mother"}.get(c, "")
+
+
 def _blank(val: Any) -> bool:
     if val is None or (isinstance(val, float) and pd.isna(val)):
         return True
@@ -112,12 +123,15 @@ def _extract_context(row: pd.Series, survey: str) -> dict[str, str]:
         if survey == "Tracking"
         else ["girl", "girl_id"]
     )
-    return {
+    ctx = {
         "girl_name": _first(row, cols.get("girl_name", [])),
         "village": _first(row, cols.get("village", [])),
         "school": _first(row, cols.get("school", []), prefer_text=True),
         "girl_id": _first(row, girl_id_cols),
     }
+    if survey == "Household" and "respondent" in row.index:
+        ctx["respondent_type"] = _respondent_label(row.get("respondent"))
+    return ctx
 
 
 def _merge_ctx(a: dict[str, str] | None, b: dict[str, str]) -> dict[str, str]:
@@ -138,6 +152,10 @@ def _merge_ctx(a: dict[str, str] | None, b: dict[str, str]) -> dict[str, str]:
         "village": a.get("village") or b.get("village") or "",
         "school": _good_school(school_a) or _good_school(school_b) or school_a or school_b,
         "girl_id": a.get("girl_id") or b.get("girl_id") or "",
+        # Household-specific: never fall back to another row's respondent — a
+        # girl can have both a Father and a Mother household record, and this
+        # must stay the record's own respondent, not a cross-row guess.
+        "respondent_type": a.get("respondent_type") or "",
     }
 
 
@@ -190,7 +208,7 @@ def _value_has_key(value: str, key: str) -> bool:
 def _append_context_to_value(value: Any, ctx: dict[str, str]) -> str:
     base = "" if value is None or (isinstance(value, float) and pd.isna(value)) else str(value).strip()
     parts: list[str] = []
-    for key in ("girl_name", "village", "school"):
+    for key in ("girl_name", "village", "school", "respondent_type"):
         if ctx.get(key) and not _value_has_key(base, key):
             parts.append(f"{key}={ctx[key]}")
     if not parts:

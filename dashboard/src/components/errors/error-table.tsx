@@ -230,21 +230,36 @@ export function ErrorTable({
                       </p>
                     </td>
                     <td className="px-5 py-3.5">
-                      <span
-                        className={cn(
-                          "rounded-full px-2.5 py-0.5 text-xs font-medium",
-                          e.survey === "Tracking" && "bg-teal/10 text-teal",
-                          e.survey === "Household" &&
-                            "bg-deep-teal/10 text-deep-teal",
-                          e.survey === "Girls" &&
-                            "bg-gold/15 text-amber-700 dark:text-gold",
-                          !["Tracking", "Household", "Girls"].includes(
-                            e.survey
-                          ) && "bg-muted text-muted-foreground"
-                        )}
-                      >
-                        {e.survey || "—"}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={cn(
+                            "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                            e.survey === "Tracking" && "bg-teal/10 text-teal",
+                            e.survey === "Household" &&
+                              "bg-deep-teal/10 text-deep-teal",
+                            e.survey === "Girls" &&
+                              "bg-gold/15 text-amber-700 dark:text-gold",
+                            !["Tracking", "Household", "Girls"].includes(
+                              e.survey
+                            ) && "bg-muted text-muted-foreground"
+                          )}
+                        >
+                          {e.survey || "—"}
+                        </span>
+                        {ctx.respondentType ? (
+                          <span
+                            className={cn(
+                              "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                              ctx.respondentType === "Father" &&
+                                "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+                              ctx.respondentType === "Mother" &&
+                                "bg-pink-500/10 text-pink-700 dark:text-pink-400"
+                            )}
+                          >
+                            {ctx.respondentType}
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-5 py-3.5">
                       <SeverityBadge severity={e.severity} />
