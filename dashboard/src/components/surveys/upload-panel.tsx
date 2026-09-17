@@ -15,15 +15,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import {
-  DASHBOARD_METRICS_QUERY_KEY,
-  ERROR_METRICS_QUERY_KEY,
-  HH_GIRLS_EXPORTS_QUERY_KEY,
-  HH_GIRLS_METRICS_QUERY_KEY,
-  TRACKING_EXPORTS_QUERY_KEY,
-  TRACKING_GAPS_QUERY_KEY,
-  TRACKING_METRICS_QUERY_KEY,
-} from "@/lib/queries/app-data";
+import { ERROR_METRICS_QUERY_KEY } from "@/lib/queries/app-data";
 import { cn } from "@/lib/utils";
 
 interface SurveyFileStatus {
@@ -83,34 +75,29 @@ function formatSize(bytes: number): string {
   return `${(kb / 1024).toFixed(1)} MB`;
 }
 
-/** Typical DQA run time used to pace the progress bar (no real % is available from the server). */
-const ESTIMATED_DQA_MS = 90_000;
-
 /**
- * Elapsed-time-based progress that approaches (but never reaches) 97% while
- * the DQA job is in flight. Mounted only while generating so each run starts
- * from a clean zero instead of resetting state inside an effect.
+ * Indeterminate progress indicator for the DQA run (no real % is available
+ * from the server). The bar itself is a pure CSS/GPU animation (same
+ * `tabProgress` keyframe as the top nav loading bar) so it stays smooth with
+ * zero React re-renders; only the elapsed-seconds counter ticks in JS, and
+ * only once a second.
  */
 function GenerationProgress() {
-  const [elapsedMs, setElapsedMs] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
     const start = Date.now();
-    const id = window.setInterval(() => setElapsedMs(Date.now() - start), 200);
+    const id = window.setInterval(
+      () => setElapsedSeconds(Math.floor((Date.now() - start) / 1000)),
+      1000
+    );
     return () => window.clearInterval(id);
   }, []);
 
-  const percent = Math.min(97, 100 * (1 - Math.exp(-elapsedMs / ESTIMATED_DQA_MS)));
-  const elapsedSeconds = Math.floor(elapsedMs / 1000);
-
   return (
     <div className="space-y-1.5 rounded-lg border border-border bg-background px-3 py-2.5">
-      <div className="h-2 overflow-hidden rounded-full bg-muted/70">
-        <motion.div
-          className="h-full rounded-full bg-gradient-to-r from-teal via-deep-teal to-teal"
-          animate={{ width: `${percent}%` }}
-          transition={{ ease: "linear", duration: 0.2 }}
-        />
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/70">
+        <div className="h-full w-1/3 animate-[tabProgress_1.1s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-teal via-deep-teal to-teal" />
       </div>
       <p className="flex items-center justify-between text-xs text-muted-foreground">
         <span>Running the DQA pipeline against the Surveys files…</span>
@@ -271,29 +258,13 @@ export function UploadPanel() {
     setSelectedOptions((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
+  // A new survey file can change every downstream metric (dashboard, tracking,
+  // HH/Girls, errors), so invalidate the whole cache in one pass rather than
+  // listing each query key. Only currently-mounted queries actually refetch;
+  // everything else just refreshes next time its tab is opened.
   function refreshAllSurveyData() {
     void refetch();
-    void queryClient.invalidateQueries({
-      queryKey: [...DASHBOARD_METRICS_QUERY_KEY],
-    });
-    void queryClient.invalidateQueries({
-      queryKey: [...TRACKING_METRICS_QUERY_KEY],
-    });
-    void queryClient.invalidateQueries({
-      queryKey: [...TRACKING_GAPS_QUERY_KEY],
-    });
-    void queryClient.invalidateQueries({
-      queryKey: [...TRACKING_EXPORTS_QUERY_KEY],
-    });
-    void queryClient.invalidateQueries({
-      queryKey: [...HH_GIRLS_METRICS_QUERY_KEY],
-    });
-    void queryClient.invalidateQueries({
-      queryKey: [...HH_GIRLS_EXPORTS_QUERY_KEY],
-    });
-    void queryClient.invalidateQueries({
-      queryKey: [...ERROR_METRICS_QUERY_KEY],
-    });
+    void queryClient.invalidateQueries();
   }
 
   async function handleGenerateErrors() {
