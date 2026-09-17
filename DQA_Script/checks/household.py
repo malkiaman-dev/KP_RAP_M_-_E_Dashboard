@@ -1302,6 +1302,43 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                             "; ".join(value_parts),
                         )
 
+        # =========================================================
+        # HH_CR_INCOMPLETE_SUPERSEDED: a blank-respondent record shares
+        # identity/location with another submission for the same household.
+        # Unlike HH_CR_10 above (which requires a matching respondent), this
+        # catches an abandoned/incomplete attempt — respondent was never
+        # recorded — left behind once the household was actually completed.
+        # =========================================================
+        if sig_cols and respondent_code_col and respondent_code_col in df.columns:
+            resp_series = df[respondent_code_col].map(_resp_code)
+            any_filled_sig = (sig_df[sig_cols] != "").any(axis=1)
+            if any_filled_sig.any():
+                sig_groups = sig_df.loc[any_filled_sig, sig_cols].groupby(sig_cols, dropna=False).groups
+                for _, idxs in sig_groups.items():
+                    idxs = list(idxs)
+                    if len(idxs) < 2:
+                        continue
+                    blank_idxs = [i for i in idxs if not resp_series.get(i, "")]
+                    other_idxs = [i for i in idxs if i not in blank_idxs]
+                    if not blank_idxs or not other_idxs:
+                        continue
+                    for i in blank_idxs:
+                        add_issue(
+                            i,
+                            "CRITICAL",
+                            "HH_CR_INCOMPLETE_SUPERSEDED",
+                            "Incomplete record superseded by a later household submission",
+                            (
+                                "This household record has no respondent recorded (blank), and the "
+                                "same identity and location fields already exist on another "
+                                "submission for this household. This looks like an abandoned or "
+                                "incomplete attempt — void it once the completed submission(s) are "
+                                "confirmed with the supervisor."
+                            ),
+                            ", ".join(sig_cols + [respondent_code_col]),
+                            "; ".join(f"{c}={_clip(df.at[i, c])}" for c in sig_cols),
+                        )
+
     # =========================================================
     # HH_CR_SAME_RESP_MISMATCH: same girl + same respondent, conflicting identity/location
     # =========================================================

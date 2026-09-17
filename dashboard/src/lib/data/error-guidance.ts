@@ -188,6 +188,11 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoid:
       "Do not re-submit the Mother interview. Keep the latest complete KEY and void the rest after supervisor review.",
   },
+  HH_CR_INCOMPLETE_SUPERSEDED: {
+    focus: "A blank-respondent record shares identity/location with another submission for the same household — likely an abandoned or incomplete attempt.",
+    avoid:
+      "Always select a respondent (Father/Mother) before submitting. If a form is abandoned mid-way, do not leave it as a separate incomplete record once the household has been properly interviewed.",
+  },
   HH_DUP_OTHER: {
     focus: "Duplicate household record where the respondent (Father/Mother) could not be determined.",
     avoid:
