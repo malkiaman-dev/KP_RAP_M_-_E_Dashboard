@@ -57,6 +57,25 @@ function toRepoPath(localPath: string): string {
   return path.relative(repoRoot, localPath).split(path.sep).join("/");
 }
 
+/**
+ * Last commit date that touched this file on GitHub. Serverless hosts (e.g.
+ * Vercel) don't have a locally-authoritative filesystem — the deployed
+ * bundle's mtime reflects build time, not when the data actually changed —
+ * so GitHub's commit history is the source of truth there instead.
+ */
+export async function getLastCommitDate(localPath: string): Promise<string | null> {
+  const cfg = getGithubConfig();
+  if (!cfg) return null;
+
+  const repoPath = toRepoPath(localPath);
+  const commits = await gh<Array<{ commit: { committer: { date: string } | null } }>>(
+    cfg,
+    `/repos/${cfg.owner}/${cfg.repo}/commits?path=${encodeURIComponent(repoPath)}&sha=${cfg.branch}&per_page=1`
+  );
+
+  return commits[0]?.commit.committer?.date ?? null;
+}
+
 export interface CommitFile {
   /** Absolute local path (used to derive the path inside the repo). */
   localPath: string;

@@ -3,6 +3,7 @@ import path from "path";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { autoPublishDataFiles } from "@/lib/git/publish";
+import { getLastCommitDate, isGithubConfigured } from "@/lib/git/github";
 
 const DATA_ROOT = path.join(process.cwd(), "..");
 const SURVEYS_DIR = path.join(DATA_ROOT, "Surveys");
@@ -64,30 +65,51 @@ export interface SurveyFileStatus {
   updatedAt: string | null;
 }
 
-export function getSurveyFileStatuses(): SurveyFileStatus[] {
-  return SURVEY_UPLOAD_TARGETS.map((t) => {
-    const filePath = path.join(SURVEYS_DIR, t.filename);
-    try {
-      const stat = fs.statSync(filePath);
+export async function getSurveyFileStatuses(): Promise<SurveyFileStatus[]> {
+  return Promise.all(
+    SURVEY_UPLOAD_TARGETS.map(async (t) => {
+      const filePath = path.join(SURVEYS_DIR, t.filename);
+      let stat: fs.Stats | null = null;
+      try {
+        stat = fs.statSync(filePath);
+      } catch {
+        stat = null;
+      }
+
+      // On a serverless host the deployed file's mtime is build time, not
+      // when the data actually changed — GitHub's commit history is the
+      // authoritative "last updated" there instead of the local fs.
+      let updatedAt = stat?.mtime.toISOString() ?? null;
+      if (isGithubConfigured()) {
+        try {
+          const commitDate = await getLastCommitDate(filePath);
+          if (commitDate) updatedAt = commitDate;
+        } catch {
+          // fall back to local mtime (or null) below
+        }
+      }
+
+      if (!stat) {
+        return {
+          key: t.key,
+          label: t.label,
+          filename: t.filename,
+          exists: false,
+          size: 0,
+          updatedAt,
+        };
+      }
+
       return {
         key: t.key,
         label: t.label,
         filename: t.filename,
         exists: true,
         size: stat.size,
-        updatedAt: stat.mtime.toISOString(),
+        updatedAt,
       };
-    } catch {
-      return {
-        key: t.key,
-        label: t.label,
-        filename: t.filename,
-        exists: false,
-        size: 0,
-        updatedAt: null,
-      };
-    }
-  });
+    })
+  );
 }
 
 /** Convert an uploaded file to CSV text based on its extension. */

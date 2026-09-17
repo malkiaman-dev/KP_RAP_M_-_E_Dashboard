@@ -16,7 +16,7 @@ export async function GET() {
   const auth = await requireMalki();
   if ("error" in auth) return auth.error;
 
-  return NextResponse.json({ files: getSurveyFileStatuses() });
+  return NextResponse.json({ files: await getSurveyFileStatuses() });
 }
 
 export async function POST(request: Request) {
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       ...result,
-      files: getSurveyFileStatuses(),
+      files: await getSurveyFileStatuses(),
     });
   } catch (error) {
     const message =
