@@ -209,7 +209,7 @@ def run_all(
     issues_all = dedupe_duplicate_family_issues(issues_all)
     if before_dedupe != len(issues_all):
         print(f"[dedupe] duplicate-family issues: {before_dedupe} -> {len(issues_all)}")
-    recategorize_household_duplicates(issues_all, dfs.get("household"))
+    issues_all = recategorize_household_duplicates(issues_all, dfs.get("household"))
     recategorize_girls_duplicates(issues_all)
 
     # -------------------------

@@ -117,44 +117,87 @@ def _build_household_lookups(hh_df) -> tuple[dict[str, str], dict[str, str]]:
     return girl_by_key, resp_by_key
 
 
-def recategorize_household_duplicates(issues: list[dict], hh_df) -> None:
-    """Mutate Household duplicate-family issues in place into one of three
+def _merge_both_parents_group(group: list[tuple[dict, str]]) -> dict:
+    """Collapse a girl's father-duplicate issue(s) and mother-duplicate issue(s)
+    into a single HH_DUP_BOTH_PARENTS row, so the girl appears once in the
+    error log instead of once per respondent-side duplicate pair."""
+    group = sorted(group, key=lambda pair: (pair[1] != "Father", pair[1]))
+    base_issue, _ = group[0]
+    merged = dict(base_issue)
+    merged["rule_id"] = HH_DUP_BOTH_ID
+    merged["title"] = "Duplicate household record (Father & Mother)"
+
+    message_lines = []
+    value_lines = []
+    for it, resp in group:
+        rk = it.get("record_key") or it.get("instance_id") or ""
+        message_lines.append(f"[{resp}] {it.get('message', '')}")
+        value_lines.append(f"{resp.lower()}_form_id={rk}")
+    merged["message"] = " ".join(message_lines)
+    merged["value"] = "; ".join(value_lines) + "; " + str(base_issue.get("value", ""))
+    return merged
+
+
+def recategorize_household_duplicates(issues: list[dict], hh_df) -> list[dict]:
+    """Recategorize Household duplicate-family issues into one of three
     categories: Duplicate HH (father AND mother both duplicated for the same
-    girl), Duplicate Father survey, or Duplicate Mother survey — so the same
-    underlying case reads as one consistent category instead of five rule IDs."""
+    girl — merged into one row per girl), Duplicate Father survey, or
+    Duplicate Mother survey — so the same underlying case reads as one
+    consistent category instead of five rule IDs, and a girl with both sides
+    duplicated appears once, not twice.
+
+    Returns a new list; `issues` is not mutated.
+    """
     hh_issues = [it for it in issues if it.get("rule_id") in HOUSEHOLD_DUP_RULES]
     if not hh_issues:
-        return
+        return issues
+    other_issues = [it for it in issues if it.get("rule_id") not in HOUSEHOLD_DUP_RULES]
 
     girl_by_key, resp_by_key = _build_household_lookups(hh_df)
 
-    girl_resp_types: dict[str, set[str]] = {}
-    for it in hh_issues:
-        rk = _record_group_key(it)
-        girl = girl_by_key.get(rk) if rk else None
-        if not girl:
-            continue
-        resp = resp_by_key.get(rk, "Unknown")
-        girl_resp_types.setdefault(girl, set()).add(resp)
-
+    # girl -> [(issue, respondent_label), ...]; ungrouped issues have no resolvable girl id
+    by_girl: dict[str, list[tuple[dict, str]]] = {}
+    ungrouped: list[tuple[dict, str]] = []
     for it in hh_issues:
         rk = _record_group_key(it)
         girl = girl_by_key.get(rk) if rk else None
         resp = resp_by_key.get(rk, "Unknown") if rk else "Unknown"
-        types = girl_resp_types.get(girl, set()) if girl else {resp}
-
-        if {"Father", "Mother"}.issubset(types):
-            it["rule_id"] = HH_DUP_BOTH_ID
-            it["title"] = "Duplicate household record (Father & Mother)"
-        elif types == {"Father"}:
-            it["rule_id"] = HH_DUP_FATHER_ID
-            it["title"] = "Duplicate Father survey"
-        elif types == {"Mother"}:
-            it["rule_id"] = HH_DUP_MOTHER_ID
-            it["title"] = "Duplicate Mother survey"
+        if girl:
+            by_girl.setdefault(girl, []).append((it, resp))
         else:
-            it["rule_id"] = HH_DUP_OTHER_ID
-            it["title"] = "Duplicate household record"
+            ungrouped.append((it, resp))
+
+    result: list[dict] = []
+    for girl, group in by_girl.items():
+        types = {resp for _, resp in group}
+        if {"Father", "Mother"}.issubset(types):
+            result.append(_merge_both_parents_group(group))
+        elif types == {"Father"}:
+            for it, _ in group:
+                it["rule_id"] = HH_DUP_FATHER_ID
+                it["title"] = "Duplicate Father survey"
+                result.append(it)
+        elif types == {"Mother"}:
+            for it, _ in group:
+                it["rule_id"] = HH_DUP_MOTHER_ID
+                it["title"] = "Duplicate Mother survey"
+                result.append(it)
+        else:
+            for it, _ in group:
+                it["rule_id"] = HH_DUP_OTHER_ID
+                it["title"] = "Duplicate household record"
+                result.append(it)
+
+    for it, resp in ungrouped:
+        if resp == "Father":
+            it["rule_id"], it["title"] = HH_DUP_FATHER_ID, "Duplicate Father survey"
+        elif resp == "Mother":
+            it["rule_id"], it["title"] = HH_DUP_MOTHER_ID, "Duplicate Mother survey"
+        else:
+            it["rule_id"], it["title"] = HH_DUP_OTHER_ID, "Duplicate household record"
+        result.append(it)
+
+    return other_issues + result
 
 
 def recategorize_girls_duplicates(issues: list[dict]) -> None:
