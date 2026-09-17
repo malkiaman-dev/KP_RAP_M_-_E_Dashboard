@@ -645,6 +645,10 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         dur_min.loc[need_fallback] = wall
 
     too_fast = dur_min.notna() & (dur_min < min_fast)
+    if consent_col and consent_col in df.columns:
+        # Consent refused: interview legitimately ends early, not an integrity concern.
+        consent_refused = df[consent_col].map(lambda v: _as_code(v) in {"2", "0"})
+        too_fast = too_fast & ~consent_refused
     field = ",".join(c for c in [duration_col, start_col, end_col] if c)
     for i in df.index[too_fast.fillna(False)]:
         m = meta(i)

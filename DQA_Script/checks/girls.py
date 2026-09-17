@@ -725,10 +725,22 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 fmt_kv(starttime=df.at[i, starttime], endtime=df.at[i, endtime]),
             )
 
+    def _consent_refused(i) -> bool:
+        """Parental or child consent was explicitly declined (not just blank/pending)."""
+        for c in (p_consent_agree, c_consent_agree):
+            if c and c in df.columns:
+                v = df.at[i, c]
+                if not is_missing(v) and not _is_yes(v):
+                    return True
+        return False
+
     dur_field = ",".join([c for c in [duration_col, starttime, endtime] if c])
     for i in df.index:
         mins = active_duration_minutes(i)
         if mins is None:
+            continue
+        # Consent declined: interview legitimately ends early, not an integrity concern.
+        if _consent_refused(i):
             continue
         # At or under 15 minutes: invalid and integrity track (Track 2), not a routine timing flag.
         if mins <= min_survey_min:
