@@ -2060,18 +2060,19 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             if resp == "2":
                 who, threshold, too_fast = "Mother", MOTHER_MIN_DURATION_MIN, mins < MOTHER_MIN_DURATION_MIN
                 bound = "under"
-                consent_col = consent_mother_col
             else:
                 who = "Father" if resp == "1" else "Household"
                 threshold, too_fast = FATHER_MIN_DURATION_MIN, mins <= FATHER_MIN_DURATION_MIN
                 bound = "at or under"
-                consent_col = consent_father_col if resp == "1" else None
 
-            # Respondent declined consent: interview legitimately ends early, not an
-            # integrity concern.
-            if too_fast and consent_col and consent_col in df.columns:
-                if _is_explicit_no(df.at[i, consent_col]):
-                    too_fast = False
+            # Respondent declined consent (whichever consent field is actually filled
+            # in — respondent code can be blank/unreliable): interview legitimately
+            # ends early, not an integrity concern.
+            if too_fast:
+                for consent_col in (consent_father_col, consent_mother_col):
+                    if consent_col and consent_col in df.columns and _is_explicit_no(df.at[i, consent_col]):
+                        too_fast = False
+                        break
 
             if too_fast:
                 add_issue(
