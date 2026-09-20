@@ -332,16 +332,37 @@ export function computeErrorMetrics(rows: ErrorRow[]) {
 
   // ---- Top rules by severity ----
   const ruleAgg = (severity: ErrorSeverity) => {
-    const map = new Map<string, { ruleId: string; title: string; count: number }>();
+    const map = new Map<
+      string,
+      { ruleId: string; title: string; count: number; enumeratorKeys: Map<string, string> }
+    >();
     for (const r of rows) {
       if (r.severity !== severity) continue;
       const key = r.ruleId || "Unknown";
       if (!map.has(key)) {
-        map.set(key, { ruleId: key, title: r.title || key, count: 0 });
+        map.set(key, { ruleId: key, title: r.title || key, count: 0, enumeratorKeys: new Map() });
       }
-      map.get(key)!.count += 1;
+      const entry = map.get(key)!;
+      entry.count += 1;
+      if (isEnumeratorAttributable(r)) {
+        const enumKey = enumeratorIdentityKey({
+          enumerator_id: r.enumeratorId,
+          enumerator_name: r.enumeratorName,
+        });
+        if (enumKey && enumKey !== "unknown" && !entry.enumeratorKeys.has(enumKey)) {
+          entry.enumeratorKeys.set(enumKey, displayEnumeratorLabel(enumKey));
+        }
+      }
     }
-    return [...map.values()].sort((a, b) => b.count - a.count).slice(0, 10);
+    return [...map.values()]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+      .map(({ ruleId, title, count, enumeratorKeys }) => ({
+        ruleId,
+        title,
+        count,
+        enumerators: [...enumeratorKeys.values()].sort((a, b) => a.localeCompare(b)),
+      }));
   };
   const topCriticalRules = ruleAgg("CRITICAL");
   const topQualityRules = ruleAgg("FLAG");

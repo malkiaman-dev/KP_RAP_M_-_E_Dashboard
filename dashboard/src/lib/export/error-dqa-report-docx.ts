@@ -248,40 +248,41 @@ function buildSectionChildren(section: ErrorReportSection) {
     p("", { spacingAfter: 80 }),
     sectionHeading("Top critical rules"),
     simpleTable(
-      ["Rule", "Title", "Count"],
+      ["Rule", "Title", "Count", "Enumerators"],
       metrics.topCriticalRules.slice(0, 8).map((r) => [
         r.ruleId,
         r.title,
         num(r.count),
-      ])
+        r.enumerators.length ? r.enumerators.join(", ") : "—",
+      ]),
+      [1600, 2400, 900, 4100]
     ),
     p("", { spacingAfter: 80 }),
     sectionHeading("Top quality flags"),
     simpleTable(
-      ["Rule", "Title", "Count"],
+      ["Rule", "Title", "Count", "Enumerators"],
       metrics.topQualityRules.slice(0, 8).map((r) => [
         r.ruleId,
         r.title,
         num(r.count),
-      ])
+        r.enumerators.length ? r.enumerators.join(", ") : "—",
+      ]),
+      [1600, 2400, 900, 4100]
     ),
     p("", { spacingAfter: 80 }),
-    sectionHeading("Enumerator coaching priorities"),
+    sectionHeading("All errors observed — how to avoid"),
     p(
-      "Lowest quality scores first. \"Top mistake\" is each enumerator's most frequent rule violation; \"how to avoid\" is the specific coaching note to give them before their next field day.",
+      "Every distinct error rule that occurred in this scope, with the coaching note to give enumerators to prevent it.",
       { size: 15, color: COLOR.subtle, spacingAfter: 100 }
     ),
     simpleTable(
-      ["Enumerator", "Score", "Critical", "Quality", "Top mistake", "How to avoid"],
-      fieldAnalytics.focusEnumerators.map((e) => [
-        e.name,
-        String(e.score),
-        num(e.critical),
-        num(e.flag),
-        e.topRuleId ? `${e.topRuleTitle} (${num(e.topRuleCount)}×)` : "—",
-        e.tip,
+      ["Rule", "Title", "How to avoid"],
+      fieldAnalytics.allRules.map((r) => [
+        r.ruleId,
+        r.title,
+        r.avoidUrdu,
       ]),
-      [1300, 600, 700, 700, 2200, 3500]
+      [1600, 2400, 5000]
     ),
     p("", { spacingAfter: 80 }),
     sectionHeading("Recap"),

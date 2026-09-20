@@ -19,6 +19,8 @@ export interface FocusRuleInsight {
   survey: string;
   focus: string;
   avoid: string;
+  /** Roman Urdu version of `avoid`, for the exported Error Quality Report. */
+  avoidUrdu: string;
   topEnumerators: { id: string; name: string; count: number }[];
 }
 
@@ -42,6 +44,8 @@ export interface FieldErrorAnalytics {
   affectedEnumerators: number;
   /** Top rules to coach on this week (critical first, then volume). */
   focusRules: FocusRuleInsight[];
+  /** Every distinct rule that occurred in this scope (critical first, then volume) — not capped, not enumerator-specific. */
+  allRules: FocusRuleInsight[];
   /** Enumerators needing the most coaching. */
   focusEnumerators: EnumeratorFocusInsight[];
   /** Short team checklist derived from top issues. */
@@ -129,14 +133,13 @@ export function computeFieldErrorAnalytics(
     }
   }
 
-  const focusRules: FocusRuleInsight[] = [...ruleMap.values()]
+  const allRules: FocusRuleInsight[] = [...ruleMap.values()]
     .sort(
       (a, b) =>
         b.critical - a.critical ||
         b.count - a.count ||
         a.ruleId.localeCompare(b.ruleId)
     )
-    .slice(0, 8)
     .map((entry) => {
       const guidance = getRuleGuidance(entry.ruleId);
       const topSurvey =
@@ -160,9 +163,12 @@ export function computeFieldErrorAnalytics(
         survey: topSurvey,
         focus: guidance.focus,
         avoid: toEnumeratorAdvice(guidance.avoid),
+        avoidUrdu: guidance.avoidUrdu,
         topEnumerators,
       };
     });
+
+  const focusRules = allRules.slice(0, 8);
 
   // Per-enumerator coaching targets
   const enumMap = new Map<
@@ -237,6 +243,7 @@ export function computeFieldErrorAnalytics(
     flagErrors,
     affectedEnumerators,
     focusRules,
+    allRules,
     focusEnumerators,
     teamChecklist,
   };

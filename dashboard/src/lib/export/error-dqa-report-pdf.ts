@@ -222,37 +222,38 @@ function buildSectionContent(section: ErrorReportSection): Content[] {
     ),
     simpleTable(
       "Top critical rules",
-      ["Rule", "Title", "Count"],
+      ["Rule", "Title", "Count", "Enumerators"],
       metrics.topCriticalRules.slice(0, 8).map((r) => [
         r.ruleId,
         r.title,
         num(r.count),
+        r.enumerators.length ? r.enumerators.join(", ") : "—",
       ]),
-      "No critical rules in this scope."
+      "No critical rules in this scope.",
+      ["18%", "27%", "10%", "45%"]
     ),
     simpleTable(
       "Top quality flags",
-      ["Rule", "Title", "Count"],
+      ["Rule", "Title", "Count", "Enumerators"],
       metrics.topQualityRules.slice(0, 8).map((r) => [
         r.ruleId,
         r.title,
         num(r.count),
+        r.enumerators.length ? r.enumerators.join(", ") : "—",
       ]),
-      "No quality flags in this scope."
+      "No quality flags in this scope.",
+      ["18%", "27%", "10%", "45%"]
     ),
     simpleTable(
-      "Enumerator coaching priorities (lowest scores) — top mistake and how to avoid it",
-      ["Enumerator", "Score", "Critical", "Quality", "Top mistake", "How to avoid"],
-      fieldAnalytics.focusEnumerators.map((e) => [
-        e.name,
-        String(e.score),
-        num(e.critical),
-        num(e.flag),
-        e.topRuleId ? `${e.topRuleTitle} (${num(e.topRuleCount)}×)` : "—",
-        e.tip,
+      "All errors observed — how to avoid",
+      ["Rule", "Title", "How to avoid"],
+      fieldAnalytics.allRules.map((r) => [
+        r.ruleId,
+        r.title,
+        r.avoidUrdu,
       ]),
-      "No attributable enumerator errors.",
-      ["14%", "7%", "7%", "7%", "23%", "42%"]
+      "No errors in this scope.",
+      ["18%", "27%", "55%"]
     ),
     sectionTitle("Recap"),
     bulletPanel(buildErrorRecapBullets(districtLabel, metrics)),
