@@ -676,11 +676,6 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoidUrdu:
       "Girls survey kabhi bhi 15 minute se kam waqt mein complete nahi honi chahiye. Reading aur math modules ko poora waqt dein, interview jaldi mein khatam na karein.",
   },
-  GL_CE_CONSENT_PARENT: {
-    focus: "Girl is available but parental consent (agree) is missing or not accepted.",
-    avoid: "When the girl is home and available, always obtain and record parental consent before continuing.",
-    avoidUrdu: "Jab girl ghar par available ho to interview se pehle parental consent zaroor lein aur darj karein.",
-  },
   GL_QF_CONSENT_PARENT_UNDERSTAND: {
     focus: "Parental consent was agreed, but the understanding confirmation is missing.",
     avoid: "After the parent agrees to consent, also confirm and record that they understood it.",
@@ -737,10 +732,10 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoidUrdu: "Ghante aur minute dhyan se check karein. Dekh-bhal + ghar ke kaam + aaram ek din mein 24 ghante se zyada nahi ho sakte.",
   },
   GL_QF_HARASSMENT_NOT_PRIVATE: {
-    focus: "Harassment module was not conducted with only the girl present.",
-    avoid: "Form guidance requires privacy ('No one else present') for harassment questions. Ask others to step out before that section.",
+    focus: "Harassment module was conducted with siblings, father, or other adults present.",
+    avoid: "Mother, other kids, or no one else present are fine for harassment questions — but ask siblings, father, or other adults to step out before that section.",
     avoidUrdu:
-      "Form guidance ke mutabiq harassment sawalat ke liye privacy zaroori hai ('koi aur mojood nahi'). Yeh section shuru karne se pehle doosron se bahar jane ki request karein.",
+      "Harassment sawalat ke doran maa, doosre bache, ya koi bhi mojood na hona theek hai — lekin bhai behnon, walid, ya doosre bare afraad se yeh section shuru karne se pehle bahar jane ki request karein.",
   },
   GL_QF_TRAVEL_TIME_DISTANCE: {
     focus: "Travel time to school does not match reported distance.",

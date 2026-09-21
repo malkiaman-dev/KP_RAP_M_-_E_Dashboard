@@ -658,24 +658,6 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         for i in df.index:
             if not _girl_is_available(i):
                 continue
-            if _is_yes(df.at[i, p_consent_agree]):
-                continue
-            add_issue(
-                i,
-                "FLAG",
-                "GL_CE_CONSENT_PARENT",
-                "Parental consent not confirmed",
-                (
-                    "Girl is available but parental consent (agree) is missing or not accepted. "
-                    "Interview is not valid without parental consent."
-                ),
-                p_consent_agree,
-                f"parental_consent_agree={clean_scalar(df.at[i, p_consent_agree])}",
-            )
-
-        for i in df.index:
-            if not _girl_is_available(i):
-                continue
             if not _is_yes(df.at[i, p_consent_agree]):
                 continue
             if p_consent_understand and p_consent_understand in df.columns and is_missing(
@@ -1245,10 +1227,12 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
 
     # --------------------------
     # 19) Harassment privacy guidance (FLAG)
-    # Form note: harassment must be private; group opens only when presence includes
-    # "No one else present" (code 6). Flag complete consented interviews that were
-    # not alone for this module.
+    # Room presence codes: 1=siblings, 2=father, 3=mother, 4=other adults,
+    # 5=other kids, 6=no one else present.
+    # Mother, other kids, or no one else present are all acceptable for this
+    # module — only flag when siblings, father, or other adults were present.
     # --------------------------
+    HARASSMENT_OK_PRESENCE = {"3", "5", "6"}
     if harassment_presence_col and harassment_presence_col in df.columns:
         for i in df.index:
             parent_ok = (
@@ -1268,10 +1252,11 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 continue
             codes = _codeset(presence)
             # Also check expanded binary columns
-            if "harassment_presence_6" in df.columns:
-                if str(df.at[i, "harassment_presence_6"]).strip() in {"1", "true", "yes"}:
-                    codes.add("6")
-            if "6" in codes:
+            for code in ("1", "2", "3", "4", "5", "6"):
+                presence_bin_col = f"harassment_presence_{code}"
+                if presence_bin_col in df.columns and str(df.at[i, presence_bin_col]).strip() in {"1", "true", "yes"}:
+                    codes.add(code)
+            if codes and codes.issubset(HARASSMENT_OK_PRESENCE):
                 continue
             add_issue(
                 i,
@@ -1279,8 +1264,9 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 "GL_QF_HARASSMENT_NOT_PRIVATE",
                 "Harassment section not conducted in private",
                 (
-                    "Form guidance requires the harassment module in private "
-                    "('No one else present'). Room presence was not alone — verify field practice."
+                    "Form guidance requires the harassment module without siblings, father, "
+                    "or other adults present. Only the girl's mother, other kids, or no one "
+                    "else being present is acceptable — verify field practice."
                 ),
                 harassment_presence_col,
                 f"harassment_presence={clean_scalar(presence)}",
