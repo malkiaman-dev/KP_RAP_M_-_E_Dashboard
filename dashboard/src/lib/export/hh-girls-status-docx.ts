@@ -404,6 +404,7 @@ function enumeratorTable(enumerators: HhGirlsEnumeratorPerformance[]): Table {
     { label: "Enumerator", alignRight: false },
     { label: "District", alignRight: false },
     { label: "Forms", alignRight: true },
+    { label: "Survey Breakdown", alignRight: false },
     { label: "Completed HH", alignRight: true },
     { label: "Days", alignRight: true },
     { label: "Avg/Day", alignRight: true },
@@ -428,6 +429,10 @@ function enumeratorTable(enumerators: HhGirlsEnumeratorPerformance[]): Table {
         dataCell(e.name, { bold: true, color: COLOR.ink, fill }),
         dataCell(e.district, { fill }),
         dataCell(num(e.submissions), { alignRight: true, fill }),
+        dataCell(`${e.motherForms} M, ${e.fatherForms} F, ${e.girlsForms} G`, {
+          color: COLOR.subtle,
+          fill,
+        }),
         dataCell(num(e.completedHouseholds), {
           alignRight: true,
           color: COLOR.brand,

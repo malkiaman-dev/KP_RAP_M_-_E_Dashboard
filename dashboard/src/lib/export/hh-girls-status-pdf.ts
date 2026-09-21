@@ -104,6 +104,7 @@ function categoryTable(
     { text: "Enumerator", style: "tableHeader" },
     { text: "District", style: "tableHeader" },
     { text: "Forms", style: "tableHeader", alignment: "right" as const },
+    { text: "Survey Breakdown", style: "tableHeader", alignment: "center" as const },
     { text: "Completed HH", style: "tableHeader", alignment: "right" as const },
     { text: "Days", style: "tableHeader", alignment: "right" as const },
     { text: "Avg/Day", style: "tableHeader", alignment: "right" as const },
@@ -145,6 +146,12 @@ function categoryTable(
         { text: e.district },
         { text: num(e.submissions), alignment: "right" as const },
         {
+          text: `${e.motherForms} M, ${e.fatherForms} F, ${e.girlsForms} G`,
+          alignment: "center" as const,
+          fontSize: 7,
+          color: C.subtle,
+        },
+        {
           text: num(e.completedHouseholds),
           alignment: "right" as const,
           color: C.brand,
@@ -176,7 +183,7 @@ function categoryTable(
       headerRows: 2,
       keepWithHeaderRows: 1,
       dontBreakRows: true,
-      widths: ["*", "auto", "auto", "auto", "auto", "auto", "auto", "auto"],
+      widths: ["*", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto"],
       body,
     },
     layout: {
