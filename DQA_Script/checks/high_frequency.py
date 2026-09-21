@@ -65,6 +65,17 @@ HH_CONSENT_CAREGIVER = {
     "agree_consent_caregiver",
 }
 
+_YES_CODES = {"yes", "y", "1", "true", "t"}
+
+
+def _is_yes_code(val: Any) -> bool:
+    # Numeric consent columns load as float64 (e.g. 1.0), so str(val) is "1.0"
+    # and never matches a plain text code — compare numerically first.
+    n = _to_num(val)
+    if n is not None:
+        return abs(n - 1.0) < 1e-9
+    return _norm(val) in _YES_CODES
+
 WORD_CORRECT = 1
 WORD_INCORRECT = 2
 WORD_NO_ATTEMPT = 3
@@ -456,6 +467,62 @@ def run_speed_checks(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey: str) 
     prefix_qf = "HH_QF" if survey == "Household" else "GL_QF"
     consent_field = "violation_list" if "violation_list" in df.columns else "violation_count"
 
+    # A parent's consent screen can legitimately be tapped through on a later
+    # household visit if that same parent's consent was already genuinely
+    # captured (agree=Yes, and not itself speed-flagged) on the FIRST visit
+    # (by starttime) for the same girl/family — both parents' consent is
+    # normally taken up front, then one respondent is interviewed per visit.
+    # Only the chronologically first form for that parent decides whether this
+    # is a real integrity issue: if that first form's consent was clean, a
+    # later repeat tap-through is expected admin behavior and not flagged; if
+    # the first form itself was tapped through, that IS the rushed consent and
+    # must be flagged, regardless of what a later visit looks like.
+    prior_genuine_consent: dict[Any, dict[str, bool]] = {}
+    if survey == "Household" and "violation_list" in df.columns:
+        gid_col = col.get("girl_id") or "girl"
+        start_col = "starttime" if "starttime" in df.columns else None
+        if (
+            gid_col in df.columns
+            and "agree_consent_father" in df.columns
+            and "understand_consent_father" in df.columns
+            and "agree_consent_mother" in df.columns
+            and "understand_consent_mother" in df.columns
+        ):
+
+            def _row_genuine(row_i: Any, agree_col: str, understand_col: str) -> bool:
+                if not _is_yes_code(df.at[row_i, agree_col]):
+                    return False
+                row_leaves = _violation_leaves(df.at[row_i, "violation_list"])
+                return not (understand_col in row_leaves and agree_col in row_leaves)
+
+            groups: dict[str, list[Any]] = defaultdict(list)
+            for i in df.index:
+                gid = _norm(df.at[i, gid_col])
+                if gid:
+                    groups[gid].append(i)
+
+            for idxs in groups.values():
+                # Order visits by starttime (earliest first). A form whose
+                # starttime can't be parsed is treated as coming last, so it
+                # can never be mistaken for the true first visit.
+                def _sort_key(j: Any) -> tuple[int, Any]:
+                    dt = _parse_dt(df.at[j, start_col]) if start_col else None
+                    return (0, dt) if dt is not None else (1, j)
+
+                ordered = sorted(idxs, key=_sort_key)
+                for pos, i in enumerate(ordered):
+                    earlier = ordered[:pos]
+                    prior_genuine_consent[i] = {
+                        "father": any(
+                            _row_genuine(j, "agree_consent_father", "understand_consent_father")
+                            for j in earlier
+                        ),
+                        "mother": any(
+                            _row_genuine(j, "agree_consent_mother", "understand_consent_mother")
+                            for j in earlier
+                        ),
+                    }
+
     for i in df.index:
         leaves = _violation_leaves(df.at[i, "violation_list"]) if "violation_list" in df.columns else set()
         vc = _to_num(df.at[i, "violation_count"]) if "violation_count" in df.columns else None
@@ -489,14 +556,25 @@ def run_speed_checks(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey: str) 
             if resp == "1":
                 group = HH_CONSENT_FATHER
                 label = "father"
+                parent_key = "father"
             elif resp == "2":
                 group = HH_CONSENT_MOTHER
                 label = "mother"
+                parent_key = "mother"
             else:
                 group = HH_CONSENT_FATHER | HH_CONSENT_MOTHER | HH_CONSENT_CAREGIVER
                 label = "parent/caregiver"
+                parent_key = None
             hit = leaves & group
             understand_agree = any("understand" in x for x in hit) and any("agree" in x for x in hit)
+            if (
+                understand_agree
+                and parent_key
+                and prior_genuine_consent.get(i, {}).get(parent_key)
+            ):
+                # This parent's consent was already genuinely captured on another
+                # visit for this same family — expected admin tap-through, not flagged.
+                understand_agree = False
             if understand_agree:
                 consent_hit = True
                 _emit(
