@@ -165,13 +165,32 @@ def _norm_key(val: Any) -> str:
     return str(val).strip()
 
 
+def _needed_context_cols(df: pd.DataFrame, survey: str, extra: list[str] | None = None) -> list[str]:
+    """Columns _extract_context can actually read, so callers can slice the
+    (often 1000+ column) survey frame before iterrows() instead of rebuilding
+    a full-width row Series for every row."""
+    cols = CONTEXT_COLS.get(survey, {})
+    girl_id_cols = (
+        ["girl_id", "girl_id_1", "girl"]
+        if survey == "Tracking"
+        else ["girl", "girl_id"]
+    )
+    wanted = set(cols.get("girl_name", [])) | set(cols.get("village", [])) | set(cols.get("school", [])) | set(girl_id_cols)
+    if survey == "Household":
+        wanted.add("respondent")
+    if extra:
+        wanted.update(extra)
+    return [c for c in df.columns if c in wanted]
+
+
 def _build_lookup(df: pd.DataFrame, survey: str) -> dict[str, dict[str, str]]:
     lookup: dict[str, dict[str, str]] = {}
     key_cols = [c for c in ("KEY", "record_key", "instanceID", "instance_id") if c in df.columns]
     if not key_cols:
         return lookup
 
-    for _, row in df.iterrows():
+    slim = df[_needed_context_cols(df, survey, extra=key_cols)]
+    for _, row in slim.iterrows():
         ctx = _extract_context(row, survey)
         if not any(v for k, v in ctx.items() if k != "girl_id" and v):
             continue
@@ -192,7 +211,8 @@ def _build_girl_lookup(dfs: dict[str, pd.DataFrame]) -> dict[str, dict[str, str]
         survey = SURVEY_ALIASES.get(raw_name, raw_name)
         if survey not in CONTEXT_COLS:
             continue
-        for _, row in df.iterrows():
+        slim = df[_needed_context_cols(df, survey)]
+        for _, row in slim.iterrows():
             ctx = _extract_context(row, survey)
             gid = ctx.get("girl_id") or ""
             if not gid:

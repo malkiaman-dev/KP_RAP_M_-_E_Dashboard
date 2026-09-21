@@ -344,8 +344,9 @@ def run_gps_checks(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey: str) ->
     qf = "HH_QF" if survey == "Household" else "GL_QF"
 
     first_pts: dict[Any, dict[str, Any]] = {}
-    for i in df.index:
-        pts = _row_geo_points(df.loc[i], pairs)
+    geo_cols = sorted({c for p in pairs for c in p if c})
+    for i, geo_row in df[geo_cols].iterrows():
+        pts = _row_geo_points(geo_row, pairs)
         if not pts:
             continue
         first_pts[i] = pts[0]
@@ -706,8 +707,9 @@ def run_missing_and_village_gps(df: pd.DataFrame, col: dict, meta_fn: MetaFn, su
     outlier_m = float(col.get("gps_village_outlier_meters", 2000) or 2000)
 
     first_pts: dict[Any, dict[str, Any]] = {}
-    for i in df.index:
-        pts = _row_geo_points(df.loc[i], pairs) if pairs else []
+    geo_cols = sorted({c for p in pairs for c in p if c})
+    for i, geo_row in df[geo_cols].iterrows():
+        pts = _row_geo_points(geo_row, pairs) if pairs else []
         if not pts:
             _emit(
                 issues,

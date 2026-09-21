@@ -898,12 +898,18 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             _weak_location_cache[col_name] = cached
         return cached
 
+    # _resolve_block_cols only depends on df.columns and k, not on the row,
+    # so resolve each block's columns once instead of once per row (this loop
+    # runs max_blocks times per row otherwise, which dominates runtime on
+    # exports with thousands of rows).
+    _block_cols_by_k = {k: _resolve_block_cols(df, k) for k in range(1, max_blocks + 1)}
+
     for row_i in df.index:
         seen_in_row: set[str] = set()
         filled_blocks = 0
 
         for k in range(1, max_blocks + 1):
-            cols = _resolve_block_cols(df, k)
+            cols = _block_cols_by_k[k]
 
             girl_name_col = cols["girl_name"]
             girl_father_col = cols["girl_father"]

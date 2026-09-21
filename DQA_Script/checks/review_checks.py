@@ -217,12 +217,23 @@ def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[d
                             f"roster={roster_nm}; girl_label={label}",
                         )
 
-    # Education expenditure outliers (IQR on per-sibling totals)
+    # Education expenditure outliers (IQR on per-sibling totals).
+    # df.loc[i] is a full-row (all-column) lookup, so fetch it once per row
+    # -- on a slim, education-columns-only slice -- rather than once per
+    # (row, slot) pair; sibling_max slots per row otherwise multiplies an
+    # already expensive lookup by ~11x.
     spend_vals: list[float] = []
     spend_rows: list[tuple[Any, int, float]] = []
-    for i in df.index:
+    edu_prefixes = ["admission_fees", "uniform", "books", "transportation", "examination_fee", "other"]
+    edu_cols = [
+        f"{p}_{slot}"
+        for slot in range(1, sibling_max + 1)
+        for p in edu_prefixes
+        if f"{p}_{slot}" in df.columns
+    ]
+    for i, edu_row in df[edu_cols].iterrows():
         for slot in range(1, sibling_max + 1):
-            tot = _edu_spend_total(df.loc[i], slot)
+            tot = _edu_spend_total(edu_row, slot)
             if tot is None:
                 continue
             spend_vals.append(tot)
@@ -298,20 +309,24 @@ def _enumerator_dk_refuse(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey: 
         if str(c).endswith(("_98", "_99", "_888", "_999", "_89"))
     ]
 
+    # Vectorized per-row hit counts: same _is_dk_value/_to_num logic as before,
+    # but applied column-wise (fast) instead of via df.at[] per cell (slow on
+    # wide survey exports with 1000+ columns).
+    hits_per_row = pd.Series(0, index=df.index, dtype="int64")
+    if usable:
+        hits_per_row = hits_per_row.add(df[usable].map(_is_dk_value).sum(axis=1), fill_value=0)
+    if ms_dk_cols:
+        ms_hits = (df[ms_dk_cols].map(_to_num) == 1).sum(axis=1)
+        hits_per_row = hits_per_row.add(ms_hits, fill_value=0)
+
+    enum_series = df[enum_col]
     per_enum: dict[str, list[tuple[Any, int]]] = defaultdict(list)
     for i in df.index:
-        e = str(df.at[i, enum_col]).strip() if pd.notna(df.at[i, enum_col]) else ""
+        val = enum_series.at[i]
+        e = str(val).strip() if pd.notna(val) else ""
         if not e or e.lower() in {"nan", "none"}:
             continue
-        hits = 0
-        for c in usable:
-            if _is_dk_value(df.at[i, c]):
-                hits += 1
-        for c in ms_dk_cols:
-            n = _to_num(df.at[i, c])
-            if n == 1:
-                hits += 1
-        per_enum[e].append((i, hits))
+        per_enum[e].append((i, int(hits_per_row.at[i])))
 
     rates = []
     for e, rows in per_enum.items():
@@ -377,14 +392,28 @@ def _photo_present(val: Any) -> bool:
     return "http" in s or s.endswith((".jpg", ".jpeg", ".png")) or len(s) > 8
 
 
+def _reading_word_cols(df: pd.DataFrame) -> list[str]:
+    """Columns _reading_administered reads, so callers can slice the (wide)
+    survey frame once instead of doing a full-row df.loc[i] lookup per row."""
+    cols = [c for c in ("last_word",) if c in df.columns]
+    for k in range(1, 73):
+        c = f"word{k}"
+        if c not in df.columns:
+            break
+        cols.append(c)
+    return cols
+
+
 def _reading_photo_missing(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[dict]:
     issues: list[dict] = []
     front = "front_photo" if "front_photo" in df.columns else None
     back = "back_photo" if "back_photo" in df.columns else None
     if not front and not back:
         return issues
+    word_df = df[_reading_word_cols(df)]
+    administered = {i: _reading_administered(row) for i, row in word_df.iterrows()}
     for i in df.index:
-        if not _reading_administered(df.loc[i]):
+        if not administered.get(i, False):
             continue
         f_ok = _photo_present(df.at[i, front]) if front else False
         b_ok = _photo_present(df.at[i, back]) if back else False
@@ -420,9 +449,12 @@ def _enumerator_reading_distribution(df: pd.DataFrame, col: dict, meta_fn: MetaF
     min_n = int(col.get("reading_score_min_n", 5) or 5)
     z_thr = float(col.get("reading_score_z", 2.5) or 2.5)
 
+    word_df = df[_reading_word_cols(df)]
+    administered = {i: _reading_administered(row) for i, row in word_df.iterrows()}
+
     rows: list[tuple[Any, str, float, float, float]] = []
     for i in df.index:
-        if not _reading_administered(df.loc[i]):
+        if not administered.get(i, False):
             continue
         e = str(df.at[i, enum_col]).strip() if pd.notna(df.at[i, enum_col]) else ""
         if not e or e.lower() in {"nan", "none"}:
@@ -507,12 +539,14 @@ def run_hh_girls_gps(
         s = "" if val is None or (isinstance(val, float) and pd.isna(val)) else str(val).strip()
         return s
 
+    hh_geo_cols = sorted({c for p in hh_pairs for c in p if c})
+    hh_geo_slim = household_df[hh_geo_cols]
     hh_pts: dict[str, tuple[Any, dict[str, Any]]] = {}
     for i in household_df.index:
         gid = _gid(household_df.at[i, "girl"])
         if not gid:
             continue
-        pts = _row_geo_points(household_df.loc[i], hh_pairs)
+        pts = _row_geo_points(hh_geo_slim.loc[i], hh_pairs)
         if not pts:
             continue
         hh_pts[gid] = (i, pts[0])
@@ -530,11 +564,13 @@ def run_hh_girls_gps(
             district=g("district"),
         )
 
+    gl_geo_cols = sorted({c for p in gl_pairs for c in p if c})
+    gl_geo_slim = girls_df[gl_geo_cols]
     for j in girls_df.index:
         gid = _gid(girls_df.at[j, "girl"])
         if not gid or gid not in hh_pts:
             continue
-        gl_pts = _row_geo_points(girls_df.loc[j], gl_pairs)
+        gl_pts = _row_geo_points(gl_geo_slim.loc[j], gl_pairs)
         if not gl_pts:
             continue
         _, hp = hh_pts[gid]

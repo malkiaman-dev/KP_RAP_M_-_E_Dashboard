@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import re
-from difflib import SequenceMatcher
 from typing import Dict, Set, Tuple, Optional, List
 
 import pandas as pd
+from rapidfuzz import fuzz
 from utils.logging import make_issue
 
 # ------------------------------------------------------------
@@ -48,7 +48,7 @@ def _tokenize_name(s: str) -> str:
 def _similarity(a: str, b: str) -> float:
     if not a or not b:
         return 0.0
-    return SequenceMatcher(None, a, b).ratio() * 100.0
+    return fuzz.ratio(a, b)
 
 
 def _norm_id(x) -> str:
@@ -229,24 +229,32 @@ def _get_tracking_slot_girl_id(tracking_df: pd.DataFrame, row_idx: int, slot: in
     return raw_s, _norm_id(raw_s)
 
 
-def _best_household_match(trk_name: str, trk_father: str, hh: pd.DataFrame) -> Tuple[float, Optional[str]]:
+def _household_match_pool(hh: pd.DataFrame) -> List[Tuple[str, str, str]]:
+    """Flatten the household frame once so the per-row fuzzy match loop
+    (called for every tracked girl) avoids DataFrame.iterrows() overhead."""
+    return list(zip(hh["girl_id_n"], hh["girl_tok"], hh["father_tok"]))
+
+
+def _best_household_match(
+    trk_name: str, trk_father: str, hh_pool: List[Tuple[str, str, str]]
+) -> Tuple[float, Optional[str]]:
     tn = _tokenize_name(trk_name)
     tf = _tokenize_name(trk_father)
 
     best = 0.0
     best_id = None
 
-    for _, h in hh.iterrows():
-        gsim = _similarity(tn, h["girl_tok"])
-        fsim = _similarity(tf, h["father_tok"])
+    for girl_id_n, girl_tok, father_tok in hh_pool:
+        gsim = _similarity(tn, girl_tok)
+        fsim = _similarity(tf, father_tok)
         score = 0.65 * gsim + 0.35 * fsim
 
         if score > best:
             best = score
-            best_id = h["girl_id_n"]
+            best_id = girl_id_n
 
         if gsim >= 95 and fsim >= 90:
-            return 100.0, h["girl_id_n"]
+            return 100.0, girl_id_n
 
     return best, best_id
 
@@ -298,6 +306,8 @@ def run(tracking_df: pd.DataFrame, household_df: pd.DataFrame, cfg: dict | None 
     district_col = "district" if "district" in tracking_df.columns else None
 
     matched_hh_ids_n: Set[str] = set()
+    hh_ids_n: Set[str] = set(hh["girl_id_n"]) if not hh.empty else set()
+    hh_pool = _household_match_pool(hh) if (use_name_father_fallback and not hh.empty) else []
 
     # 1) Tracking -> Household
     for _, r in trk.iterrows():
@@ -311,12 +321,12 @@ def run(tracking_df: pd.DataFrame, household_df: pd.DataFrame, cfg: dict | None 
 
         trk_id_raw, trk_id_n = _get_tracking_slot_girl_id(tracking_df, trk_row, slot)
 
-        if trk_id_n and (hh["girl_id_n"] == trk_id_n).any():
+        if trk_id_n and trk_id_n in hh_ids_n:
             matched_hh_ids_n.add(trk_id_n)
             continue
 
-        if use_name_father_fallback and not hh.empty:
-            best, best_id_n = _best_household_match(r["name"], r["father"], hh)
+        if hh_pool:
+            best, best_id_n = _best_household_match(r["name"], r["father"], hh_pool)
             if best_id_n and best >= accept:
                 matched_hh_ids_n.add(best_id_n)
                 continue

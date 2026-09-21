@@ -911,7 +911,11 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     # HH_AVAIL_RESP_*: If only one parent marked available, respondent should match that parent
     # -------------------------------------------------------------------------
     if available_col and available_col in df.columns:
-        for i, row in df.iterrows():
+        _avail_cols = [
+            c for c in (available_col, respondent_code_col, consent_father_col, consent_mother_col)
+            if c and c in df.columns
+        ]
+        for i, row in df[_avail_cols].iterrows():
             av = _as_set(row.get(available_col))
             if not av:
                 continue
@@ -1102,7 +1106,11 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 return _is_explicit_no(row.get(consent_mother_col))
             return False
 
-        nonconsent_mask = df.apply(_row_nonconsent, axis=1)
+        _nonconsent_cols = [
+            c for c in (respondent_code_col, consent_father_col, consent_mother_col)
+            if c and c in df.columns
+        ]
+        nonconsent_mask = df[_nonconsent_cols].apply(_row_nonconsent, axis=1)
         if nonconsent_mask.any():
             counts = df.loc[nonconsent_mask, enum_key_col].map(_norm_str).replace("", pd.NA).dropna().value_counts()
             bad_enums = set(counts[counts > 5].index.tolist())
@@ -2115,8 +2123,10 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
 
     if duration_col or (start_col and end_col):
         field = ",".join([c for c in [duration_col, start_col, end_col] if c])
+        _dur_cols = [c for c in (duration_col, start_col, end_col) if c and c in df.columns]
+        _dur_slim = df[_dur_cols]
         for i in df.index:
-            mins = _duration_minutes(df.loc[i], start_col, end_col, duration_col)
+            mins = _duration_minutes(_dur_slim.loc[i], start_col, end_col, duration_col)
             if mins is None:
                 continue
 

@@ -131,26 +131,28 @@ def enumerator_error_percentage_all_surveys(
         if df0 is None or df0.empty:
             continue
 
-        df = df0.copy()
-
-        key_col = _pick_col(df, "record_key", "KEY", "key")
+        # Only ever need a handful of columns here -- avoid df0.copy(), which
+        # would duplicate the entire (often 1000+ column) survey export.
+        key_col = _pick_col(df0, "record_key", "KEY", "key")
         if not key_col:
-            key_col = _pick_col(df, "instance_id", "instanceID", "instanceid")
+            key_col = _pick_col(df0, "instance_id", "instanceID", "instanceid")
 
-        enum_col = _pick_col(df, "enumerator_name", "enumerator", "Enumerator")
-        enum_id_col = _pick_col(df, "enumerator_id", "enumeratorid", "Enumerator_id", "EnumeratorID")
+        enum_col = _pick_col(df0, "enumerator_name", "enumerator", "Enumerator")
+        enum_id_col = _pick_col(df0, "enumerator_id", "enumeratorid", "Enumerator_id", "EnumeratorID")
 
         if not key_col or not enum_col:
             continue
 
+        needed_cols = [enum_col, key_col] + ([enum_id_col] if enum_id_col else [])
+        tmp = df0[needed_cols].copy()
+
         # Ensure enumerator_id is nullable int if present
         if enum_id_col:
-            df[enum_id_col] = pd.to_numeric(df[enum_id_col], errors="coerce").astype("Int64")
+            tmp[enum_id_col] = pd.to_numeric(tmp[enum_id_col], errors="coerce").astype("Int64")
         else:
-            df["__enumerator_id__"] = pd.NA
+            tmp["__enumerator_id__"] = pd.NA
             enum_id_col = "__enumerator_id__"
 
-        tmp = df[[enum_col, enum_id_col, key_col]].copy()
         tmp = tmp.rename(
             columns={
                 enum_col: "enumerator_name",

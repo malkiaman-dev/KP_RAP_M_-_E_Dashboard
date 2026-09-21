@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import io
 from pathlib import Path
 
 import pandas as pd
@@ -83,35 +84,47 @@ def _load_survey_frames(data_dirs: list[Path], filenames: list[str]) -> pd.DataF
 
 
 def _write_outputs(error_log_raw: pd.DataFrame, dfs: dict[str, pd.DataFrame], out_dirs: list[Path]) -> None:
+    # These summaries only depend on error_log_raw/dfs, not on the output
+    # directory, so compute each one once instead of recomputing it for
+    # every sheet and every out_dir (the fuzzy-match-free groupbys are cheap,
+    # but there's no reason to redo them 4-6x when writing to two dirs).
+    errors_out = rename_error_log_headers(error_log_raw)
+    by_survey_out = rename_by_survey_headers(survey_issue_summary(error_log_raw))
+    by_enum_out = rename_by_enumerator_headers(error_rate_by_enumerator(error_log_raw))
+    perf_pct_out = enumerator_error_percentage_all_surveys(error_log_raw, dfs)
+
+    # Every out_dir gets byte-identical workbooks, so render each workbook's
+    # cells with openpyxl once (that's the expensive part) and copy the
+    # resulting bytes to each destination, instead of re-running to_excel
+    # once per out_dir.
+    def _render(build) -> bytes:
+        buf = io.BytesIO()
+        with pd.ExcelWriter(buf, engine="openpyxl") as xw:
+            build(xw)
+        return buf.getvalue()
+
+    def _build_daily(xw):
+        errors_out.to_excel(xw, index=False, sheet_name="errors")
+        by_survey_out.to_excel(xw, index=False, sheet_name="by_survey")
+        by_enum_out.to_excel(xw, index=False, sheet_name="by_enumerator")
+
+    def _build_weekly(xw):
+        by_survey_out.to_excel(xw, index=False, sheet_name="by_survey")
+        by_enum_out.to_excel(xw, index=False, sheet_name="by_enumerator")
+
+    def _build_perf(xw):
+        by_enum_out.to_excel(xw, index=False, sheet_name="performance")
+        perf_pct_out.to_excel(xw, index=False, sheet_name="performance_pct")
+
+    daily_bytes = _render(_build_daily)
+    weekly_bytes = _render(_build_weekly)
+    perf_bytes = _render(_build_perf)
+
     for out_dir in out_dirs:
         out_dir.mkdir(parents=True, exist_ok=True)
-
-        daily_path = out_dir / "Daily_Error_Log.xlsx"
-        with pd.ExcelWriter(daily_path, engine="openpyxl") as xw:
-            rename_error_log_headers(error_log_raw).to_excel(xw, index=False, sheet_name="errors")
-
-            by_survey = survey_issue_summary(error_log_raw)
-            rename_by_survey_headers(by_survey).to_excel(xw, index=False, sheet_name="by_survey")
-
-            by_enum = error_rate_by_enumerator(error_log_raw)
-            rename_by_enumerator_headers(by_enum).to_excel(xw, index=False, sheet_name="by_enumerator")
-
-        weekly_path = out_dir / "Weekly_QA_Summary.xlsx"
-        with pd.ExcelWriter(weekly_path, engine="openpyxl") as xw:
-            by_survey = survey_issue_summary(error_log_raw)
-            rename_by_survey_headers(by_survey).to_excel(xw, index=False, sheet_name="by_survey")
-
-            by_enum = error_rate_by_enumerator(error_log_raw)
-            rename_by_enumerator_headers(by_enum).to_excel(xw, index=False, sheet_name="by_enumerator")
-
-        perf_path = out_dir / "Enumerator_Performance.xlsx"
-        with pd.ExcelWriter(perf_path, engine="openpyxl") as xw:
-            by_enum = error_rate_by_enumerator(error_log_raw)
-            rename_by_enumerator_headers(by_enum).to_excel(xw, index=False, sheet_name="performance")
-
-            perf_pct = enumerator_error_percentage_all_surveys(error_log_raw, dfs)
-            perf_pct.to_excel(xw, index=False, sheet_name="performance_pct")
-
+        (out_dir / "Daily_Error_Log.xlsx").write_bytes(daily_bytes)
+        (out_dir / "Weekly_QA_Summary.xlsx").write_bytes(weekly_bytes)
+        (out_dir / "Enumerator_Performance.xlsx").write_bytes(perf_bytes)
         print(f"Wrote outputs -> {out_dir}")
 
 
