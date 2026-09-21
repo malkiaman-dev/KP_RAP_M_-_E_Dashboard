@@ -118,14 +118,19 @@ def _edu_spend_total(row: pd.Series, slot: int) -> float | None:
 def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[dict]:
     issues: list[dict] = []
     sibling_max = int(col.get("sibling_roster_max", 11) or 11)
+    hh_roster_max = int(col.get("hh_roster_max", 14) or 14)
     small_thr = float(col.get("small_household_threshold", 2) or 2)
     edu_iqr = float(col.get("edu_spend_iqr_mult", 3) or 3)
     phone_col = "phonenumber" if "phonenumber" in df.columns else None
     phone1_col = "phonenumber1" if "phonenumber1" in df.columns else None
     girlname_col = "girlname_label" if "girlname_label" in df.columns else None
 
-    # Extremely small household: use siblings roster / num_siblings.
-    # The HH presence roster (name_1..) is often only 1-2 people and is not household size.
+    # Extremely small household: siblings roster / num_siblings, PLUS the family
+    # roster (relation_1..relation_N — step-parents, spouse, in-laws, grandparents,
+    # aunts/uncles, etc.). Flag when the combined count is 2 or fewer.
+    family_relation_cols = [
+        f"relation_{k}" for k in range(1, hh_roster_max + 1) if f"relation_{k}" in df.columns
+    ]
     for i in df.index:
         num_sib = _to_num(df.at[i, "num_siblings"]) if "num_siblings" in df.columns else None
         sib_n = 0
@@ -133,8 +138,12 @@ def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[d
             c = f"name_sibling_{k}"
             if c in df.columns and not _is_blank(df.at[i, c]):
                 sib_n += 1
-        size_proxy = num_sib if num_sib is not None else (float(sib_n) if sib_n else None)
-        if size_proxy is not None and 0 < size_proxy <= small_thr:
+        sib_count = num_sib if num_sib is not None else float(sib_n)
+
+        fam_n = sum(1 for c in family_relation_cols if not _is_blank(df.at[i, c]))
+
+        size_proxy = sib_count + fam_n
+        if size_proxy > 0 and size_proxy <= small_thr:
             _emit(
                 issues,
                 "Household",
@@ -144,11 +153,12 @@ def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[d
                 "HH_QF_SMALL_HOUSEHOLD",
                 "Extremely small household",
                 (
-                    f"Only {int(size_proxy)} sibling(s) are listed (threshold {int(small_thr)}). "
+                    f"Only {int(size_proxy)} household member(s) are listed across the sibling "
+                    f"roster and family roster combined (threshold {int(small_thr)}). "
                     "Verify that household members were not omitted."
                 ),
-                "num_siblings,name_sibling_1",
-                f"num_siblings={'' if num_sib is None else int(num_sib)}; roster_siblings={sib_n}",
+                "num_siblings,name_sibling_1,relation_1",
+                f"num_siblings={'' if num_sib is None else int(num_sib)}; roster_siblings={sib_n}; roster_family={fam_n}",
             )
 
         if phone_col:
