@@ -921,7 +921,7 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoidUrdu: "Jis girl ka Girls interview ho chuka hai uska Household survey bhi zaroor complete karein.",
   },
   HVG_CE_GPS_MISMATCH: {
-    focus: "Household GPS and Girls GPS for the same girl are far apart (500m+).",
+    focus: "Mother's Household GPS and Girls GPS for the same girl are far apart (500m+).",
     avoid: "Capture GPS at the actual interview location every time, for both surveys.",
     avoidUrdu: "Har interview ke waqt GPS asal location par hi capture karein, dono surveys ke liye.",
   },

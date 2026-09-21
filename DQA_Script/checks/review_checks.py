@@ -533,7 +533,15 @@ def run_hh_girls_gps(
     girls_df: pd.DataFrame,
     max_meters: float = 500.0,
 ) -> list[dict]:
-    """Same girl ID should have Household and Girls GPS in the same place."""
+    """Same girl ID should have Mother's Household GPS and Girls GPS in the same place.
+
+    The mother is usually the one physically present at the home with the
+    girl (the father may be interviewed elsewhere, e.g. at work), so her
+    Household GPS is the reliable reference point. Every captured GPS field
+    on both sides (geo_location1, geo_location2, ...) is checked, and the
+    closest Household-vs-Girls pair decides the distance — a single bad GPS
+    field on either side shouldn't cause a false mismatch.
+    """
     issues: list[dict] = []
     if "girl" not in household_df.columns or "girl" not in girls_df.columns:
         return issues
@@ -549,17 +557,28 @@ def run_hh_girls_gps(
         s = "" if val is None or (isinstance(val, float) and pd.isna(val)) else str(val).strip()
         return s
 
+    respondent_col = "respondent" if "respondent" in household_df.columns else None
+
+    def _is_mother_row(i: Any) -> bool:
+        if not respondent_col:
+            # No respondent info available — don't exclude any household rows.
+            return True
+        n = _to_num(household_df.at[i, respondent_col])
+        return n is not None and int(round(n)) == 2
+
     hh_geo_cols = sorted({c for p in hh_pairs for c in p if c})
     hh_geo_slim = household_df[hh_geo_cols]
-    hh_pts: dict[str, tuple[Any, dict[str, Any]]] = {}
+    hh_pts: dict[str, list[tuple[Any, dict[str, Any]]]] = {}
     for i in household_df.index:
+        if not _is_mother_row(i):
+            continue
         gid = _gid(household_df.at[i, "girl"])
         if not gid:
             continue
         pts = _row_geo_points(hh_geo_slim.loc[i], hh_pairs)
         if not pts:
             continue
-        hh_pts[gid] = (i, pts[0])
+        hh_pts.setdefault(gid, []).extend((i, p) for p in pts)
 
     def _meta(df: pd.DataFrame, i: Any) -> dict:
         def g(c: str):
@@ -583,28 +602,36 @@ def run_hh_girls_gps(
         gl_pts = _row_geo_points(gl_geo_slim.loc[j], gl_pairs)
         if not gl_pts:
             continue
-        _, hp = hh_pts[gid]
-        gp = gl_pts[0]
-        dist = _haversine_m(hp["lat"], hp["lon"], gp["lat"], gp["lon"])
-        if dist <= max_meters:
+
+        best_dist: float | None = None
+        best_hp: dict[str, Any] | None = None
+        best_gp: dict[str, Any] | None = None
+        for _hi, hp in hh_pts[gid]:
+            for gp in gl_pts:
+                d = _haversine_m(hp["lat"], hp["lon"], gp["lat"], gp["lon"])
+                if best_dist is None or d < best_dist:
+                    best_dist, best_hp, best_gp = d, hp, gp
+
+        if best_dist is None or best_dist <= max_meters:
             continue
+
         m = _meta(girls_df, j)
         add_issue(
             issues,
             survey="Household vs Girls",
             severity="CRITICAL",
             rule_id="HVG_CE_GPS_MISMATCH",
-            title="Girls GPS does not match Household GPS",
+            title="Girls GPS does not match Mother's Household GPS",
             cause=(
-                f"For girl ID {gid}, Girls GPS is {dist:.0f} m from Household GPS "
-                f"(limit {int(max_meters)} m). Both surveys should be at the same place. "
-                "Resurvey if the locations are different areas."
+                f"For girl ID {gid}, Girls GPS is {best_dist:.0f} m from the mother's Household GPS "
+                f"(limit {int(max_meters)} m; closest of all captured GPS fields on both sides). "
+                "Both surveys should be at the same place. Resurvey if the locations are different areas."
             ),
             field="girl,geo_location1-Latitude,geo_location1-Longitude",
             value=(
-                f"girl={gid}; dist_m={dist:.0f}; "
-                f"hh=({hp['lat']:.5f},{hp['lon']:.5f}); "
-                f"girls=({gp['lat']:.5f},{gp['lon']:.5f})"
+                f"girl={gid}; dist_m={best_dist:.0f}; "
+                f"hh=({best_hp['lat']:.5f},{best_hp['lon']:.5f}); "
+                f"girls=({best_gp['lat']:.5f},{best_gp['lon']:.5f})"
             ),
             record_key=m["record_key"],
             instance_id=m["instance_id"],
