@@ -246,7 +246,19 @@ export function ErrorTable({
                         >
                           {e.survey || "—"}
                         </span>
-                        {ctx.respondentType ? (
+                        {e.survey === "Household" && e.formRespondent ? (
+                          <span
+                            className={cn(
+                              "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                              e.formRespondent === "Father" &&
+                                "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+                              e.formRespondent === "Mother" &&
+                                "bg-pink-500/10 text-pink-700 dark:text-pink-400"
+                            )}
+                          >
+                            {e.formRespondent}
+                          </span>
+                        ) : ctx.respondentType ? (
                           <span
                             className={cn(
                               "rounded-full px-2.5 py-0.5 text-xs font-medium",

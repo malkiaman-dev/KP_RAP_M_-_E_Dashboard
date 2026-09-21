@@ -11,7 +11,14 @@ import {
   parseErrorValueParts,
   stripContextFromValue,
 } from "./error-value-parse";
+import { isFatherRespondent, isMotherRespondent } from "./hh-girls-metrics";
 import type { ErrorRow } from "./error-metrics";
+
+function respondentLabel(code: string): string {
+  if (isFatherRespondent(code)) return "Father";
+  if (isMotherRespondent(code)) return "Mother";
+  return "";
+}
 
 export {
   parseErrorValueParts,
@@ -33,6 +40,8 @@ export type RespondentContext = {
   village: string;
   school: string;
   girlId: string;
+  /** Household form respondent code ("1" = Father, "2" = Mother). Empty outside Household. */
+  respondentCode: string;
 };
 
 type ContextIndex = {
@@ -131,6 +140,7 @@ function extractFromRow(
     village: first(row, villageCols, { preferText: true }),
     school: first(row, schoolCols, { preferText: true }),
     girlId: first(row, girlIdCols),
+    respondentCode: survey === "Household" ? text(row.respondent) : "",
   };
 }
 
@@ -164,6 +174,7 @@ function mergeCtx(
       a.school ||
       b.school,
     girlId: a.girlId || b.girlId,
+    respondentCode: a.respondentCode || b.respondentCode,
   };
 }
 
@@ -241,6 +252,7 @@ function resolveContext(
     village: parts.village || "",
     school: parts.school || "",
     girlId: parts.girl || "",
+    respondentCode: "",
   };
 
   for (const k of keys) {
@@ -261,6 +273,7 @@ export type EnrichedErrorRow = ErrorRow & {
   girlName: string;
   villageName: string;
   schoolName: string;
+  formRespondent: string;
 };
 
 export function enrichErrorRowsLive(rows: ErrorRow[]): EnrichedErrorRow[] {
@@ -276,6 +289,8 @@ export function enrichErrorRowsLive(rows: ErrorRow[]): EnrichedErrorRow[] {
       ctx.school ||
       parts.school ||
       "";
+    const formRespondent =
+      row.survey === "Household" ? respondentLabel(ctx.respondentCode) : "";
 
     // Keep value readable: original evidence + context keys for Excel export/search
     let value = stripContextFromValue(row.value) || row.value;
@@ -293,6 +308,7 @@ export function enrichErrorRowsLive(rows: ErrorRow[]): EnrichedErrorRow[] {
       girlName,
       villageName,
       schoolName,
+      formRespondent,
     };
   });
 }

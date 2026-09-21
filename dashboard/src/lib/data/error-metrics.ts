@@ -27,6 +27,8 @@ export interface ErrorRow {
   girlName?: string;
   villageName?: string;
   schoolName?: string;
+  /** Household form respondent ("Mother" / "Father"), live-enriched. Household survey only. */
+  formRespondent?: string;
 }
 
 export interface ErrorFilters {
