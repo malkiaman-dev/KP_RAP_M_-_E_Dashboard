@@ -126,17 +126,6 @@ def _norm_name(val: Any) -> str:
     return re.sub(r"\s+", " ", str(val).strip().lower())
 
 
-def _names_match(a: str, b: str) -> bool:
-    if not a or not b:
-        return False
-    if a == b:
-        return True
-    # Tolerate honorific / suffix differences (e.g. "ghasima" vs "ghasima bibi")
-    if a in b or b in a:
-        return True
-    return False
-
-
 def _clip(val: Any, n: int = 220) -> str:
     s = "" if val is None or (isinstance(val, float) and pd.isna(val)) else str(val)
     s = s.strip()
@@ -166,9 +155,19 @@ def run_household_protocol(
     girl_col = col.get("girl_id") or ("girl" if "girl" in df.columns else None)
     if girl_col and girl_col not in df.columns and "girl" in df.columns:
         girl_col = "girl"
-    girlname_col = "girlname_label" if "girlname_label" in df.columns else None
-    listed_idx_col = "listed_girl_index" if "listed_girl_index" in df.columns else None
     edu_col = "listed_girl_edu" if "listed_girl_edu" in df.columns else None
+    father_edu_col = "edu_background1" if "edu_background1" in df.columns else None
+
+    def _listed_girl_position(i: Any) -> int | None:
+        """Sibling-roster position marked relation_sibling_k = 3 (Listed girl)."""
+        for k in range(1, sibling_max + 1):
+            rel_c = f"relation_sibling_{k}"
+            if rel_c not in df.columns:
+                continue
+            rel_v = _to_num(df.at[i, rel_c])
+            if rel_v is not None and int(rel_v) == 3:
+                return k
+        return None
     respondent_col = "respondent" if "respondent" in df.columns else None
     duration_col = col.get("duration") or "duration"
     start_col = col.get("starttime") or "starttime"
@@ -200,7 +199,13 @@ def run_household_protocol(
         )
 
     # --- 2. Schooling status Mother vs Father ---
-    # Track latest row per parent even when edu is blank (both interviewed).
+    # One form is used for both the mother and the father interview — selecting
+    # the respondent shows only that respondent's section, the rest is skipped.
+    # Mother's section carries the full per-sibling education roster
+    # (edu_background_k), so the listed girl's status is read from her own
+    # position (found via relation_sibling_k = 3). Father's section instead
+    # asks a single compact follow-up (edu_background1) about the listed girl.
+    # Only comparing these two specific fields should fire this mismatch.
     parent_row_by_girl: dict[str, dict[str, Any]] = defaultdict(dict)
     if girl_col and respondent_col:
         for i in df.index:
@@ -211,7 +216,12 @@ def run_household_protocol(
             parent = "father" if resp == 1 else ("mother" if resp == 2 else None)
             if not parent:
                 continue
-            edu = _to_num(df.at[i, edu_col]) if edu_col else None
+            if parent == "father":
+                edu = _to_num(df.at[i, father_edu_col]) if father_edu_col else None
+            else:
+                pos = _listed_girl_position(i)
+                edu_bg_col = f"edu_background_{pos}" if pos else None
+                edu = _to_num(df.at[i, edu_bg_col]) if edu_bg_col and edu_bg_col in df.columns else None
             parent_row_by_girl[str(gid).strip()][parent] = (edu if edu is None else int(edu), i)
 
     for gid, parents in parent_row_by_girl.items():
@@ -219,11 +229,14 @@ def run_household_protocol(
             continue
         f_edu, _f_idx = parents["father"]
         m_edu, m_idx = parents["mother"]
-        if f_edu is None and m_edu is None:
+        # Only a genuine contradiction counts: both sides must have an actual
+        # answer (1/2/3). One side blank is not a mismatch — the enumerator
+        # simply didn't (re)answer it in that respondent's section.
+        if f_edu is None or m_edu is None:
             continue
         if f_edu != m_edu:
-            m_lab = EDU_LABELS.get(m_edu, "blank") if m_edu is not None else "blank"
-            f_lab = EDU_LABELS.get(f_edu, "blank") if f_edu is not None else "blank"
+            m_lab = EDU_LABELS.get(m_edu, "blank")
+            f_lab = EDU_LABELS.get(f_edu, "blank")
             _emit(
                 m_idx,
                 "FLAG",
@@ -233,7 +246,7 @@ def run_household_protocol(
                     f"Mother={m_lab}; Father={f_lab}. "
                     "Statuses must match; mismatch can skip downstream modules (e.g. transport)."
                 ),
-                edu_col or "listed_girl_edu",
+                "edu_background_*," + (father_edu_col or "edu_background1"),
                 f"girl={gid}; mother={m_edu}; father={f_edu}",
             )
 
@@ -254,68 +267,41 @@ def run_household_protocol(
         gid_s = str(gid).strip() if not _is_blank(gid) else ""
 
         # --- 1. Listed girl in siblings roster ---
+        # The listed girl's roster entry is the one marked relation_sibling_k = 3
+        # (Listed girl) — that is the sole criterion, not name matching or the
+        # listed_girl_k flags.
         roster_names: list[tuple[int, str]] = []
-        listed_positions: list[int] = []
         for k in range(1, sibling_max + 1):
             name_c = f"name_sibling_{k}"
-            flag_c = f"listed_girl_{k}"
             if name_c in df.columns and not _is_blank(df.at[i, name_c]):
                 roster_names.append((k, _norm_name(df.at[i, name_c])))
-            if flag_c in df.columns:
-                flag_v = _to_num(df.at[i, flag_c])
-                if flag_v == 1:
-                    listed_positions.append(k)
 
         has_any_roster = len(roster_names) > 0
-        listed_idx = _to_num(df.at[i, listed_idx_col]) if listed_idx_col else None
-        girl_name = _norm_name(df.at[i, girlname_col]) if girlname_col else ""
+        listed_pos = _listed_girl_position(i)
 
         if has_any_roster:
-            name_positions = [k for k, nm in roster_names if _names_match(girl_name, nm)]
-            name_in_roster = bool(name_positions)
-            marked = bool(listed_positions) or (listed_idx is not None and listed_idx >= 1)
-
-            if not marked and not name_in_roster:
+            if listed_pos is None:
                 _emit(
                     i,
                     "CRITICAL",
                     "HH_CR_LISTED_GIRL_NOT_IN_ROSTER",
                     "Listed girl missing from siblings roster",
-                    "Listed girl is not marked in the sibling roster and name does not match any sibling entry. "
+                    "No sibling roster entry has relation = Listed girl (relation_sibling = 3). "
                     "Investigate and resurvey the household if the listed girl was omitted.",
-                    ",".join(
-                        c
-                        for c in [girlname_col, listed_idx_col, "listed_girl_1", "name_sibling_1"]
-                        if c
-                    ),
-                    f"girl={gid_s}; roster_n={len(roster_names)}; listed_index={listed_idx}",
+                    "relation_sibling_1,name_sibling_1",
+                    f"girl={gid_s}; roster_n={len(roster_names)}",
                 )
-            else:
-                first_ok = False
-                if listed_positions and min(listed_positions) == 1:
-                    first_ok = True
-                elif listed_idx == 1:
-                    first_ok = True
-                elif name_positions and min(name_positions) == 1:
-                    first_ok = True
-
-                if not first_ok and (listed_positions or (listed_idx is not None and listed_idx >= 1) or name_in_roster):
-                    if listed_positions:
-                        pos = min(listed_positions)
-                    elif listed_idx is not None and listed_idx >= 1:
-                        pos = int(listed_idx)
-                    else:
-                        pos = min(name_positions) if name_positions else listed_idx
-                    _emit(
-                        i,
-                        "FLAG",
-                        "HH_CR_LISTED_GIRL_NOT_FIRST",
-                        "Listed girl not first in siblings roster",
-                        f"Listed girl exists in siblings roster but is not the first entry (position={pos}). "
-                        "The listed girl must be the first siblings-roster row.",
-                        f"{listed_idx_col or 'listed_girl_index'},listed_girl_1,name_sibling_1",
-                        f"girl={gid_s}; listed_index={listed_idx}; listed_positions={listed_positions}",
-                    )
+            elif listed_pos != 1:
+                _emit(
+                    i,
+                    "FLAG",
+                    "HH_CR_LISTED_GIRL_NOT_FIRST",
+                    "Listed girl not first in siblings roster",
+                    f"Listed girl (relation_sibling = 3) exists in siblings roster but is not the first entry "
+                    f"(position={listed_pos}). The listed girl must be the first siblings-roster row.",
+                    f"relation_sibling_{listed_pos},name_sibling_{listed_pos}",
+                    f"girl={gid_s}; listed_position={listed_pos}",
+                )
 
         # --- 3. Transport module missing ---
         edu = _to_num(df.at[i, edu_col]) if edu_col else None
