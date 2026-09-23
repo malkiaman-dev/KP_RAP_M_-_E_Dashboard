@@ -43,6 +43,8 @@ all_columns:
 - SubmissionDate
 - starttime
 - endtime
+- starttime1
+- Endtime1
 - deviceid
 - devicephonenum
 - device_info

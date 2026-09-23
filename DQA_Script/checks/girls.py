@@ -163,6 +163,8 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     starttime = cfg("starttime", "starttime")
     endtime = cfg("endtime", "endtime")
     duration_col = cfg("duration", "duration")
+    alt_starttime = cfg("alt_starttime", "starttime1")
+    alt_endtime = cfg("alt_endtime", "Endtime1", "endtime1")
 
     crit_fast_min = float(col.get("critical_fast_duration_minutes", 10) or 10)
     min_survey_min = float(col.get("min_survey_duration_minutes", 15) or 15)
@@ -756,7 +758,21 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         if _consent_refused(i):
             continue
         # At or under 15 minutes: invalid and integrity track (Track 2), not a routine timing flag.
-        if mins <= min_survey_min:
+        too_fast = mins <= min_survey_min
+
+        # Cross-check against the form's own recorded start/end (starttime1 /
+        # Endtime1) when available. SurveyCTO's `duration` (active seconds) can
+        # under-report if the app was resumed after being backgrounded; only
+        # treat this as a genuine too-fast interview when both signals agree.
+        if too_fast and alt_starttime and alt_endtime:
+            alt_st = safe_to_datetime(pd.Series([df.at[i, alt_starttime]], index=[i])).iloc[0]
+            alt_et = safe_to_datetime(pd.Series([df.at[i, alt_endtime]], index=[i])).iloc[0]
+            if pd.notna(alt_st) and pd.notna(alt_et) and alt_et > alt_st:
+                alt_mins = (alt_et - alt_st).total_seconds() / 60.0
+                if alt_mins > min_survey_min:
+                    too_fast = False
+
+        if too_fast:
             add_issue(
                 i,
                 "CRITICAL",
