@@ -2120,6 +2120,14 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     MOTHER_MIN_DURATION_MIN = float(col.get("min_survey_duration_minutes_mother", 25) or 25)
     FATHER_MIN_DURATION_MIN = float(col.get("min_survey_duration_minutes_father", 15) or 15)
     duration_col = _find_existing(df, [col.get("duration") if isinstance(col.get("duration"), str) else None, "duration"])
+    alt_start_col = _find_existing(df, ["starttime1"])
+    alt_end_col = _find_existing(df, ["Endtime1", "endtime1"])
+
+    def _too_fast(mins: float, resp: str | None) -> tuple[bool, str, float, str]:
+        if resp == "2":
+            return mins < MOTHER_MIN_DURATION_MIN, "Mother", MOTHER_MIN_DURATION_MIN, "under"
+        who = "Father" if resp == "1" else "Household"
+        return mins <= FATHER_MIN_DURATION_MIN, who, FATHER_MIN_DURATION_MIN, "at or under"
 
     if duration_col or (start_col and end_col):
         field = ",".join([c for c in [duration_col, start_col, end_col] if c])
@@ -2136,13 +2144,21 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 if resp_num is not None:
                     resp = str(int(round(resp_num)))
 
-            if resp == "2":
-                who, threshold, too_fast = "Mother", MOTHER_MIN_DURATION_MIN, mins < MOTHER_MIN_DURATION_MIN
-                bound = "under"
-            else:
-                who = "Father" if resp == "1" else "Household"
-                threshold, too_fast = FATHER_MIN_DURATION_MIN, mins <= FATHER_MIN_DURATION_MIN
-                bound = "at or under"
+            too_fast, who, threshold, bound = _too_fast(mins, resp)
+
+            # Cross-check against the form's own recorded start/end (starttime1 /
+            # Endtime1) when available. SurveyCTO's `duration` (active seconds)
+            # can under-report if the app was resumed after being backgrounded;
+            # only treat this as a genuine too-fast interview when both signals
+            # agree. If they disagree, this isn't a reliable integrity finding.
+            if too_fast and alt_start_col and alt_end_col:
+                alt_st = _parse_date_any(df.at[i, alt_start_col])
+                alt_et = _parse_date_any(df.at[i, alt_end_col])
+                if alt_st and alt_et and alt_et > alt_st:
+                    alt_mins = (alt_et - alt_st).total_seconds() / 60.0
+                    alt_too_fast, *_rest = _too_fast(alt_mins, resp)
+                    if not alt_too_fast:
+                        too_fast = False
 
             # Respondent declined consent (whichever consent field is actually filled
             # in — respondent code can be blank/unreliable): interview legitimately

@@ -172,6 +172,12 @@ def run_household_protocol(
     duration_col = col.get("duration") or "duration"
     start_col = col.get("starttime") or "starttime"
     end_col = col.get("endtime") or "endtime"
+    alt_start_col = "starttime1" if "starttime1" in df.columns else None
+    alt_end_col = (
+        "Endtime1"
+        if "Endtime1" in df.columns
+        else ("endtime1" if "endtime1" in df.columns else None)
+    )
     alt_phone_col = "alternate_phonenumber" if "alternate_phonenumber" in df.columns else None
     neigh_phone_col = "neighbor_phonenumber" if "neighbor_phonenumber" in df.columns else None
     transport_presence_col = "transport_presence" if "transport_presence" in df.columns else None
@@ -348,8 +354,20 @@ def run_household_protocol(
                 dur_min = None
 
         # Implausibly long duration — often form left open overnight, but still
-        # a data-quality problem worth surfacing as a Critical error.
-        if dur_min is not None and dur_min >= warn_mins:
+        # a data-quality problem worth surfacing as a Critical error. Cross-check
+        # against the form's own starttime1/Endtime1 when available: `duration`
+        # can over-report when the app sits backgrounded, so only treat this as
+        # a genuine long interview when both signals agree it's long.
+        long_flag = dur_min is not None and dur_min >= warn_mins
+        if long_flag and alt_start_col and alt_end_col:
+            alt_st = pd.to_datetime(df.at[i, alt_start_col], errors="coerce", dayfirst=True)
+            alt_en = pd.to_datetime(df.at[i, alt_end_col], errors="coerce", dayfirst=True)
+            if pd.notna(alt_st) and pd.notna(alt_en) and alt_en > alt_st:
+                alt_mins = (alt_en - alt_st).total_seconds() / 60.0
+                if alt_mins < warn_mins:
+                    long_flag = False
+
+        if long_flag:
             sev = "CRITICAL"
             thr = crit_mins if dur_min >= crit_mins else warn_mins
             _emit(
