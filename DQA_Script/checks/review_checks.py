@@ -9,6 +9,7 @@ content (blank vs real page), telephonic-mode field, joint sign-off.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from typing import Any, Callable
 
@@ -26,6 +27,17 @@ from utils.logging import add_issue
 
 
 MetaFn = Callable[[Any], dict]
+
+# Honorifics that enumerators add or drop inconsistently ("Sorta" vs "Sorta Bibi");
+# ignored when comparing the roster name against girl_label.
+NAME_HONORIFICS = {"bibi", "bibie", "bebe", "bb", "begum", "begam"}
+
+
+def _name_key(name: str) -> str:
+    """Case-, punctuation- and honorific-insensitive key for name comparison."""
+    tokens = re.sub(r"[^\w\s]", " ", name.lower()).split()
+    kept = [t for t in tokens if t not in NAME_HONORIFICS]
+    return " ".join(kept or tokens)
 
 DK_TEXT = {
     "dk",
@@ -209,7 +221,7 @@ def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[d
                 name_c = f"name_sibling_{listed_k}"
                 if name_c in df.columns:
                     roster_nm = _norm_name(df.at[i, name_c])
-                    if roster_nm and roster_nm != label:
+                    if roster_nm and _name_key(roster_nm) != _name_key(label):
                         _emit(
                             issues,
                             "Household",
