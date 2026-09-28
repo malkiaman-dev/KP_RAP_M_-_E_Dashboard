@@ -14,6 +14,7 @@ from collections import defaultdict
 from typing import Any, Callable
 
 import pandas as pd
+from rapidfuzz import fuzz
 
 from checks.high_frequency import (
     _emit,
@@ -38,6 +39,23 @@ def _name_key(name: str) -> str:
     tokens = re.sub(r"[^\w\s]", " ", name.lower()).split()
     kept = [t for t in tokens if t not in NAME_HONORIFICS]
     return " ".join(kept or tokens)
+
+
+# Minor spelling variants ("Fatima" vs "Fatma") at or above this similarity
+# (0-100, word order ignored) are treated as the same name.
+NAME_FUZZY_THRESHOLD = 85
+
+
+def _phonetic(name: str) -> str:
+    """Collapse common Urdu romanisation variants (Maryam/Mariam, Heena/Hina)."""
+    s = name.replace("ee", "i").replace("oo", "u").replace("y", "i")
+    return re.sub(r"(.)\1+", r"\1", s)
+
+
+def _names_match(a: str, b: str) -> bool:
+    ka, kb = _phonetic(_name_key(a)), _phonetic(_name_key(b))
+    return ka == kb or fuzz.token_sort_ratio(ka, kb) >= NAME_FUZZY_THRESHOLD
+
 
 DK_TEXT = {
     "dk",
@@ -221,7 +239,7 @@ def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[d
                 name_c = f"name_sibling_{listed_k}"
                 if name_c in df.columns:
                     roster_nm = _norm_name(df.at[i, name_c])
-                    if roster_nm and _name_key(roster_nm) != _name_key(label):
+                    if roster_nm and not _names_match(roster_nm, label):
                         _emit(
                             issues,
                             "Household",
