@@ -1,0 +1,129 @@
+HH Survey Details:
+Attempts: (radio buttons)Please select your attempt number to survey the householdLabel: attempt, Values: 1,2,3
+These are the attempt through which we can find the attempt number.
+Parent availability:
+Mark who is available at the household (checkboxes)
+Label: available values: 1=father, 2= mother, any other value means none of them
+Remember; if both are available so it can have two values separated by space like 1 2.
+available_1= father available 1=yes, 0=no
+available_2= Mother available 1=yes, 0=no
+available_3= none of them available 1=yes, 0=no
+Unavailability reason
+Why is the mother not available?
+ 1=Gone for work within the village
+ 2=Gone for work outside the village
+ 3=Lives in another city
+ 4=Lives in another country
+ 5=Have passed away
+6=Other (specify)
+
+Revisit:
+For either father or mother or for both if:unavailable_reason is 3,4 or 5 so no revisit is required. Otherwise, we need to revisit.
+mother_unavailable1= this variable will have the unavailability reasons for the respondent such as (1,2,3,4,5) as above unavailability reasons.
+father_unavailable_other = if 6 is selected from above then this field will contain the reason enter by enumerator.
+father_unavailable1: this variable will have the unavailability reasons for the respondent such as (1,2,3,4,5) as above unavailability reasons
+father_unavailable_other: if 6 is selected from above then this field will contain the reason enter by enumerator.
+
+Schedule time:
+If respondent is temporarily not available (Unavailability reason
+1,2,6) so we have to schedule a time for the interview:
+So in the sheet schedule_spouse will have these time values on cell can have multiple values separated by space e.g 1 3 etcusing this will help us when to revisit for the respondents.
+available_days_time
+1
+Monday (7 am to 9 am)
+available_days_time
+2
+Monday (9 am to 11 am)
+available_days_time
+3
+Monday (11 am to 1 pm)
+available_days_time
+4
+Monday (1 pm to 3 pm)
+available_days_time
+5
+Monday (3 pm to 5 pm)
+available_days_time
+6
+Tuesday (7 am to 9 am)
+available_days_time
+7
+Tuesday (9 am to 11 am)
+available_days_time
+8
+Tuesday (11 am to 1 pm)
+available_days_time
+9
+Tuesday (1 pm to 3 pm)
+available_days_time
+10
+Tuesday (3 pm to 5 pm)
+available_days_time
+11
+Wednesday (7 am to 9 am)
+available_days_time
+12
+Wednesday (9 am to 11 am)
+available_days_time
+13
+Wednesday (11 am to 1 pm)
+available_days_time
+14
+Wednesday (1 pm to 3 pm)
+available_days_time
+15
+Wednesday (3 pm to 5 pm)
+available_days_time
+16
+Thursday (7 am to 9 am)
+available_days_time
+17
+Thursday (9 am to 11 am)
+available_days_time
+18
+Thursday (11 am to 1 pm)
+available_days_time
+19
+Thursday (1 pm to 3 pm)
+available_days_time
+20
+Thursday (3 pm to 5 pm)
+available_days_time
+21
+Friday (7 am to 9 am)
+available_days_time
+22
+Friday (9 am to 11 am)
+available_days_time
+23
+Friday (11 am to 1 pm)
+available_days_time
+24
+Friday (1 pm to 3 pm)
+available_days_time
+25
+Friday (3 pm to 5 pm)
+available_days_time
+26
+Saturday (7 am to 9 am)
+available_days_time
+27
+Saturday (9 am to 11 am)
+available_days_time
+28
+Saturday (11 am to 1 pm)
+available_days_time
+29
+Saturday (1 pm to 3 pm)
+available_days_time
+30
+Saturday (3 pm to 5 pm)
+available_days_time
+99
+Other(Specify)
+
+Survey status complete and incomplete:
+If both father and mother consent refused the survey will be incomplete.
+If there is need of revisit then survey will be incomplete.
+
+

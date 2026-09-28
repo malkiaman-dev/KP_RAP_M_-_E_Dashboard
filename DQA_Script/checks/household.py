@@ -2126,8 +2126,21 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     def _too_fast(mins: float, resp: str | None) -> tuple[bool, str, float, str]:
         if resp == "2":
             return mins < MOTHER_MIN_DURATION_MIN, "Mother", MOTHER_MIN_DURATION_MIN, "under"
-        who = "Father" if resp == "1" else "Household"
-        return mins <= FATHER_MIN_DURATION_MIN, who, FATHER_MIN_DURATION_MIN, "at or under"
+        if resp == "1":
+            return mins <= FATHER_MIN_DURATION_MIN, "Father", FATHER_MIN_DURATION_MIN, "at or under"
+        # Respondent blank: we don't know who was being interviewed, or
+        # whether the interview even reached that point. There isn't enough
+        # information here to treat a short duration as a genuine integrity
+        # finding, so never flag it.
+        return False, "Household", FATHER_MIN_DURATION_MIN, "at or under"
+
+    def _consent_agreed(val: Any) -> bool:
+        # Numeric consent columns load as float64 (e.g. 1.0), so a plain
+        # string match against "1" never fires — compare numerically first.
+        n = _to_num(val)
+        if n is not None:
+            return abs(n - 1.0) < 1e-9
+        return _is_yes(val)
 
     if duration_col or (start_col and end_col):
         field = ",".join([c for c in [duration_col, start_col, end_col] if c])
@@ -2160,14 +2173,24 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                     if not alt_too_fast:
                         too_fast = False
 
-            # Respondent declined consent (whichever consent field is actually filled
-            # in — respondent code can be blank/unreliable): interview legitimately
-            # ends early, not an integrity concern.
+            # Consent must be explicitly agreed ("Yes") for the relevant parent
+            # before this counts as a genuine integrity finding. Blank,
+            # declined, or otherwise unconfirmed consent usually means the
+            # interview barely started (or was never reached), not that a
+            # full interview was rushed.
             if too_fast:
-                for consent_col in (consent_father_col, consent_mother_col):
-                    if consent_col and consent_col in df.columns and _is_explicit_no(df.at[i, consent_col]):
-                        too_fast = False
-                        break
+                if resp == "2":
+                    relevant_consent_cols = [consent_mother_col]
+                elif resp == "1":
+                    relevant_consent_cols = [consent_father_col]
+                else:
+                    relevant_consent_cols = [consent_father_col, consent_mother_col]
+                agreed = any(
+                    c and c in df.columns and _consent_agreed(df.at[i, c])
+                    for c in relevant_consent_cols
+                )
+                if not agreed:
+                    too_fast = False
 
             if too_fast:
                 add_issue(

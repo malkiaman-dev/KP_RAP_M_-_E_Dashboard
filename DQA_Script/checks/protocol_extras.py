@@ -15,11 +15,16 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from difflib import SequenceMatcher
 from typing import Any, Callable
 
 import pandas as pd
 
 from utils.logging import add_issue
+
+# Below this similarity score, a sibling-roster name is not treated as a
+# match for the listed girl's own name (see _fuzzy_listed_girl_match).
+LISTED_GIRL_NAME_MATCH_THRESHOLD = 0.6
 
 
 EDU_LABELS = {
@@ -75,6 +80,16 @@ def _to_num(val: Any) -> float | None:
 
 
 def _digits_phone(val: Any) -> str:
+    """Digits-only phone string, preserving a leading zero.
+
+    Numbers that arrive as an actual numeric type (e.g. a spreadsheet column
+    that got auto-converted) go through a float round-trip to strip a
+    trailing ".0" — but that same round-trip silently drops a leading zero
+    ("03000000000" -> "3000000000"), which breaks exact-match comparisons
+    against DUMMY_PHONES entries that are written with the leading zero.
+    Once a value is already a clean digit string, it is returned as-is
+    instead of being re-parsed as a float, so the leading zero survives.
+    """
     if val is None or (isinstance(val, float) and pd.isna(val)):
         return ""
     if isinstance(val, (int, float)) and not isinstance(val, bool):
@@ -89,6 +104,8 @@ def _digits_phone(val: Any) -> str:
     s = str(val).strip()
     if not s or s.lower() in {"nan", "none", "na", "n/a", "-", "--"}:
         return ""
+    if s.isdigit():
+        return s
     try:
         f = float(s)
         if f == 0:
@@ -126,6 +143,41 @@ def _norm_name(val: Any) -> str:
     return re.sub(r"\s+", " ", str(val).strip().lower())
 
 
+def _fuzzy_listed_girl_match(
+    girl_name: Any, roster_names: list[tuple[int, str]]
+) -> tuple[int, str, float] | None:
+    """Best-matching sibling-roster row for the listed girl's own name.
+
+    Handles cases where the girl was entered as a roster row (e.g. under a
+    shortened or misspelled version of her name — "Arzoo" vs. "Arzo
+    Abidullah") but tagged with the wrong relation code, instead of being
+    genuinely omitted. Compares the full normalized name and just the first
+    name token, since enumerators often enter only a first name in the
+    roster. Returns (row_number, matched_name, score) for the best match at
+    or above LISTED_GIRL_NAME_MATCH_THRESHOLD, or None if no roster name is
+    a plausible match.
+    """
+    gn = _norm_name(girl_name)
+    if not gn or not roster_names:
+        return None
+    gn_first = gn.split(" ", 1)[0]
+    best: tuple[int, str, float] | None = None
+    for k, sib_name in roster_names:
+        if not sib_name:
+            continue
+        sib_first = sib_name.split(" ", 1)[0]
+        score = max(
+            SequenceMatcher(None, gn, sib_name).ratio(),
+            SequenceMatcher(None, gn_first, sib_first).ratio(),
+            SequenceMatcher(None, gn_first, sib_name).ratio(),
+        )
+        if best is None or score > best[2]:
+            best = (k, sib_name, score)
+    if best is not None and best[2] >= LISTED_GIRL_NAME_MATCH_THRESHOLD:
+        return best
+    return None
+
+
 def _clip(val: Any, n: int = 220) -> str:
     s = "" if val is None or (isinstance(val, float) and pd.isna(val)) else str(val)
     s = s.strip()
@@ -140,6 +192,72 @@ def _fmt_hours(minutes: float) -> str:
     return f"{hrs:.1f}hr"
 
 
+def listed_girl_position(df: pd.DataFrame, i: Any, sibling_max: int) -> int | None:
+    """Sibling-roster position marked relation_sibling_k = 3 (Listed girl)."""
+    for k in range(1, sibling_max + 1):
+        rel_c = f"relation_sibling_{k}"
+        if rel_c not in df.columns:
+            continue
+        rel_v = _to_num(df.at[i, rel_c])
+        if rel_v is not None and int(rel_v) == 3:
+            return k
+    return None
+
+
+def resolve_listed_girl_position(
+    df: pd.DataFrame, i: Any, sibling_max: int, girlname_col: str | None
+) -> tuple[int | None, str, float | None]:
+    """Best-guess roster position for the listed girl, name-checked.
+
+    The relation_sibling_k = 3 tag is unreliable in two ways this project
+    has actually seen in the data: it can be missing entirely while the
+    girl's own name still sits in the roster under a different relation
+    (usually Sister, code 2 -- e.g. Sana Bibi, Anila, Ayat Hameed, Muskan,
+    all entered by the same enumerator), or it can be placed on a different
+    sibling's row while the girl's own name sits elsewhere, untagged (e.g.
+    Girl ID 1-29159-23-dd0b97e0-8, Wajiha Bibi, where relation code 3 was
+    on a sibling named Naila instead of on Wajiha's own row). Any check
+    that reads a per-position field (like edu_background_k) off the tagged
+    row, or that compares the roster name to the girl's own name for a
+    spelling check, without checking whether that row's name actually
+    matches the girl can silently answer for the wrong person, or miss the
+    comparison entirely. This cross-checks the tag against a fuzzy match on
+    the girl's own name (girlname_label vs. name_sibling_k) and prefers the
+    name match when the two disagree, since the name is direct evidence of
+    who the row actually is and the relation code is a single
+    manually-picked value that both cases above show can be wrong or
+    absent. Shared by every check in this project that needs to know which
+    roster row is actually the listed girl (schooling-status mismatch here,
+    and the spelling check in review_checks.py), so a fix to this logic
+    fixes all of them at once.
+
+    Returns (position, source, score): source is "tag" when a clean
+    relation_sibling = 3 tag was trusted (it matches the name evidence, or
+    no name evidence was available to check it against), with score None,
+    or "name_match" when the position came from the name match instead,
+    because the tag was missing or on the wrong row, with score the
+    name-similarity ratio (0 to 1) behind that call. A caller that flags
+    something using a "name_match" position should say so and can use the
+    score to judge how confident the match is, the underlying
+    relation-code error is itself worth fixing at the source (see
+    HH_QF_LISTED_GIRL_WRONG_RELATION and HH_CR_LISTED_GIRL_TAG_MISPLACED).
+    """
+    tag_pos = listed_girl_position(df, i, sibling_max)
+    if not girlname_col:
+        return tag_pos, "tag", None
+    roster_names: list[tuple[int, str]] = []
+    for k in range(1, sibling_max + 1):
+        name_c = f"name_sibling_{k}"
+        if name_c in df.columns and not _is_blank(df.at[i, name_c]):
+            roster_names.append((k, _norm_name(df.at[i, name_c])))
+    fuzzy = _fuzzy_listed_girl_match(df.at[i, girlname_col], roster_names)
+    if fuzzy is not None:
+        name_pos, _name_val, name_score = fuzzy
+        if tag_pos is None or tag_pos != name_pos:
+            return name_pos, "name_match", name_score
+    return tag_pos, "tag", None
+
+
 def run_household_protocol(
     df: pd.DataFrame,
     col: dict,
@@ -148,6 +266,7 @@ def run_household_protocol(
     issues: list[dict] = []
 
     sibling_max = int(col.get("sibling_roster_max", 11) or 11)
+    girlname_col = "girlname_label" if "girlname_label" in df.columns else None
     warn_mins = float(col.get("long_duration_warn_minutes", 120) or 120)
     crit_mins = float(col.get("long_duration_critical_minutes", 180) or 180)
     transport_edu = int(col.get("transport_eligible_edu_code", 3) or 3)
@@ -159,15 +278,11 @@ def run_household_protocol(
     father_edu_col = "edu_background1" if "edu_background1" in df.columns else None
 
     def _listed_girl_position(i: Any) -> int | None:
-        """Sibling-roster position marked relation_sibling_k = 3 (Listed girl)."""
-        for k in range(1, sibling_max + 1):
-            rel_c = f"relation_sibling_{k}"
-            if rel_c not in df.columns:
-                continue
-            rel_v = _to_num(df.at[i, rel_c])
-            if rel_v is not None and int(rel_v) == 3:
-                return k
-        return None
+        return listed_girl_position(df, i, sibling_max)
+
+    def _resolve_listed_girl_position(i: Any) -> tuple[int | None, str, float | None]:
+        return resolve_listed_girl_position(df, i, sibling_max, girlname_col)
+
     respondent_col = "respondent" if "respondent" in df.columns else None
     duration_col = col.get("duration") or "duration"
     start_col = col.get("starttime") or "starttime"
@@ -212,23 +327,60 @@ def run_household_protocol(
     # position (found via relation_sibling_k = 3). Father's section instead
     # asks a single compact follow-up (edu_background1) about the listed girl.
     # Only comparing these two specific fields should fire this mismatch.
+    submit_col = "SubmissionDate" if "SubmissionDate" in df.columns else None
+
+    def _submit_dt(i: Any):
+        if not submit_col:
+            return None
+        return pd.to_datetime(df.at[i, submit_col], errors="coerce")
+
+    # Some girls have more than one Father or Mother submission (duplicate
+    # visits — see Issue 1). Without a tiebreaker, whichever row happened to
+    # load last would silently win, which is not necessarily the submission
+    # the project actually retains. Prefer a row with an actual answer over
+    # a blank one, and between two answered rows prefer the later submission,
+    # the same "keep the latest" convention used for duplicate resolution
+    # elsewhere in this project (see household.py's _retain_recommendation).
     parent_row_by_girl: dict[str, dict[str, Any]] = defaultdict(dict)
+    mother_pos_source_by_girl: dict[str, str] = {}
+    mother_pos_score_by_girl: dict[str, float | None] = {}
     if girl_col and respondent_col:
         for i in df.index:
             gid = df.at[i, girl_col] if girl_col in df.columns else None
             if _is_blank(gid):
                 continue
+            gid_s = str(gid).strip()
             resp = _to_num(df.at[i, respondent_col])
             parent = "father" if resp == 1 else ("mother" if resp == 2 else None)
             if not parent:
                 continue
             if parent == "father":
                 edu = _to_num(df.at[i, father_edu_col]) if father_edu_col else None
+                pos_source, pos_score = None, None
             else:
-                pos = _listed_girl_position(i)
+                pos, pos_source, pos_score = _resolve_listed_girl_position(i)
                 edu_bg_col = f"edu_background_{pos}" if pos else None
                 edu = _to_num(df.at[i, edu_bg_col]) if edu_bg_col and edu_bg_col in df.columns else None
-            parent_row_by_girl[str(gid).strip()][parent] = (edu if edu is None else int(edu), i)
+            edu = edu if edu is None else int(edu)
+
+            existing = parent_row_by_girl[gid_s].get(parent)
+            if existing is not None:
+                existing_edu, existing_i = existing
+                if existing_edu is not None and edu is None:
+                    continue  # keep the row that actually has an answer
+                if existing_edu is None and edu is not None:
+                    pass  # the new row has an answer the kept one doesn't, take it
+                else:
+                    existing_dt, new_dt = _submit_dt(existing_i), _submit_dt(i)
+                    if existing_dt is not None and new_dt is not None and new_dt <= existing_dt:
+                        continue  # existing row is the same age or newer, keep it
+                    if existing_dt is not None and new_dt is None:
+                        continue  # can't confirm the new row is newer, keep the dated one
+
+            parent_row_by_girl[gid_s][parent] = (edu, i)
+            if parent == "mother":
+                mother_pos_source_by_girl[gid_s] = pos_source
+                mother_pos_score_by_girl[gid_s] = pos_score
 
     for gid, parents in parent_row_by_girl.items():
         if "father" not in parents or "mother" not in parents:
@@ -243,6 +395,18 @@ def run_household_protocol(
         if f_edu != m_edu:
             m_lab = EDU_LABELS.get(m_edu, "blank")
             f_lab = EDU_LABELS.get(f_edu, "blank")
+            by_name_match = mother_pos_source_by_girl.get(gid) == "name_match"
+            pos_score = mother_pos_score_by_girl.get(gid)
+            note = (
+                f" The mother's answer was located by matching the girl's own name in the "
+                f"siblings roster (similarity {pos_score:.2f}), not by a clean relation_sibling = 3 "
+                "tag (the tag was missing or on a different row, see "
+                "HH_QF_LISTED_GIRL_WRONG_RELATION / HH_CR_LISTED_GIRL_TAG_MISPLACED on this same "
+                "household). The mismatch itself is still genuine, but the underlying "
+                "relation-code error is worth fixing too."
+                if by_name_match
+                else ""
+            )
             _emit(
                 m_idx,
                 "FLAG",
@@ -251,9 +415,14 @@ def run_household_protocol(
                 (
                     f"Mother={m_lab}; Father={f_lab}. "
                     "Statuses must match; mismatch can skip downstream modules (e.g. transport)."
+                    + note
                 ),
                 "edu_background_*," + (father_edu_col or "edu_background1"),
-                f"girl={gid}; mother={m_edu}; father={f_edu}",
+                (
+                    f"girl={gid}; mother={m_edu}; father={f_edu}; "
+                    f"mother_position_source={mother_pos_source_by_girl.get(gid, 'tag')}"
+                    + (f"; mother_position_score={pos_score:.2f}" if pos_score is not None else "")
+                ),
             )
 
     both_parents: set[str] = set()
@@ -268,14 +437,96 @@ def run_household_protocol(
                 resp_by_girl[str(gid).strip()].add(int(resp))
         both_parents = {g for g, rs in resp_by_girl.items() if {1, 2}.issubset(rs)}
 
+    # --- Household siblings roster is empty ---
+    # A blank roster on a Father submission is normal by form design whenever
+    # the mother was available or only temporarily unavailable (she is
+    # expected to complete it herself, either already has on another
+    # submission or a revisit is pending) — the roster section on the
+    # Father's form is only genuinely required, and therefore only a real
+    # gap when blank, when the mother is permanently unavailable (moved to
+    # another city, moved to another country, or passed away: reasons 3, 4,
+    # 5 on mother_unavailable1), making the father the household's sole and
+    # final respondent. On a Mother or Caretaker submission the roster is
+    # always expected. This is also checked at the household level (across
+    # every submission for the girl, not just one row in isolation), since a
+    # blank roster on one respondent's row is not a gap if a different row
+    # for the same girl already has it populated (e.g. the mother's own
+    # submission is empty but the father's, from the same visit, is not).
+    mother_unavail_col = "mother_unavailable1" if "mother_unavailable1" in df.columns else None
+    PERMANENT_UNAVAIL_REASONS = {3, 4, 5}
+    RESP_LABEL = {1: "Father", 2: "Mother", 3: "Caretaker"}
+
+    def _roster_size(i: Any) -> int:
+        if "num_siblings" in df.columns:
+            n = _to_num(df.at[i, "num_siblings"])
+            if n is not None:
+                return int(n)
+        return sum(
+            1
+            for k in range(1, sibling_max + 1)
+            if f"name_sibling_{k}" in df.columns and not _is_blank(df.at[i, f"name_sibling_{k}"])
+        )
+
+    if girl_col and respondent_col:
+        rows_by_girl: dict[str, list[Any]] = defaultdict(list)
+        for i in df.index:
+            gid = df.at[i, girl_col]
+            if _is_blank(gid):
+                continue
+            rows_by_girl[str(gid).strip()].append(i)
+
+        for gid_s, idxs in rows_by_girl.items():
+            if any(_roster_size(i) > 0 for i in idxs):
+                continue  # roster exists somewhere for this girl, not empty
+            for i in idxs:
+                resp = _to_num(df.at[i, respondent_col])
+                if resp is None:
+                    continue
+                resp = int(resp)
+                if resp in (2, 3):
+                    reason = (
+                        f"the {RESP_LABEL[resp].lower()} respondent, who is expected to complete this "
+                        "roster, recorded zero household members"
+                    )
+                elif resp == 1:
+                    mreason = _to_num(df.at[i, mother_unavail_col]) if mother_unavail_col else None
+                    if mreason is not None and int(mreason) in PERMANENT_UNAVAIL_REASONS:
+                        reason = (
+                            "the father is the household's sole and final respondent because the "
+                            f"mother's unavailability is recorded as permanent (reason={int(mreason)}), "
+                            "and the roster is still zero"
+                        )
+                    else:
+                        continue  # mother available or only temporarily unavailable: correctly blank by form design, not a gap
+                else:
+                    continue
+                _emit(
+                    i,
+                    "CRITICAL",
+                    "HH_CR_ROSTER_EMPTY",
+                    "Household siblings roster is empty",
+                    (
+                        "No sibling roster entry exists for this girl on any of her household "
+                        f"submissions, and {reason}. Investigate and resurvey the household if the "
+                        "roster was genuinely never captured."
+                    ),
+                    "num_siblings,name_sibling_1",
+                    f"girl={gid_s}; respondent={RESP_LABEL.get(resp, resp)}",
+                )
+
     for i in df.index:
         gid = df.at[i, girl_col] if girl_col and girl_col in df.columns else None
         gid_s = str(gid).strip() if not _is_blank(gid) else ""
 
         # --- 1. Listed girl in siblings roster ---
-        # The listed girl's roster entry is the one marked relation_sibling_k = 3
-        # (Listed girl) — that is the sole criterion, not name matching or the
-        # listed_girl_k flags.
+        # The listed girl's roster entry is meant to be the one marked
+        # relation_sibling_k = 3 (Listed girl). When that tag is missing, we
+        # still check whether a roster row's name is a plausible match for the
+        # girl's own name (girlname_label) before concluding she was omitted —
+        # some enumerators enter her as a regular sibling row (often tagged
+        # Sister) instead of selecting the Listed girl relation. That is a
+        # relation-code error, not an omission, and is reported separately so
+        # the two don't get conflated into one "missing" count.
         roster_names: list[tuple[int, str]] = []
         for k in range(1, sibling_max + 1):
             name_c = f"name_sibling_{k}"
@@ -284,19 +535,77 @@ def run_household_protocol(
 
         has_any_roster = len(roster_names) > 0
         listed_pos = _listed_girl_position(i)
+        girl_name_val = df.at[i, girlname_col] if girlname_col else None
+        fuzzy = _fuzzy_listed_girl_match(girl_name_val, roster_names) if has_any_roster else None
+        fuzzy_pos = fuzzy[0] if fuzzy else None
 
         if has_any_roster:
             if listed_pos is None:
+                if fuzzy is not None:
+                    fuzzy_row, fuzzy_name, fuzzy_score = fuzzy
+                    _emit(
+                        i,
+                        "FLAG",
+                        "HH_QF_LISTED_GIRL_WRONG_RELATION",
+                        "Listed girl in roster but tagged with the wrong relation code",
+                        (
+                            f"Sibling roster row {fuzzy_row} ('{fuzzy_name}') closely matches the listed "
+                            f"girl's own name ('{_norm_name(girl_name_val)}', similarity {fuzzy_score:.2f}) "
+                            "but is not tagged relation_sibling = 3 (Listed girl). This reads as a relation "
+                            "code selection error, not an omission. Correct the relation code rather than "
+                            "resurveying the household."
+                        ),
+                        f"relation_sibling_{fuzzy_row},name_sibling_{fuzzy_row}",
+                        f"girl={gid_s}; matched_row={fuzzy_row}; matched_name={fuzzy_name}; score={fuzzy_score:.2f}",
+                    )
+                else:
+                    _emit(
+                        i,
+                        "CRITICAL",
+                        "HH_CR_LISTED_GIRL_NOT_IN_ROSTER",
+                        "Listed girl missing from siblings roster",
+                        "No sibling roster entry has relation = Listed girl (relation_sibling = 3), and no "
+                        "roster entry's name resembles the listed girl's own name either. "
+                        "Investigate and resurvey the household if the listed girl was omitted.",
+                        "relation_sibling_1,name_sibling_1",
+                        f"girl={gid_s}; roster_n={len(roster_names)}",
+                    )
+            elif fuzzy_pos is not None and fuzzy_pos != listed_pos:
+                # The relation_sibling = 3 tag exists, but on a different row than
+                # the one whose name actually matches the listed girl (e.g. Girl ID
+                # 1-29159-23-dd0b97e0-8, Wajiha Bibi: the tag was on a sibling
+                # named Naila, not on Wajiha's own row). Any field read off the
+                # tagged position, such as education status, would be answering
+                # for the wrong person. Flag the misplaced tag, and use the
+                # name-matched row (not the tag) to judge first-entry position.
+                fuzzy_row, fuzzy_name, fuzzy_score = fuzzy
                 _emit(
                     i,
-                    "CRITICAL",
-                    "HH_CR_LISTED_GIRL_NOT_IN_ROSTER",
-                    "Listed girl missing from siblings roster",
-                    "No sibling roster entry has relation = Listed girl (relation_sibling = 3). "
-                    "Investigate and resurvey the household if the listed girl was omitted.",
-                    "relation_sibling_1,name_sibling_1",
-                    f"girl={gid_s}; roster_n={len(roster_names)}",
+                    "FLAG",
+                    "HH_CR_LISTED_GIRL_TAG_MISPLACED",
+                    "Listed girl tag is on the wrong siblings-roster row",
+                    (
+                        f"relation_sibling = 3 (Listed girl) is tagged on roster row {listed_pos}, but row "
+                        f"{fuzzy_row} ('{fuzzy_name}') is the row whose name matches the listed girl's own "
+                        f"name ('{_norm_name(girl_name_val)}', similarity {fuzzy_score:.2f}). Any per-position "
+                        "field read using the tagged row (e.g. edu_background_k) is answering for the wrong "
+                        f"sibling. Move the Listed girl tag to row {fuzzy_row}."
+                    ),
+                    f"relation_sibling_{listed_pos},relation_sibling_{fuzzy_row},name_sibling_{fuzzy_row}",
+                    f"girl={gid_s}; tagged_row={listed_pos}; name_matched_row={fuzzy_row}; matched_name={fuzzy_name}; score={fuzzy_score:.2f}",
                 )
+                if fuzzy_row != 1:
+                    _emit(
+                        i,
+                        "FLAG",
+                        "HH_CR_LISTED_GIRL_NOT_FIRST",
+                        "Listed girl not first in siblings roster",
+                        f"By name match (the relation_sibling tag is misplaced, see "
+                        f"HH_CR_LISTED_GIRL_TAG_MISPLACED), the listed girl is roster row {fuzzy_row}, not "
+                        "the first entry.",
+                        f"name_sibling_{fuzzy_row}",
+                        f"girl={gid_s}; listed_position={fuzzy_row}",
+                    )
             elif listed_pos != 1:
                 _emit(
                     i,

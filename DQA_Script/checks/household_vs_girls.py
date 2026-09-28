@@ -87,8 +87,15 @@ def run(household_df: pd.DataFrame, girls_df: pd.DataFrame, col: dict) -> list[d
                 return None
             return dt
         except Exception:
+            pass
+
+        # HH/Girls export style: "08-Jul-2026, 11:48:57 pm" (narrow NBSP, "Sept" for Sep)
+        norm = s.replace(" ", " ").replace(" ", " ").replace("-Sept-", "-Sep-")
+        try:
+            return pd.to_datetime(norm, format="%d-%b-%Y, %I:%M:%S %p", errors="raise")
+        except Exception:
             with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", message="Could not infer format", category=UserWarning)
+                warnings.simplefilter("ignore", UserWarning)
                 dt = pd.to_datetime(s, errors="coerce")
             if pd.isna(dt):
                 return None

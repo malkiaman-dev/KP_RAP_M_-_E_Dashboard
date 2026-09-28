@@ -21,7 +21,13 @@ from checks.high_frequency import (
     _row_geo_points,
     _to_num,
 )
-from checks.protocol_extras import _digits_phone, _is_blank, _is_dummy_phone, _norm_name
+from checks.protocol_extras import (
+    _digits_phone,
+    _is_blank,
+    _is_dummy_phone,
+    _norm_name,
+    resolve_listed_girl_position,
+)
 from utils.logging import add_issue
 
 
@@ -192,24 +198,36 @@ def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[d
                     f"phonenumber1={_digits_phone(ph)}",
                 )
 
-        # Listed girl spelling must match girl_label
+        # Listed girl spelling must match girl_label.
+        # The position is resolved the same way as every other listed-girl
+        # check in this project (resolve_listed_girl_position, shared from
+        # protocol_extras.py): prefer a clean relation_sibling = 3 tag, but
+        # fall back to a fuzzy name match when the tag is missing or on the
+        # wrong row. The previous version of this check looked for
+        # listed_girl_k == 1, which is a bug (the SurveyCTO calculation sets
+        # listed_girl_k to k itself when relation_sibling_k = 3, never to a
+        # literal 1 unless k happens to be 1), so it only ever found a
+        # correctly tagged position 1 and silently fell back to
+        # listed_girl_index for everything else, a field that is itself
+        # unreliable when the roster has a misplaced or duplicated tag (see
+        # HH_CR_LISTED_GIRL_TAG_MISPLACED).
         if girlname_col:
             label = _norm_name(df.at[i, girlname_col])
-            listed_k = None
-            for k in range(1, sibling_max + 1):
-                flag_c = f"listed_girl_{k}"
-                if flag_c in df.columns and _to_num(df.at[i, flag_c]) == 1:
-                    listed_k = k
-                    break
-            if listed_k is None and "listed_girl_index" in df.columns:
-                idx = _to_num(df.at[i, "listed_girl_index"])
-                if idx is not None and idx >= 1:
-                    listed_k = int(idx)
+            listed_k, pos_source, pos_score = resolve_listed_girl_position(
+                df, i, sibling_max, girlname_col
+            )
             if listed_k and label:
                 name_c = f"name_sibling_{listed_k}"
                 if name_c in df.columns:
                     roster_nm = _norm_name(df.at[i, name_c])
                     if roster_nm and roster_nm != label:
+                        score_note = (
+                            f" (position located by name match, similarity {pos_score:.2f}, "
+                            "since the relation_sibling = 3 tag was missing or misplaced; see "
+                            "HH_QF_LISTED_GIRL_WRONG_RELATION / HH_CR_LISTED_GIRL_TAG_MISPLACED)"
+                            if pos_source == "name_match"
+                            else ""
+                        )
                         _emit(
                             issues,
                             "Household",
@@ -221,10 +239,10 @@ def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[d
                             (
                                 "The listed girl's name on the siblings roster must match girl_label "
                                 "for matching. "
-                                f"roster='{roster_nm}'; girl_label='{label}'."
+                                f"roster='{roster_nm}'; girl_label='{label}'.{score_note}"
                             ),
                             f"{name_c},{girlname_col}",
-                            f"roster={roster_nm}; girl_label={label}",
+                            f"roster={roster_nm}; girl_label={label}; position_source={pos_source}",
                         )
 
     # Education expenditure outliers (IQR on per-sibling totals).

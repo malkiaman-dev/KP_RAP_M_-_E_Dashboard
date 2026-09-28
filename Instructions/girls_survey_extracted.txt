@@ -1,0 +1,128 @@
+HH Survey Details:
+Attempts: (radio buttons)Please select your attempt number to survey the householdLabel: attempt, Values: 1,2,3
+These are the attempt through which we can find the attempt number.
+Availibility:
+Is {girl name} available at home?
+Label; girl_available 1=yes, 0=no
+Girl unavailability reason
+availability_reason
+1
+Gone to school
+availability_reason
+2
+Lives in an another city
+availability_reason
+3
+Lives in an another country
+availability_reason
+4
+Other
+
+Label: girl_available_reason this column will contain the above reasons numbers
+girl_available_reason_other: this colum will contain other reason enter by enumerator.
+Revisits:
+If girl unavailable reason is 1,4 then we will make revisit otherwise no need for revisit.
+Schedule interview:
+If girl is temporarily not available mean girl unavailable reason is 1 or 4 then we have to reschedule the interview.
+schedule_resp will contain different time like 1 2 etc..
+available_days_time
+1
+Monday (7 am to 9 am)
+available_days_time
+2
+Monday (9 am to 11 am)
+available_days_time
+3
+Monday (11 am to 1 pm)
+available_days_time
+4
+Monday (1 pm to 3 pm)
+available_days_time
+5
+Monday (3 pm to 5 pm)
+available_days_time
+6
+Tuesday (7 am to 9 am)
+available_days_time
+7
+Tuesday (9 am to 11 am)
+available_days_time
+8
+Tuesday (11 am to 1 pm)
+available_days_time
+9
+Tuesday (1 pm to 3 pm)
+available_days_time
+10
+Tuesday (3 pm to 5 pm)
+available_days_time
+11
+Wednesday (7 am to 9 am)
+available_days_time
+12
+Wednesday (9 am to 11 am)
+available_days_time
+13
+Wednesday (11 am to 1 pm)
+available_days_time
+14
+Wednesday (1 pm to 3 pm)
+available_days_time
+15
+Wednesday (3 pm to 5 pm)
+available_days_time
+16
+Thursday (7 am to 9 am)
+available_days_time
+17
+Thursday (9 am to 11 am)
+available_days_time
+18
+Thursday (11 am to 1 pm)
+available_days_time
+19
+Thursday (1 pm to 3 pm)
+available_days_time
+20
+Thursday (3 pm to 5 pm)
+available_days_time
+21
+Friday (7 am to 9 am)
+available_days_time
+22
+Friday (9 am to 11 am)
+available_days_time
+23
+Friday (11 am to 1 pm)
+available_days_time
+24
+Friday (1 pm to 3 pm)
+available_days_time
+25
+Friday (3 pm to 5 pm)
+available_days_time
+26
+Saturday (7 am to 9 am)
+available_days_time
+27
+Saturday (9 am to 11 am)
+available_days_time
+28
+Saturday (11 am to 1 pm)
+available_days_time
+29
+Saturday (1 pm to 3 pm)
+available_days_time
+30
+Saturday (3 pm to 5 pm)
+available_days_time
+99
+Other(Specify)
+ 
+Consent
+There are two consent one is parental and another is girl consent if any of them is refused the consent in the result the survey will be incomplete.
+Father consent label; parental_consent_agree 1=yes, 0=no
+Girl consent label: child_consent_agree 1=yes , 0=no
+Survey status complete or incomplete.
+ If any of consent is no then survey will be incomplete.
+If there is need of revisit then survey will be incomplete.

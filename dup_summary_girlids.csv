@@ -1,0 +1,8 @@
+girl_id,mother_dup,father_dup,girls_dup,bucket
+1-14187-24-019fabd1-5,True,True,True,A) FULL HH DUPLICATE (mother+father+girls)
+1775,True,True,True,A) FULL HH DUPLICATE (mother+father+girls)
+1-29139-24-48de284e-1,True,False,True,B) PARTIAL (mother+girls)
+1776,True,False,True,B) PARTIAL (mother+girls)
+1-29139-23-9495cdbe-11,False,True,False,C) SINGLE-SURVEY DUP (father)
+2-39447-23-6f591d78-6,False,False,True,C) SINGLE-SURVEY DUP (girls)
+464,False,False,True,C) SINGLE-SURVEY DUP (girls)
