@@ -1245,10 +1245,9 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     # 19) Harassment privacy guidance (FLAG)
     # Room presence codes: 1=siblings, 2=father, 3=mother, 4=other adults,
     # 5=other kids, 6=no one else present.
-    # Mother, other kids, or no one else present are all acceptable for this
-    # module — only flag when siblings, father, or other adults were present.
+    # Only father and other adults trigger a flag; siblings alone do not.
     # --------------------------
-    HARASSMENT_OK_PRESENCE = {"3", "5", "6"}
+    HARASSMENT_FLAG_PRESENCE = {"2", "4"}
     if harassment_presence_col and harassment_presence_col in df.columns:
         for i in df.index:
             parent_ok = (
@@ -1272,7 +1271,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 presence_bin_col = f"harassment_presence_{code}"
                 if presence_bin_col in df.columns and str(df.at[i, presence_bin_col]).strip() in {"1", "true", "yes"}:
                     codes.add(code)
-            if codes and codes.issubset(HARASSMENT_OK_PRESENCE):
+            if not codes.intersection(HARASSMENT_FLAG_PRESENCE):
                 continue
             add_issue(
                 i,
@@ -1280,9 +1279,8 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 "GL_QF_HARASSMENT_NOT_PRIVATE",
                 "Harassment section not conducted in private",
                 (
-                    "Form guidance requires the harassment module without siblings, father, "
-                    "or other adults present. Only the girl's mother, other kids, or no one "
-                    "else being present is acceptable — verify field practice."
+                    "Flag only when the girl's father or other adults were present during "
+                    "the harassment module — verify field practice."
                 ),
                 harassment_presence_col,
                 f"harassment_presence={clean_scalar(presence)}",

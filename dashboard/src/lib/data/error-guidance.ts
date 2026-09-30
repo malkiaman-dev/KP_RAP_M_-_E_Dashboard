@@ -732,10 +732,10 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoidUrdu: "Ghante aur minute dhyan se check karein. Dekh-bhal + ghar ke kaam + aaram ek din mein 24 ghante se zyada nahi ho sakte.",
   },
   GL_QF_HARASSMENT_NOT_PRIVATE: {
-    focus: "Harassment module was conducted with siblings, father, or other adults present.",
-    avoid: "Mother, other kids, or no one else present are fine for harassment questions — but ask siblings, father, or other adults to step out before that section.",
+    focus: "Harassment module was conducted with the girl's father or other adults present.",
+    avoid: "Before the harassment questions, ask the girl's father and other adults to step out. Siblings alone do not trigger this flag.",
     avoidUrdu:
-      "Harassment sawalat ke doran maa, doosre bache, ya koi bhi mojood na hona theek hai — lekin bhai behnon, walid, ya doosre bare afraad se yeh section shuru karne se pehle bahar jane ki request karein.",
+      "Harassment sawalat se pehle walid aur doosre bare afraad se bahar jane ki request karein. Sirf bhai behnon ki mojoodgi par yeh flag nahi lagta.",
   },
   GL_QF_TRAVEL_TIME_DISTANCE: {
     focus: "Travel time to school does not match reported distance.",
