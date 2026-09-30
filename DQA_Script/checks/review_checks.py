@@ -145,6 +145,18 @@ def _edu_spend_total(row: pd.Series, slot: int) -> float | None:
     return total if any_val else None
 
 
+def _listed_girl_slot(row: pd.Series, sibling_max: int) -> int | None:
+    for slot in range(1, sibling_max + 1):
+        flag_col = f"listed_girl_{slot}"
+        if flag_col in row.index and _to_num(row.get(flag_col)) == 1:
+            return slot
+    if "listed_girl_index" in row.index:
+        index = _to_num(row.get("listed_girl_index"))
+        if index is not None and 1 <= index <= sibling_max:
+            return int(index)
+    return None
+
+
 def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[dict]:
     issues: list[dict] = []
     sibling_max = int(col.get("sibling_roster_max", 11) or 11)
@@ -154,6 +166,13 @@ def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[d
     phone_col = "phonenumber" if "phonenumber" in df.columns else None
     phone1_col = "phonenumber1" if "phonenumber1" in df.columns else None
     girlname_col = "girlname_label" if "girlname_label" in df.columns else None
+    listed_cols = [
+        f"listed_girl_{slot}"
+        for slot in range(1, sibling_max + 1)
+        if f"listed_girl_{slot}" in df.columns
+    ]
+    if "listed_girl_index" in df.columns:
+        listed_cols.append("listed_girl_index")
 
     # Extremely small household: siblings roster / num_siblings, PLUS the family
     # roster (relation_1..relation_N — step-parents, spouse, in-laws, grandparents,
@@ -225,16 +244,7 @@ def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[d
         # Listed girl spelling must match girl_label
         if girlname_col:
             label = _norm_name(df.at[i, girlname_col])
-            listed_k = None
-            for k in range(1, sibling_max + 1):
-                flag_c = f"listed_girl_{k}"
-                if flag_c in df.columns and _to_num(df.at[i, flag_c]) == 1:
-                    listed_k = k
-                    break
-            if listed_k is None and "listed_girl_index" in df.columns:
-                idx = _to_num(df.at[i, "listed_girl_index"])
-                if idx is not None and idx >= 1:
-                    listed_k = int(idx)
+            listed_k = _listed_girl_slot(df.loc[i, listed_cols], sibling_max)
             if listed_k and label:
                 name_c = f"name_sibling_{listed_k}"
                 if name_c in df.columns:
@@ -257,11 +267,7 @@ def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[d
                             f"roster={roster_nm}; girl_label={label}",
                         )
 
-    # Education expenditure outliers (IQR on per-sibling totals).
-    # df.loc[i] is a full-row (all-column) lookup, so fetch it once per row
-    # -- on a slim, education-columns-only slice -- rather than once per
-    # (row, slot) pair; sibling_max slots per row otherwise multiplies an
-    # already expensive lookup by ~11x.
+    # Education expenditure outliers are checked only for the listed girl.
     spend_vals: list[float] = []
     spend_rows: list[tuple[Any, int, float]] = []
     edu_prefixes = ["admission_fees", "uniform", "books", "transportation", "examination_fee", "other"]
@@ -271,13 +277,16 @@ def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[d
         for p in edu_prefixes
         if f"{p}_{slot}" in df.columns
     ]
-    for i, edu_row in df[edu_cols].iterrows():
-        for slot in range(1, sibling_max + 1):
-            tot = _edu_spend_total(edu_row, slot)
-            if tot is None:
-                continue
-            spend_vals.append(tot)
-            spend_rows.append((i, slot, tot))
+    check_cols = list(dict.fromkeys(edu_cols + listed_cols))
+    for i, edu_row in df[check_cols].iterrows():
+        slot = _listed_girl_slot(edu_row, sibling_max)
+        if slot is None:
+            continue
+        tot = _edu_spend_total(edu_row, slot)
+        if tot is None:
+            continue
+        spend_vals.append(tot)
+        spend_rows.append((i, slot, tot))
     if spend_vals:
         s = pd.Series(spend_vals)
         q1, q3 = float(s.quantile(0.25)), float(s.quantile(0.75))
@@ -296,7 +305,7 @@ def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[d
                 "HH_QF_EDU_SPEND_OUTLIER",
                 "Education expenditure outlier",
                 (
-                    f"Education spend for sibling slot {slot} is {tot:.0f} PKR "
+                    f"Education spend for the listed girl (sibling slot {slot}) is {tot:.0f} PKR "
                     f"(outlier threshold {cap:.0f} PKR). Verify with the household."
                 ),
                 f"admission_fees_{slot},uniform_{slot},books_{slot},transportation_{slot},examination_fee_{slot}",

@@ -434,7 +434,7 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
   },
   HH_QF_EDU_SPEND_OUTLIER: {
     focus:
-      "This household's education expenditure for a sibling is far above the normal range (statistical outlier, roughly above 20,000 PKR).",
+      "The listed girl's education expenditure is far above the normal range (statistical outlier, roughly above 20,000 PKR).",
     avoid:
       "Before entering the amount, confirm the currency and time period (monthly or yearly) with the respondent, then repeat the number back to confirm it.",
     avoidUrdu:
