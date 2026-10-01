@@ -835,9 +835,9 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
   GL_CE_READING_INCONSISTENT: {
     focus: "Reading-test word marks, last_word, and incorrect total do not agree.",
     avoid:
-      "Mark each story word as the girl reads. last_word must be the last word she attempted, and incorrect must equal the number of words marked Incorrect. Do not tap through the test.",
+      "Mark each story word as the girl reads. last_word must be the last word she attempted, and incorrect must equal the number of words marked Incorrect or No attempt. Do not tap through the test.",
     avoidUrdu:
-      "Girl jaise jaise lafz parhe, ussi waqt mark karein. last_word wahi hona chahiye jahan girl ruki, aur incorrect ki tadad Incorrect mark hue lafzon ke barabar honi chahiye. Test bina administer kiye mark na karein.",
+      "Girl jaise jaise lafz parhe, ussi waqt mark karein. last_word wahi hona chahiye jahan girl ruki, aur incorrect ki tadad Incorrect ya No attempt mark hue lafzon ke barabar honi chahiye. Test bina administer kiye mark na karein.",
   },
   GL_CE_GPS_OUT_OF_DISTRICT: {
     focus: "Girls-interview GPS is outside the assigned district (including Mansehra).",

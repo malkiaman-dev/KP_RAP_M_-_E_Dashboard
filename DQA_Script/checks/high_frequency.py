@@ -299,13 +299,14 @@ def run_reading_test(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[dict]
         inc_field = _to_num(df.at[i, "incorrect"]) if "incorrect" in df.columns else None
 
         n_inc = sum(1 for m in marks if m == WORD_INCORRECT)
+        n_not_correct = sum(1 for m in marks if m in (WORD_INCORRECT, WORD_NO_ATTEMPT))
         n_corr = sum(1 for m in marks if m == WORD_CORRECT)
         attempted = [k for k, m in enumerate(marks, 1) if m in (WORD_CORRECT, WORD_INCORRECT)]
         problems: list[str] = []
 
-        if inc_field is not None and n_inc != int(round(inc_field)):
+        if inc_field is not None and n_not_correct != int(round(inc_field)):
             problems.append(
-                f"incorrect field={int(round(inc_field))} but {n_inc} word(s) marked Incorrect"
+                f"incorrect field={int(round(inc_field))} but {n_not_correct} word(s) are Incorrect or No attempt"
             )
 
         if last is not None:
