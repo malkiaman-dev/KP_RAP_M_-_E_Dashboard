@@ -2116,6 +2116,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     # Fast interview: respondent-aware duration floor (CRITICAL / Track 2)
     #   Mother (respondent=2): flagged when under 25 minutes
     #   Father (respondent=1) / unknown respondent: flagged at 15 minutes or under
+    #   Blank respondent: excluded from the fast-duration check
     # -------------------------------------------------
     MOTHER_MIN_DURATION_MIN = float(col.get("min_survey_duration_minutes_mother", 25) or 25)
     FATHER_MIN_DURATION_MIN = float(col.get("min_survey_duration_minutes_father", 15) or 15)
@@ -2134,6 +2135,12 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         _dur_cols = [c for c in (duration_col, start_col, end_col) if c and c in df.columns]
         _dur_slim = df[_dur_cols]
         for i in df.index:
+            if (
+                not respondent_code_col
+                or pd.isna(df.at[i, respondent_code_col])
+                or not _norm_str(df.at[i, respondent_code_col])
+            ):
+                continue
             mins = _duration_minutes(_dur_slim.loc[i], start_col, end_col, duration_col)
             if mins is None:
                 continue
