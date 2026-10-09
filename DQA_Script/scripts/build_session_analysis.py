@@ -120,7 +120,8 @@ def intro_box(doc, text_runs):
     doc.add_paragraph().paragraph_format.space_after = Pt(2)
 
 
-def rule_card(doc, code, title, count, wajah, hal, example=None):
+def rule_card(doc, code, title, count, wajah, hal, example=None,
+              labels=("WAJAH", "HAL", "ASAL DATA SE MISAL")):
     head = doc.add_table(rows=1, cols=3)
     head.autofit = True
     head.columns[0].width = Cm(6.6)
@@ -153,10 +154,10 @@ def rule_card(doc, code, title, count, wajah, hal, example=None):
     set_cell_margins(wc, top=140, bottom=140, left=180, right=180)
     set_cell_margins(hc, top=140, bottom=140, left=180, right=180)
 
-    add_run(wc.paragraphs[0], "WAJAH", size=8.5, bold=True, color=AMBER)
+    add_run(wc.paragraphs[0], labels[0], size=8.5, bold=True, color=AMBER)
     add_run(wc.add_paragraph(), wajah, size=9.5, color=INK)
 
-    add_run(hc.paragraphs[0], "HAL", size=8.5, bold=True, color=GREEN)
+    add_run(hc.paragraphs[0], labels[1], size=8.5, bold=True, color=GREEN)
     add_run(hc.add_paragraph(), hal, size=9.5, color=INK)
 
     if example:
@@ -166,7 +167,7 @@ def rule_card(doc, code, title, count, wajah, hal, example=None):
         ec = ex.rows[0].cells[0]
         shade_cell(ec, BLUE_FILL)
         set_cell_margins(ec, top=120, bottom=120, left=180, right=180)
-        add_run(ec.paragraphs[0], "ASAL DATA SE MISAL", size=8, bold=True, color=BLUE)
+        add_run(ec.paragraphs[0], labels[2], size=8, bold=True, color=BLUE)
         add_run(ec.add_paragraph(), example, size=9.5, italic=True, color=INK)
 
     doc.add_paragraph().paragraph_format.space_after = Pt(8)
