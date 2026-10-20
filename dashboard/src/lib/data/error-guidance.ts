@@ -503,11 +503,6 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoid: "Re-check parent date of birth / age with the household. Fix entry errors before submitting.",
     avoidUrdu: "Parent ki date of birth/age household se dobara confirm karein. Submit se pehle entry ki ghalti theek karein.",
   },
-  HH_CR_GPS_OUT_OF_DISTRICT: {
-    focus: "Household-interview GPS is outside the assigned district (including Mansehra).",
-    avoid: "Capture GPS at the household. Do not delete and re-type forms from another district.",
-    avoidUrdu: "GPS household par hi capture karein. Doosre district se form delete kar ke dobara type na karein.",
-  },
   HH_CR_GPS_JUMP: {
     focus: "GPS moved a long distance during the same household interview.",
     avoid: "Finish the household form at the house. Do not continue it after travelling away.",
@@ -838,12 +833,6 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
       "Mark each story word as the girl reads. last_word must be the last word she attempted, and incorrect must equal the number of words marked Incorrect or No attempt. Do not tap through the test.",
     avoidUrdu:
       "Girl jaise jaise lafz parhe, ussi waqt mark karein. last_word wahi hona chahiye jahan girl ruki, aur incorrect ki tadad Incorrect ya No attempt mark hue lafzon ke barabar honi chahiye. Test bina administer kiye mark na karein.",
-  },
-  GL_CE_GPS_OUT_OF_DISTRICT: {
-    focus: "Girls-interview GPS is outside the assigned district (including Mansehra).",
-    avoid: "Complete the form at the interview location. Do not delete and re-enter forms from another district. Confirm GPS is on before starting.",
-    avoidUrdu:
-      "Interview location par hi form complete karein. Doosre district se form delete kar ke dobara enter na karein. Shuru karne se pehle GPS on confirm karein.",
   },
   GL_CE_GPS_JUMP: {
     focus: "GPS moved a long distance during the same Girls interview.",

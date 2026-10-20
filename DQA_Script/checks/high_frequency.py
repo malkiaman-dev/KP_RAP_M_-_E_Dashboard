@@ -381,36 +381,6 @@ def run_gps_checks(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey: str) ->
         if not usable:
             usable = pts
 
-        # Out of assigned district / in Mansehra
-        out_pts = []
-        man_pts = []
-        if box:
-            for p in usable:
-                if not _in_bbox(p["lat"], p["lon"], box):
-                    out_pts.append(p)
-                if _in_bbox(p["lat"], p["lon"], MANSEHRA_BBOX):
-                    man_pts.append(p)
-        if out_pts:
-            p0 = man_pts[0] if man_pts else out_pts[0]
-            where = "Mansehra district" if man_pts else "outside the assigned district bounding box"
-            dlab = DISTRICT_LABEL.get(dcode, dcode or "unknown")
-            _emit(
-                issues,
-                survey,
-                i,
-                meta_fn,
-                "CRITICAL",
-                f"{cr}_GPS_OUT_OF_DISTRICT",
-                "GPS is outside the assigned district",
-                (
-                    f"Interview GPS ({p0['lat']:.5f}, {p0['lon']:.5f}) is in {where} "
-                    f"while the form is recorded as {dlab}. "
-                    "Accuracy is typically a few metres — verify the interview location or form re-entry."
-                ),
-                f"{p0['lat_col']},{p0['lon_col']}",
-                f"lat={p0['lat']:.6f}; lon={p0['lon']:.6f}; acc={p0['acc']}; district={dlab}",
-            )
-
         # Mid-survey jump
         if len(usable) >= 2:
             a, b = usable[0], usable[-1]
