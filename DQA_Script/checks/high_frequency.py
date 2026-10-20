@@ -584,7 +584,7 @@ def run_speed_checks(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey: str) 
             survey,
             i,
             meta_fn,
-            "FLAG",
+            "CRITICAL",
             f"{prefix_qf}_SPEED_WARNINGS",
             "High number of SurveyCTO speed warnings",
             (
@@ -775,7 +775,7 @@ def run_missing_and_village_gps(df: pd.DataFrame, col: dict, meta_fn: MetaFn, su
                 survey,
                 i,
                 meta_fn,
-                "FLAG",
+                "CRITICAL",
                 f"{qf}_GPS_MISSING",
                 "Interview GPS missing (tablet location likely off)",
                 (

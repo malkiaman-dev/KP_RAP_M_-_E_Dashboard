@@ -86,6 +86,10 @@ function normalizeTitle(ruleId: string, title: string): string {
 
 /** Rules that must always stay quality (FLAG), even in older logs. */
 const FORCE_FLAG_RULE_IDS = new Set(["TRK_QF_DUP_PHONE_MULTI_GIRL"]);
+const FORCE_CRITICAL_RULE_IDS = new Set([
+  "HH_QF_GPS_MISSING",
+  "GL_QF_SPEED_WARNINGS",
+]);
 
 function normalizeSeverity(
   value: unknown,
@@ -101,6 +105,7 @@ function normalizeSeverity(
   if (ANOMALY_RULE_IDS.has(ruleId) || ruleId in LEGACY_RULE_ID_ALIASES) {
     return "CRITICAL";
   }
+  if (FORCE_CRITICAL_RULE_IDS.has(ruleId)) return "CRITICAL";
   // Older DQA logs split this QF rule into CRITICAL for 4+ girls; keep FLAG only.
   if (FORCE_FLAG_RULE_IDS.has(ruleId)) return "FLAG";
   if (raw === "CRITICAL") return "CRITICAL";
