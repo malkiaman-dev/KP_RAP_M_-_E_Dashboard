@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { BarChart3, Download } from "lucide-react";
 import { FilterSelect } from "@/components/ui/filter-select";
+import { latestSubmissionDay } from "@/lib/utils";
 import {
   applyTrackingFilters,
   type TrackingFilters,
@@ -52,8 +53,8 @@ export function TrackingProgressReportCard({
   }, [allSubmissions, filters]);
 
   const dateRangeLabel = useMemo(
-    () => buildDateRangeLabel(filters),
-    [filters]
+    () => buildDateRangeLabel(filters, latestSubmissionDay(baseRows)),
+    [filters, baseRows]
   );
 
   const buildDistrictSection = (

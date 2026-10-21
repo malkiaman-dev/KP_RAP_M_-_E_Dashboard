@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Download, Home } from "lucide-react";
 import { FilterSelect } from "@/components/ui/filter-select";
+import { latestSubmissionDay } from "@/lib/utils";
 import {
   applyHhGirlsMonitoringFilters,
   computeHhGirlsMonitoringMetrics,
@@ -63,8 +64,12 @@ export function HhGirlsStatusReportCard({
   }, [allHousehold, allGirls, filters]);
 
   const dateRangeLabel = useMemo(
-    () => buildHhDateRangeLabel(filters),
-    [filters]
+    () =>
+      buildHhDateRangeLabel(
+        filters,
+        latestSubmissionDay([...base.household, ...base.girls])
+      ),
+    [filters, base]
   );
 
   const hasRows = base.household.length + base.girls.length > 0;

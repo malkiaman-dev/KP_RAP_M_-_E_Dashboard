@@ -26,7 +26,14 @@ export function num(n: number): string {
   return n.toLocaleString();
 }
 
-export function buildErrorDateRangeLabel(filters: ErrorFilters): string {
+/**
+ * Reporting-period label. `latestDay` (newest submission in the report rows)
+ * closes an open-ended range: no dates → "Till <latest>".
+ */
+export function buildErrorDateRangeLabel(
+  filters: ErrorFilters,
+  latestDay = ""
+): string {
   if (filters.todayOnly) {
     return `Latest day (${formatDisplayDate(filters.dateFrom || toIsoDateString(new Date()))})`;
   }
@@ -37,12 +44,16 @@ export function buildErrorDateRangeLabel(filters: ErrorFilters): string {
     return `${formatDisplayDate(filters.dateFrom) || filters.dateFrom} to ${formatDisplayDate(filters.dateTo) || filters.dateTo}`;
   }
   if (filters.dateFrom) {
-    return `From ${formatDisplayDate(filters.dateFrom) || filters.dateFrom}`;
+    return latestDay
+      ? `${formatDisplayDate(filters.dateFrom) || filters.dateFrom} to ${formatDisplayDate(latestDay) || latestDay}`
+      : `From ${formatDisplayDate(filters.dateFrom) || filters.dateFrom}`;
   }
   if (filters.dateTo) {
     return `Up to ${formatDisplayDate(filters.dateTo) || filters.dateTo}`;
   }
-  return "All dates";
+  return latestDay
+    ? `Till ${formatDisplayDate(latestDay) || latestDay}`
+    : "All dates";
 }
 
 function sanitizeFilenamePart(value: string): string {

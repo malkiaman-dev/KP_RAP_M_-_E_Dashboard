@@ -6,6 +6,7 @@ import { FilterSelect } from "@/components/ui/filter-select";
 import {
   applyErrorFilters,
   computeErrorMetrics,
+  latestErrorSubmissionDay,
   type ErrorFilters,
   type ErrorRow,
 } from "@/lib/data/error-metrics";
@@ -53,8 +54,8 @@ export function ErrorReportCard({
   }, [allErrors, filters]);
 
   const dateRangeLabel = useMemo(
-    () => buildErrorDateRangeLabel(filters),
-    [filters]
+    () => buildErrorDateRangeLabel(filters, latestErrorSubmissionDay(baseRows)),
+    [filters, baseRows]
   );
 
   const buildDistrictSection = (

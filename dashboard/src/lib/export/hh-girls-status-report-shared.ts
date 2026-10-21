@@ -191,8 +191,13 @@ export function buildHhGirlsStatusReportFilename(
   return `${district}_HH_Girls_Status_Report_${datePart}.${ext}`;
 }
 
+/**
+ * Reporting-period label. `latestDay` (newest submission in the report rows)
+ * closes an open-ended range: no dates → "Till <latest>".
+ */
 export function buildHhDateRangeLabel(
-  filters: HhGirlsMonitoringFilters
+  filters: HhGirlsMonitoringFilters,
+  latestDay = ""
 ): string {
   if (filters.todayOnly) {
     return `Latest day (${formatDisplayDate(filters.dateFrom || toIsoDateString(new Date()))})`;
@@ -204,10 +209,12 @@ export function buildHhDateRangeLabel(
     return `${formatDisplayDate(filters.dateFrom)} to ${formatDisplayDate(filters.dateTo)}`;
   }
   if (filters.dateFrom) {
-    return `From ${formatDisplayDate(filters.dateFrom)}`;
+    return latestDay
+      ? `${formatDisplayDate(filters.dateFrom)} to ${formatDisplayDate(latestDay)}`
+      : `From ${formatDisplayDate(filters.dateFrom)}`;
   }
   if (filters.dateTo) {
     return `Up to ${formatDisplayDate(filters.dateTo)}`;
   }
-  return "All dates";
+  return latestDay ? `Till ${formatDisplayDate(latestDay)}` : "All dates";
 }
