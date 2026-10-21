@@ -15,6 +15,7 @@ import {
   buildErrorTitleOptions,
   computeErrorMetrics,
   defaultErrorFilters,
+  latestErrorSubmissionDay,
   type ErrorFilters,
   type ErrorMetrics,
 } from "@/lib/data/error-metrics";
@@ -163,6 +164,7 @@ export default function FieldErrorsPage() {
 
       <ErrorFiltersPanel
         filterOptions={panelFilterOptions}
+        latestDay={latestErrorSubmissionDay(scopedBase)}
         filters={filters}
         onChange={setFilters}
         hideDistrict

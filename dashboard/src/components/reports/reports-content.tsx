@@ -29,6 +29,7 @@ import {
   applyErrorFilters,
   buildErrorTitleOptions,
   defaultErrorFilters,
+  latestErrorSubmissionDay,
   type ErrorFilters,
 } from "@/lib/data/error-metrics";
 import {
@@ -286,6 +287,7 @@ export function ReportsContent() {
       ) : (
         <>
           <ErrorFiltersPanel
+            latestDay={latestErrorSubmissionDay(errorQuery.data?.allErrors ?? [])}
             filterOptions={{
               districts: errorQuery.data?.filterOptions?.districts ?? [],
               surveys: errorQuery.data?.filterOptions?.surveys ?? [],

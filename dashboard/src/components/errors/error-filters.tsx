@@ -13,7 +13,7 @@ import {
   X,
   Type,
 } from "lucide-react";
-import { cn, toIsoDateString } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { FilterDateRange, FilterSelect } from "@/components/ui/filter-select";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import type { ErrorFilters, ErrorMetrics } from "@/lib/data/error-metrics";
@@ -21,16 +21,18 @@ import { defaultErrorFilters } from "@/lib/data/error-metrics";
 
 interface ErrorFiltersPanelProps {
   filterOptions?: ErrorMetrics["filterOptions"];
+  latestDay?: string;
   filters: ErrorFilters;
   onChange: (filters: ErrorFilters) => void;
   /** Hide district dropdown (field accounts are already district-scoped). */
   hideDistrict?: boolean;
-  /** Show the Today toggle after the date range. */
+  /** Show the latest day toggle after the date range. */
   showTodayToggle?: boolean;
 }
 
 export function ErrorFiltersPanel({
   filterOptions,
+  latestDay = "",
   filters,
   onChange,
   hideDistrict = false,
@@ -184,13 +186,13 @@ export function ErrorFiltersPanel({
               {showTodayToggle && (
                 <div className="flex flex-col justify-end">
                   <label className="mb-1.5 text-xs font-medium text-muted-foreground">
-                    Today
+                    Latest day
                   </label>
                   <button
                     type="button"
                     role="switch"
                     aria-checked={filters.todayOnly}
-                    aria-label="Filter to today only"
+                    aria-label="Filter to the latest available day"
                     onClick={() => {
                       if (filters.todayOnly) {
                         onChange({
@@ -200,12 +202,12 @@ export function ErrorFiltersPanel({
                           dateTo: "",
                         });
                       } else {
-                        const today = toIsoDateString(new Date());
+                        const day = latestDay;
                         onChange({
                           ...filters,
-                          todayOnly: true,
-                          dateFrom: today,
-                          dateTo: today,
+                          todayOnly: Boolean(day),
+                          dateFrom: day,
+                          dateTo: day,
                         });
                       }
                     }}

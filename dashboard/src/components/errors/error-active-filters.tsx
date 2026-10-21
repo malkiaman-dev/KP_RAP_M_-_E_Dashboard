@@ -68,7 +68,7 @@ export function ErrorActiveFilters({
   }
 
   if (filters.todayOnly) {
-    chips.push({ key: "todayOnly", label: "Today" });
+    chips.push({ key: "todayOnly", label: "Latest day" });
   } else if (filters.dateFrom || filters.dateTo) {
     const from = filters.dateFrom
       ? formatDisplayDate(filters.dateFrom) || filters.dateFrom

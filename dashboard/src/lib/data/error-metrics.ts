@@ -43,7 +43,7 @@ export interface ErrorFilters {
   title: string;
   dateFrom: string;
   dateTo: string;
-  /** When true, only submissions from today are included. */
+  /** When true, only submissions from the latest available day are included. */
   todayOnly: boolean;
 }
 
@@ -180,20 +180,25 @@ function errorSubmissionDay(raw: string): Date | null {
   return parsed;
 }
 
-function todayIsoLocal(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+/** Return the newest submission date available in the currently loaded rows. */
+export function latestErrorSubmissionDay(rows: ErrorRow[]): string {
+  let latest = "";
+  for (const row of rows) {
+    const day = errorSubmissionDay(row.submissionDate);
+    if (!day) continue;
+    const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+    if (iso > latest) latest = iso;
+  }
+  return latest;
 }
 
 export function applyErrorFilters(
   rows: ErrorRow[],
   filters: ErrorFilters
 ): ErrorRow[] {
-  const dateFrom = filters.todayOnly ? todayIsoLocal() : filters.dateFrom;
-  const dateTo = filters.todayOnly ? todayIsoLocal() : filters.dateTo;
+  const latestDay = filters.todayOnly ? latestErrorSubmissionDay(rows) : "";
+  const dateFrom = filters.todayOnly ? latestDay : filters.dateFrom;
+  const dateTo = filters.todayOnly ? latestDay : filters.dateTo;
 
   return rows.filter((r) => {
     if (filters.district.length > 0 && !filters.district.includes(r.district))

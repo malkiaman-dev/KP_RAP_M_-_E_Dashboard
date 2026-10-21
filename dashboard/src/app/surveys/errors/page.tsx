@@ -14,6 +14,7 @@ import {
   buildErrorTitleOptions,
   computeErrorMetrics,
   defaultErrorFilters,
+  latestErrorSubmissionDay,
   type ErrorFilters,
   type ErrorMetrics,
 } from "@/lib/data/error-metrics";
@@ -177,6 +178,7 @@ export default function ErrorReportPage() {
 
       <ErrorFiltersPanel
         filterOptions={panelFilterOptions}
+        latestDay={latestErrorSubmissionDay(scopedBase)}
         filters={filters}
         onChange={setFilters}
       />
