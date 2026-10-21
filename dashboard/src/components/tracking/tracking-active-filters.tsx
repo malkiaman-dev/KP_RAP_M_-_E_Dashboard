@@ -104,7 +104,7 @@ export function TrackingActiveFilters({
   if (filters.todayOnly) {
     chips.push({
       key: "todayOnly",
-      label: "Today",
+      label: "Latest day",
     });
   } else if (filters.dateFrom || filters.dateTo) {
     const from = filters.dateFrom

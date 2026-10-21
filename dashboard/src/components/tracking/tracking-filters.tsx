@@ -13,7 +13,7 @@ import {
   X,
   Group,
 } from "lucide-react";
-import { cn, toIsoDateString } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { FilterDateRange, FilterSelect } from "@/components/ui/filter-select";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import type {
@@ -26,7 +26,7 @@ interface TrackingFiltersPanelProps {
   filterOptions?: TrackingMetrics["filterOptions"];
   filters: TrackingFilters;
   onChange: (filters: TrackingFilters) => void;
-  /** Show the Today toggle after the date range. */
+  /** Show the latest day toggle after the date range. */
   showTodayToggle?: boolean;
   /** Filters restored when Reset is clicked (defaults to defaultTrackingFilters). */
   resetFilters?: TrackingFilters | (() => TrackingFilters);
@@ -177,13 +177,13 @@ export function TrackingFiltersPanel({
               {showTodayToggle && (
                 <div className="flex flex-col justify-end">
                   <label className="mb-1.5 text-xs font-medium text-muted-foreground">
-                    Today
+                    Latest day
                   </label>
                   <button
                     type="button"
                     role="switch"
                     aria-checked={filters.todayOnly}
-                    aria-label="Filter to today only"
+                    aria-label="Filter to the latest available day"
                     onClick={() => {
                       if (filters.todayOnly) {
                         onChange({
@@ -193,12 +193,13 @@ export function TrackingFiltersPanel({
                           dateTo: "",
                         });
                       } else {
-                        const today = toIsoDateString(new Date());
+                        // Newest submission date in the loaded data.
+                        const day = filterOptions?.dateRange.end || "";
                         onChange({
                           ...filters,
-                          todayOnly: true,
-                          dateFrom: today,
-                          dateTo: today,
+                          todayOnly: Boolean(day),
+                          dateFrom: day,
+                          dateTo: day,
                         });
                       }
                     }}

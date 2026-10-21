@@ -1,4 +1,8 @@
-import { parseFlexibleDate, toIsoDateString } from "../utils";
+import {
+  latestSubmissionDay,
+  parseFlexibleDate,
+  toIsoDateString,
+} from "../utils";
 import { isCompletedHouseholdForGirl } from "./hh-girls-completion";
 import {
   districtLabel,
@@ -78,10 +82,6 @@ function girlKey(r: HhGirlsRow): string {
   return (r.girl || "").trim();
 }
 
-function todayIso(): string {
-  return toIsoDateString(new Date());
-}
-
 export type HhGirlsMonitoringFilters = HhGirlsFilters & {
   todayOnly: boolean;
 };
@@ -94,9 +94,10 @@ export function applyHhGirlsMonitoringFilters(
 ): { household: HhGirlsRow[]; girls: HhGirlsRow[] } {
   const effective: HhGirlsFilters = { ...filters };
   if (filters.todayOnly) {
-    const today = todayIso();
-    effective.dateFrom = today;
-    effective.dateTo = today;
+    const day =
+      filters.dateFrom || latestSubmissionDay([...household, ...girls]);
+    effective.dateFrom = day;
+    effective.dateTo = day;
   }
 
   const match = (r: HhGirlsRow) => {

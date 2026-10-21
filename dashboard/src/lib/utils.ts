@@ -72,6 +72,20 @@ export function toIsoDateString(date: Date): string {
   return format(date, "yyyy-MM-dd");
 }
 
+/** Newest SubmissionDate (yyyy-MM-dd) among rows — the "Latest day" filter. */
+export function latestSubmissionDay(
+  rows: { SubmissionDate?: string }[]
+): string {
+  let latest = "";
+  for (const row of rows) {
+    const date = parseFlexibleDate(row.SubmissionDate || "");
+    if (!date) continue;
+    const iso = toIsoDateString(date);
+    if (iso > latest) latest = iso;
+  }
+  return latest;
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

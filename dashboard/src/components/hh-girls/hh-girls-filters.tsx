@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useCollapsedOnMobile } from "@/lib/hooks/use-collapsed-on-mobile";
 import { Filter, Calendar, MapPin, Users, ChevronDown, X, ClipboardList } from "lucide-react";
-import { cn, toIsoDateString } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { FilterDateRange, FilterSelect } from "@/components/ui/filter-select";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import {
@@ -166,13 +166,13 @@ export function HhGirlsFiltersPanel({
               {showTodayToggle && (
                 <div className="flex flex-col justify-end">
                   <label className="mb-1.5 text-xs font-medium text-muted-foreground">
-                    Today
+                    Latest day
                   </label>
                   <button
                     type="button"
                     role="switch"
                     aria-checked={todayOnly}
-                    aria-label="Filter to today only"
+                    aria-label="Filter to the latest available day"
                     onClick={() => {
                       if (todayOnly) {
                         onChange({
@@ -182,12 +182,13 @@ export function HhGirlsFiltersPanel({
                           dateTo: "",
                         });
                       } else {
-                        const today = toIsoDateString(new Date());
+                        // Newest submission date in the loaded data.
+                        const day = filterOptions?.dateRange.end || "";
                         onChange({
                           ...filters,
-                          todayOnly: true,
-                          dateFrom: today,
-                          dateTo: today,
+                          todayOnly: Boolean(day),
+                          dateFrom: day,
+                          dateTo: day,
                         });
                       }
                     }}

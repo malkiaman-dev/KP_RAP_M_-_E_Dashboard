@@ -36,7 +36,8 @@ export function buildHhGirlsEnumeratorReportFilename(
 
   let datePart: string;
   if (filters.todayOnly) {
-    datePart = fmt(toIsoDateString(new Date()));
+    // Latest day toggle stores that day in dateFrom.
+    datePart = fmt(filters.dateFrom || toIsoDateString(new Date()));
   } else if (filters.dateFrom && filters.dateTo) {
     datePart =
       filters.dateFrom === filters.dateTo

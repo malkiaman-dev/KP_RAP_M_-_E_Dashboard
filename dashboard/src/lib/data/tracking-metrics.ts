@@ -1,5 +1,6 @@
 import { DEFAULT_TRACKING_TARGETS, PROTOCOL } from "./protocol";
 import {
+  latestSubmissionDay,
   parseFlexibleDate,
   submissionTimestamp,
   toIsoDateString,
@@ -2460,6 +2461,14 @@ export function applyTrackingFilters(
       ? trackedGirlKeysForEnrollStatus(rows, filters.enrollStatus)
       : null;
 
+  // "Latest day": the toggle stores that day in dateFrom/dateTo; fall back to
+  // the newest submission in the data when it was not set.
+  const latestDay = filters.todayOnly
+    ? filters.dateFrom || latestSubmissionDay(rows)
+    : "";
+  const dateFrom = filters.todayOnly ? latestDay : filters.dateFrom;
+  const dateTo = filters.todayOnly ? latestDay : filters.dateTo;
+
   return rows.filter((r) => {
     if (filters.district.length > 0 && !filters.district.includes(r.district))
       return false;
@@ -2486,9 +2495,6 @@ export function applyTrackingFilters(
       if (!enrollKeys.has(girlKey(r))) return false;
     }
     const subDate = parseDate(r.SubmissionDate || "");
-    const today = toIsoDateString(new Date());
-    const dateFrom = filters.todayOnly ? today : filters.dateFrom;
-    const dateTo = filters.todayOnly ? today : filters.dateTo;
     if (dateFrom && subDate) {
       const from = new Date(dateFrom);
       if (subDate < from) return false;

@@ -50,7 +50,7 @@ export function HhGirlsActiveFilters({
     chips.push({ key: "village", label: filters.village });
   }
   if (todayOnly) {
-    chips.push({ key: "todayOnly", label: "Today" });
+    chips.push({ key: "todayOnly", label: "Latest day" });
   } else if (filters.dateFrom || filters.dateTo) {
     chips.push({
       key: "dateFrom",

@@ -28,7 +28,7 @@ export function num(n: number): string {
 
 export function buildErrorDateRangeLabel(filters: ErrorFilters): string {
   if (filters.todayOnly) {
-    return `Today (${formatDisplayDate(toIsoDateString(new Date()))})`;
+    return `Latest day (${formatDisplayDate(filters.dateFrom || toIsoDateString(new Date()))})`;
   }
   if (filters.dateFrom && filters.dateTo) {
     if (filters.dateFrom === filters.dateTo) {
@@ -67,7 +67,8 @@ export function buildErrorReportFilename(
 
   let datePart: string;
   if (filters.todayOnly) {
-    datePart = fmt(toIsoDateString(new Date()));
+    // Latest day toggle stores that day in dateFrom.
+    datePart = fmt(filters.dateFrom || toIsoDateString(new Date()));
   } else if (filters.dateFrom && filters.dateTo) {
     datePart =
       filters.dateFrom === filters.dateTo
