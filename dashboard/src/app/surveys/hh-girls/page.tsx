@@ -213,8 +213,10 @@ export default function HhGirlsSurveyPage() {
             Completed household definition
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Girl survey must be complete with girl available and both parental
-            and child consents agreed (either consent refused → incomplete).
+            Girl survey must have girl available and both parental and child
+            consents agreed (either consent refused → incomplete). Completion
+            is judged by the data, not survey_status — a fully filled form
+            marked 2/99 still counts.
             Girl unavailable codes 1/4 (school/other) need revisits through
             attempt 3; codes 2/3 (another city/country) → incomplete, no
             revisit. Mother permanently unavailable (3/4/5) → father + girl.

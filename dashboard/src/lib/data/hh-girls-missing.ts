@@ -55,7 +55,6 @@ function latestRow(rows: HhGirlsRow[]): HhGirlsRow | undefined {
 function isGirlSurveyComplete(gsRow: HhGirlsRow | undefined): boolean {
   if (!gsRow) return false;
   return (
-    gsRow.survey_status === "1" &&
     gsRow.girl_available === "1" &&
     gsRow.parental_consent_agree === "1" &&
     gsRow.child_consent_agree === "1"

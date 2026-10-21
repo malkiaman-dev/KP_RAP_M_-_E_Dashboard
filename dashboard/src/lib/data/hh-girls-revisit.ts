@@ -321,7 +321,10 @@ export function toCompletedHouseholdExportRow(
   gsRow: HhGirlsRow | undefined
 ): HhGirlsExportRow {
   const anchor = gsRow || hhSubs[0];
-  const girlsDone = gsRow?.survey_status === "1";
+  const girlsDone =
+    gsRow?.girl_available === "1" &&
+    gsRow.parental_consent_agree === "1" &&
+    gsRow.child_consent_agree === "1";
 
   return {
     keyId: (anchor?.KEY || "").trim(),
@@ -433,7 +436,6 @@ function priorAttemptRequiresRevisit(
 }
 
 function isSlotComplete(row: HhGirlsRow, slot: HhGirlsSurveySlot): boolean {
-  if (row.survey_status !== "1") return false;
   if (slot === "girls") {
     return (
       row.girl_available === "1" &&

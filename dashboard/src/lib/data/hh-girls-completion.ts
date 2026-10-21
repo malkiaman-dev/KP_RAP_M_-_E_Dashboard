@@ -163,8 +163,11 @@ function maxAttemptAmong(rows: HhGirlsRow[]): number {
   return Math.max(...rows.map(parseAttempt));
 }
 
+/**
+ * Completion is judged by the data (consent agreed), not `survey_status`:
+ * enumerators sometimes mark fully filled forms as 2/99 and leave a comment.
+ */
 function isParentSlotComplete(row: HhGirlsRow, role: "father" | "mother"): boolean {
-  if (row.survey_status !== "1") return false;
   if (role === "mother" && isMotherRespondent(row.respondent)) {
     return row.agree_consent_mother === "1";
   }
@@ -242,7 +245,6 @@ export function isCaretakerSurveyComplete(hhSubs: HhGirlsRow[]): boolean {
   return hhSubs.some(
     (s) =>
       isCaretakerRespondent(s) &&
-      s.survey_status === "1" &&
       s.agree_consent_caregiver === "1"
   );
 }
@@ -262,7 +264,6 @@ function isGirlSurveyComplete(gsRow: HhGirlsRow | undefined): boolean {
     return false;
   }
   return (
-    gsRow.survey_status === "1" &&
     gsRow.girl_available === "1" &&
     gsRow.parental_consent_agree === "1" &&
     gsRow.child_consent_agree === "1"

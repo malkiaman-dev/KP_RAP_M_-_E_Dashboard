@@ -84,7 +84,6 @@ function classifyDuplicateGroup(subs: HhGirlsRow[]): string {
 }
 
 function isSlotSuccessful(row: HhGirlsRow): boolean {
-  if (row.survey_status !== "1") return false;
   if (row.survey_type === "girls") {
     return row.girl_available === "1";
   }
