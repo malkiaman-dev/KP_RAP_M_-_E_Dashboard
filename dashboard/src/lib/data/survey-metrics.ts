@@ -2,9 +2,14 @@ import {
   girlKey,
   isGirlTrackedForMetrics,
   isTrackedSubmission,
+  resolveSchoolLabel,
+  resolveVillageLabel,
   type TrackingRow,
 } from "./tracking-metrics";
-import { isCompletedHouseholdForGirl } from "./hh-girls-completion";
+import {
+  isCompletedHouseholdForGirl,
+  isHhGirlsFormComplete,
+} from "./hh-girls-completion";
 import type { HhGirlsRow } from "./hh-girls-metrics";
 import { PROTOCOL } from "./protocol";
 import {
@@ -225,6 +230,17 @@ export function getFilterOptions(rows: SurveyRow[]): FilterOptions {
   };
 }
 
+/**
+ * Form completion: HH/Girls rows by respondent + consent data (see
+ * hh-girls-completion); tracking rows by `survey_status`.
+ */
+function isFormComplete(r: SurveyRow): boolean {
+  if (r.survey_type === "household" || r.survey_type === "girls") {
+    return isHhGirlsFormComplete(r as HhGirlsRow);
+  }
+  return r.survey_status === "1";
+}
+
 export function applyFilters(
   rows: SurveyRow[],
   filters: DashboardFilters
@@ -234,9 +250,8 @@ export function applyFilters(
       return false;
     if (!filters.surveyType.includes(r.survey_type)) return false;
     if (!matchesEnumeratorFilter(r, filters.enumerator)) return false;
-    if (filters.status === "complete" && r.survey_status !== "1") return false;
-    if (filters.status === "incomplete" && r.survey_status === "1")
-      return false;
+    if (filters.status === "complete" && !isFormComplete(r)) return false;
+    if (filters.status === "incomplete" && isFormComplete(r)) return false;
     if (filters.status === "revisit") {
       const isRevisit = Number(r.visit_num) > 1 || Number(r.attempt) > 1;
       if (!isRevisit) return false;
@@ -347,7 +362,7 @@ export function computeMetrics(
       ? (bothParentGirls.length / uniqueHHGirls.size) * 100
       : 0;
 
-  const girlsComplete = girls.filter((r) => r.survey_status === "1");
+  const girlsComplete = girls.filter(isFormComplete);
   const girlsCompletionRate =
     girls.length > 0 ? (girlsComplete.length / girls.length) * 100 : 0;
   const uniqueGirlsCompleted = new Set(
@@ -358,7 +373,7 @@ export function computeMetrics(
       ? (uniqueGirlsCompleted / PROTOCOL.HH_SURVEY_TARGET) * 100
       : 0;
 
-  const completedSubmissions = rows.filter((r) => r.survey_status === "1").length;
+  const completedSubmissions = rows.filter(isFormComplete).length;
   const surveyCompletionRate =
     rows.length > 0 ? (completedSubmissions / rows.length) * 100 : 0;
 
@@ -368,10 +383,12 @@ export function computeMetrics(
     girls.filter((r) => Number(r.attempt) > 1).length;
 
   const villages = new Set(
-    rows.map((r) => r.village || r.village_label).filter(Boolean)
+    // Village names, not codes: tracking and HH/Girls use different code formats.
+    rows.map((r) => resolveVillageLabel(r as TrackingRow)).filter(Boolean)
   );
   const schools = new Set(
-    tracking.map((r) => r.school_label).filter(Boolean)
+    // New sample stores the school in new_school_label.
+    tracking.map((r) => resolveSchoolLabel(r as TrackingRow)).filter(Boolean)
   );
   const enumerators = new Set(
     rows
@@ -394,12 +411,12 @@ export function computeMetrics(
         dTracking.length > 0 ? (dTracked.length / dTracking.length) * 100 : 0,
       hhCompletion:
         dHH.length > 0
-          ? (dHH.filter((r) => r.survey_status === "1").length / dHH.length) *
+          ? (dHH.filter(isFormComplete).length / dHH.length) *
             100
           : 0,
       girlsCompletion:
         dGirls.length > 0
-          ? (dGirls.filter((r) => r.survey_status === "1").length /
+          ? (dGirls.filter(isFormComplete).length /
               dGirls.length) *
             100
           : 0,

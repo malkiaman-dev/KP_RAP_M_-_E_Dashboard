@@ -307,7 +307,7 @@ function buildEnumeratorOptions(rows: TrackingRow[]) {
   return buildEnumeratorFilterOptions(rows);
 }
 
-function resolveSchoolLabel(row: TrackingRow): string | undefined {
+export function resolveSchoolLabel(row: TrackingRow): string | undefined {
   const label = row.school_label || row.new_school_label;
   if (label?.trim()) return label.trim();
   const school = String(row.school || "").trim();

@@ -25,16 +25,11 @@ interface FieldPeriodContextValue {
 
 const FieldPeriodContext = createContext<FieldPeriodContextValue | null>(null);
 
-const DEFAULT_ENABLED = true;
+// Field-period filter is retired: always show all data, ignoring any
+// previously stored "on" preference.
+const DEFAULT_ENABLED = false;
 
 function readStoredEnabled(): boolean {
-  try {
-    const stored = window.localStorage.getItem(FIELD_PERIOD_STORAGE_KEY);
-    if (stored === "0") return false;
-    if (stored === "1") return true;
-  } catch {
-    // Ignore storage failures (private mode, etc.).
-  }
   return DEFAULT_ENABLED;
 }
 

@@ -164,9 +164,38 @@ function maxAttemptAmong(rows: HhGirlsRow[]): number {
 }
 
 /**
- * Completion is judged by the data (consent agreed), not `survey_status`:
- * enumerators sometimes mark fully filled forms as 2/99 and leave a comment.
+ * Form-level completion is judged by the data (respondent + consent), not
+ * `survey_status`: enumerators sometimes mark fully filled forms as 2/99.
+ *
+ * HH form: father (1) / mother (2) / caretaker (3) with that respondent's
+ * consent agreed. Blank respondent or consent refused → incomplete.
  */
+export function isHouseholdFormComplete(row: HhGirlsRow): boolean {
+  if (isFatherRespondent(row.respondent)) return row.agree_consent_father === "1";
+  if (isMotherRespondent(row.respondent)) return row.agree_consent_mother === "1";
+  if (isCaretakerRespondent(row)) return row.agree_consent_caregiver === "1";
+  return false;
+}
+
+/**
+ * Girls form: girl available and BOTH parental and child consent agreed.
+ * Either consent refused → incomplete (no data collected after consent).
+ */
+export function isGirlsFormComplete(row: HhGirlsRow): boolean {
+  return (
+    row.girl_available === "1" &&
+    row.parental_consent_agree === "1" &&
+    row.child_consent_agree === "1"
+  );
+}
+
+/** Form-level completion for any HH/Girls row, by survey type. */
+export function isHhGirlsFormComplete(row: HhGirlsRow): boolean {
+  return row.survey_type === "girls"
+    ? isGirlsFormComplete(row)
+    : isHouseholdFormComplete(row);
+}
+
 function isParentSlotComplete(row: HhGirlsRow, role: "father" | "mother"): boolean {
   if (role === "mother" && isMotherRespondent(row.respondent)) {
     return row.agree_consent_mother === "1";
@@ -256,17 +285,8 @@ export function isCaretakerMarkedUnavailable(hhSubs: HhGirlsRow[]): boolean {
 
 function isGirlSurveyComplete(gsRow: HhGirlsRow | undefined): boolean {
   if (!gsRow) return false;
-  // Parental or child consent refused → incomplete
-  if (
-    gsRow.parental_consent_agree === "0" ||
-    gsRow.child_consent_agree === "0"
-  ) {
-    return false;
-  }
   return (
-    gsRow.girl_available === "1" &&
-    gsRow.parental_consent_agree === "1" &&
-    gsRow.child_consent_agree === "1"
+    isGirlsFormComplete(gsRow)
   );
 }
 

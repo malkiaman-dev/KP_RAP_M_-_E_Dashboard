@@ -5,6 +5,7 @@ import {
 } from "../utils";
 import {
   isCompletedHouseholdForGirl,
+  isHhGirlsFormComplete,
   isParentMarkedUnavailable,
 } from "./hh-girls-completion";
 import { computeHhGirlsCoreKpiLists } from "./hh-girls-core-kpi-lists";
@@ -159,8 +160,9 @@ export function isCaretakerRespondent(row: {
   );
 }
 
+/** Form completion by respondent + consent data, not survey_status. */
 function isComplete(row: HhGirlsRow): boolean {
-  return row.survey_status === "1";
+  return isHhGirlsFormComplete(row);
 }
 
 function buildTrend(rows: HhGirlsRow[]) {
