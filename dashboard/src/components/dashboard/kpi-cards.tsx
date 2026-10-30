@@ -96,7 +96,7 @@ export function KpiCards({
       key: "girlsTracked",
       label: "Tracked Girls",
       value: metrics.girlsTracked,
-      sublabel: `${metrics.trackingTargetProgress.toFixed(1)}% of ${PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()} target`,
+      sublabel: `${metrics.trackingTargetProgress.toFixed(1)}% of ${metrics.trackingTarget.toLocaleString()} target`,
       icon: Target,
       color: "teal",
       filterPatch: { surveyType: "tracking" },

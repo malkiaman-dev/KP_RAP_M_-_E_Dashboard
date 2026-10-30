@@ -55,7 +55,7 @@ export default function SurveysPage() {
       chip: "bg-teal/10 text-teal",
       bar: "bg-teal",
       progress: data?.trackingTargetProgress ?? 0,
-      progressLabel: `${(data?.girlsTracked ?? 0).toLocaleString()} / ${PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()}`,
+      progressLabel: `${(data?.girlsTracked ?? 0).toLocaleString()} / ${(data?.trackingTarget ?? PROTOCOL.SUCCESSFUL_TRACKING_TARGET).toLocaleString()}`,
       icon: Users2,
     },
     {

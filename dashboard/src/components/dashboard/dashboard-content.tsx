@@ -88,6 +88,7 @@ export function DashboardContent() {
 
     return computeMetrics(applyFilters(data.allSubmissions, deferredFilters), {
       allRows: data.allSubmissions,
+      trackingFrame: data.trackingFrame,
     });
   }, [data, deferredFilters]);
 

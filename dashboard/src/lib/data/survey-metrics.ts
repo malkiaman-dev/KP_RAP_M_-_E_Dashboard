@@ -295,13 +295,25 @@ function countCompletedHouseholds(
   return completed;
 }
 
-/** Match Tracking operational metrics: unique girls + tracked across all attempts. */
+/** Tracking_Targets assignment list: girl IDs (target + survey keys) and its size. */
+export interface TrackingFrame {
+  girlKeys: string[];
+  targetTotal: number;
+}
+
+/**
+ * Match Tracking operational metrics: unique girls + tracked across all attempts.
+ * With a frame, only girls on the assignment list are counted.
+ */
 function countOperationalTrackingGirls(
   trackingInView: TrackingRow[],
-  allTracking: TrackingRow[]
+  allTracking: TrackingRow[],
+  frameKeys?: Set<string>
 ): { uniqueGirls: number; trackedGirls: number } {
   const attemptedKeys = new Set(
-    trackingInView.map((r) => girlKey(r)).filter((k) => k.length > 0)
+    trackingInView
+      .map((r) => girlKey(r))
+      .filter((k) => k.length > 0 && (!frameKeys || frameKeys.has(k)))
   );
 
   const allByGirl = new Map<string, TrackingRow[]>();
@@ -323,9 +335,10 @@ function countOperationalTrackingGirls(
 
 export function computeMetrics(
   rows: SurveyRow[],
-  options?: { allRows?: SurveyRow[] }
+  options?: { allRows?: SurveyRow[]; trackingFrame?: TrackingFrame }
 ) {
   const allRows = options?.allRows ?? rows;
+  const trackingFrame = options?.trackingFrame;
   const tracking = rows.filter((r) => r.survey_type === "tracking");
   const household = rows.filter((r) => r.survey_type === "household");
   const girls = rows.filter((r) => r.survey_type === "girls");
@@ -334,14 +347,18 @@ export function computeMetrics(
   ) as TrackingRow[];
 
   const { uniqueGirls: uniqueTrackingGirls, trackedGirls } =
-    countOperationalTrackingGirls(tracking as TrackingRow[], allTracking);
+    countOperationalTrackingGirls(
+      tracking as TrackingRow[],
+      allTracking,
+      trackingFrame ? new Set(trackingFrame.girlKeys) : undefined
+    );
 
+  const trackingTarget =
+    trackingFrame?.targetTotal || PROTOCOL.SUCCESSFUL_TRACKING_TARGET;
   const trackingSuccessRate =
     uniqueTrackingGirls > 0 ? (trackedGirls / uniqueTrackingGirls) * 100 : 0;
   const trackingTargetProgress =
-    PROTOCOL.SUCCESSFUL_TRACKING_TARGET > 0
-      ? (trackedGirls / PROTOCOL.SUCCESSFUL_TRACKING_TARGET) * 100
-      : 0;
+    trackingTarget > 0 ? (trackedGirls / trackingTarget) * 100 : 0;
 
   const uniqueHHGirls = new Set(household.map((r) => r.girl).filter(Boolean));
   const motherForms = household.filter((r) => r.respondent === "2");
@@ -452,7 +469,9 @@ export function computeMetrics(
     activeDistricts: districts.size,
     surveyCompletionRate,
     trackingSuccessRate,
+    trackingTarget,
     trackingTargetProgress,
+    trackingFrame,
     hhCompletionRate,
     girlsCompletionRate,
     girlsTargetProgress,

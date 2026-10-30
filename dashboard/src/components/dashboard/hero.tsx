@@ -95,7 +95,8 @@ export function DashboardHero({ metrics, loading }: DashboardHeroProps) {
       : "No data loaded";
 
   const tracked = metrics?.girlsTracked ?? 0;
-  const trackingTarget = PROTOCOL.SUCCESSFUL_TRACKING_TARGET;
+  const trackingTarget =
+    metrics?.trackingTarget ?? PROTOCOL.SUCCESSFUL_TRACKING_TARGET;
   const hhCompleted = metrics?.completedHouseholds ?? 0;
   const hhTarget = PROTOCOL.HH_SURVEY_TARGET;
 

@@ -118,7 +118,10 @@ export function AnalyticsContent() {
     }
     return computeMetrics(
       applyFilters(dashboardQuery.data.allSubmissions, deferredFilters),
-      { allRows: dashboardQuery.data.allSubmissions }
+      {
+        allRows: dashboardQuery.data.allSubmissions,
+        trackingFrame: dashboardQuery.data.trackingFrame,
+      }
     );
   }, [dashboardQuery.data, deferredFilters]);
 
@@ -135,7 +138,10 @@ export function AnalyticsContent() {
     }
     return computeMetrics(
       applyFilters(dashboardQuery.data.allSubmissions, protocolFilters),
-      { allRows: dashboardQuery.data.allSubmissions }
+      {
+        allRows: dashboardQuery.data.allSubmissions,
+        trackingFrame: dashboardQuery.data.trackingFrame,
+      }
     );
   }, [dashboardQuery.data, deferredFilters]);
 

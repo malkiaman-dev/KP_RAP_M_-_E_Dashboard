@@ -68,7 +68,7 @@ export function ModulePulse({
       primaryLabel: "Tracked girls",
       secondary: `${metrics.trackingTargetProgress.toFixed(1)}% of target · ${metrics.tracking.total.toLocaleString()} forms`,
       progress: metrics.trackingTargetProgress,
-      progressLabel: `${metrics.girlsTracked.toLocaleString()} / ${PROTOCOL.SUCCESSFUL_TRACKING_TARGET.toLocaleString()} target`,
+      progressLabel: `${metrics.girlsTracked.toLocaleString()} / ${metrics.trackingTarget.toLocaleString()} target`,
     },
     {
       key: "household",
