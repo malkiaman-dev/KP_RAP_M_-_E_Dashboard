@@ -1,5 +1,6 @@
 import {
   isCompletedHouseholdForGirl,
+  isHouseholdRefusalWithoutRespondent,
   isParentMarkedUnavailable,
   latestParentUnavailableCode,
   latestParentUnavailableOther,
@@ -74,7 +75,7 @@ function isConsentRefused(row: HhGirlsRow): boolean {
   if (isFatherRespondent(row.respondent)) {
     return row.agree_consent_father === "0";
   }
-  return false;
+  return isHouseholdRefusalWithoutRespondent(row);
 }
 
 function rowTimestamp(row: HhGirlsRow): number {

@@ -280,6 +280,8 @@ function parentSlotStatusLabel(
 
   if (status.hasCompleteInterview) return "Interviewed (complete)";
 
+  if (status.hasRefusedConsent) return "Consent refused";
+
   if (status.isPermanentlyUnavailable) {
     const reason =
       status.unavailableLabel ||

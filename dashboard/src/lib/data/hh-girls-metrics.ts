@@ -6,6 +6,7 @@ import {
 import {
   isCompletedHouseholdForGirl,
   isHhGirlsFormComplete,
+  isHouseholdRefusalWithoutRespondent,
   isParentMarkedUnavailable,
 } from "./hh-girls-completion";
 import { computeHhGirlsCoreKpiLists } from "./hh-girls-core-kpi-lists";
@@ -286,7 +287,7 @@ function isConsentRefused(row: HhGirlsRow): boolean {
   if (isFatherRespondent(row.respondent)) {
     return row.agree_consent_father === "0";
   }
-  return false;
+  return isHouseholdRefusalWithoutRespondent(row);
 }
 
 function analyzeUnifiedGirls(
@@ -572,7 +573,9 @@ export function computeHhGirlsMetrics(
       ? r.agree_consent_mother
       : isFatherRespondent(r.respondent)
         ? r.agree_consent_father
-        : "";
+        : isHouseholdRefusalWithoutRespondent(r)
+          ? "0"
+          : "";
     if (consentVal === "1") hhConsentAgreed += 1;
     else if (consentVal === "0") hhConsentRefused += 1;
     else hhConsentPending += 1;
@@ -768,7 +771,9 @@ export function computeHhGirlsMetrics(
       ? r.agree_consent_mother
       : isFatherRespondent(r.respondent)
         ? r.agree_consent_father
-        : "";
+        : isHouseholdRefusalWithoutRespondent(r)
+          ? "0"
+          : "";
     if (val === "1") consentAgreed += 1;
     else if (val === "0") consentRefusedCount += 1;
     else consentPending += 1;

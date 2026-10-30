@@ -189,6 +189,28 @@ export function isGirlsFormComplete(row: HhGirlsRow): boolean {
   );
 }
 
+/**
+ * HH form closed before a respondent was chosen because the available
+ * parents/caretaker refused consent (e.g. both parents available, both
+ * agree_consent = 0). A refusal is final: no revisit.
+ */
+export function isHouseholdRefusalWithoutRespondent(row: HhGirlsRow): boolean {
+  if (row.survey_type === "girls") return false;
+  if (
+    isFatherRespondent(row.respondent) ||
+    isMotherRespondent(row.respondent) ||
+    isCaretakerRespondent(row)
+  ) {
+    return false;
+  }
+  const consents = [
+    row.agree_consent_father,
+    row.agree_consent_mother,
+    row.agree_consent_caregiver,
+  ].map((v) => (v || "").trim());
+  return consents.includes("0") && !consents.includes("1");
+}
+
 /** Form-level completion for any HH/Girls row, by survey type. */
 export function isHhGirlsFormComplete(row: HhGirlsRow): boolean {
   return row.survey_type === "girls"
@@ -213,6 +235,8 @@ export interface ParentSlotStatus {
   hasPendingTemporaryUnavailable: boolean;
   /** Temporary unavailable and all required revisits already filed (still not interviewed). */
   temporaryRevisitsExhausted: boolean;
+  /** Parent was available but refused consent on some visit (agree_consent_<role> = 0). */
+  hasRefusedConsent: boolean;
   unavailableCode: string;
   unavailableOther: string;
   unavailableLabel: string;
@@ -231,6 +255,11 @@ export function analyzeParentSlot(
   const hasCompleteInterview = parentSubs.some((s) =>
     isParentSlotComplete(s, role)
   );
+  const consentField =
+    role === "father" ? "agree_consent_father" : "agree_consent_mother";
+  const hasRefusedConsent =
+    !hasCompleteInterview &&
+    hhSubs.some((s) => (s[consentField] || "").trim() === "0");
 
   let isPermanentlyUnavailable = false;
   let hasTemporaryUnavailable = false;
@@ -264,6 +293,7 @@ export function analyzeParentSlot(
     hasPendingTemporaryUnavailable,
     temporaryRevisitsExhausted:
       revisitsExhausted && !hasCompleteInterview && !isPermanentlyUnavailable,
+    hasRefusedConsent,
     unavailableCode,
     unavailableOther,
     unavailableLabel,
@@ -298,6 +328,7 @@ function isGirlSurveyComplete(gsRow: HhGirlsRow | undefined): boolean {
  * - Father permanently unavailable (3/4/5) → mother interview + girl survey
  * - Both permanently unavailable → caretaker interview + girl survey
  * - Both parents interviewed → + girl survey
+ * - One parent refused consent, other parent interviewed → + girl survey
  *
  * Temporary girl unavailability (gone to school / other — codes 1, 4) requires
  * revisits through attempt 3 (2nd revisit). Permanent girl unavailability
@@ -319,8 +350,9 @@ export function isCompletedHouseholdForGirl(
   const mother = analyzeParentSlot(hhSubs, "mother");
 
   // Required revisits still outstanding for a temporary parent → incomplete
-  if (father.hasPendingTemporaryUnavailable) return false;
-  if (mother.hasPendingTemporaryUnavailable) return false;
+  // (a consent refusal is final, so it does not wait on revisits)
+  if (father.hasPendingTemporaryUnavailable && !father.hasRefusedConsent) return false;
+  if (mother.hasPendingTemporaryUnavailable && !mother.hasRefusedConsent) return false;
 
   const bothParentsPermanent =
     father.isPermanentlyUnavailable && mother.isPermanentlyUnavailable;
@@ -333,11 +365,16 @@ export function isCompletedHouseholdForGirl(
   }
 
   // Mother permanent → father + girl; father permanent → mother + girl;
+  // one parent refused consent → other parent's interview + girl;
   // otherwise both parent slots must be interviewed or permanent, with ≥1 interview.
   const fatherSatisfied =
-    father.hasCompleteInterview || father.isPermanentlyUnavailable;
+    father.hasCompleteInterview ||
+    father.isPermanentlyUnavailable ||
+    father.hasRefusedConsent;
   const motherSatisfied =
-    mother.hasCompleteInterview || mother.isPermanentlyUnavailable;
+    mother.hasCompleteInterview ||
+    mother.isPermanentlyUnavailable ||
+    mother.hasRefusedConsent;
   const atLeastOneParentInterviewed =
     father.hasCompleteInterview || mother.hasCompleteInterview;
 

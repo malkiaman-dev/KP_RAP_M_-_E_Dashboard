@@ -118,6 +118,13 @@ export function computeHhGirlsMissingDetail(
     const mother = analyzeParentSlot(hhSubs, "mother");
     const bothParentsPermanent =
       father.isPermanentlyUnavailable && mother.isPermanentlyUnavailable;
+    // Every parent refused consent or is permanently away, with ≥1 refusal:
+    // the household refused, so nothing further is required (no revisit).
+    const householdRefused =
+      (father.hasRefusedConsent || mother.hasRefusedConsent) &&
+      (father.hasRefusedConsent || father.isPermanentlyUnavailable) &&
+      (mother.hasRefusedConsent || mother.isPermanentlyUnavailable);
+    if (householdRefused) continue;
 
     // --- Father ---
     // Required unless permanently unavailable or both-parents-permanent (caretaker path)
@@ -125,6 +132,7 @@ export function computeHhGirlsMissingDetail(
       !bothParentsPermanent &&
       !father.isPermanentlyUnavailable &&
       !father.hasCompleteInterview &&
+      !father.hasRefusedConsent &&
       !father.hasPendingTemporaryUnavailable
     ) {
       const exportRow = toMissingExportRow(
@@ -142,6 +150,7 @@ export function computeHhGirlsMissingDetail(
       !bothParentsPermanent &&
       !mother.isPermanentlyUnavailable &&
       !mother.hasCompleteInterview &&
+      !mother.hasRefusedConsent &&
       !mother.hasPendingTemporaryUnavailable
     ) {
       const exportRow = toMissingExportRow(
