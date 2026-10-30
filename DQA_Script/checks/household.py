@@ -2115,7 +2115,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     # -------------------------------------------------
     # Fast interview: respondent-aware duration floor (CRITICAL / Track 2)
     #   Mother (respondent=2): flagged when under 25 minutes
-    #   Father (respondent=1) / unknown respondent: flagged at 15 minutes or under
+    #   Father (respondent=1) / unknown respondent: flagged when under 15 minutes
     #   Blank respondent: excluded from the fast-duration check
     # -------------------------------------------------
     MOTHER_MIN_DURATION_MIN = float(col.get("min_survey_duration_minutes_mother", 25) or 25)
@@ -2128,7 +2128,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         if resp == "2":
             return mins < MOTHER_MIN_DURATION_MIN, "Mother", MOTHER_MIN_DURATION_MIN, "under"
         who = "Father" if resp == "1" else "Household"
-        return mins <= FATHER_MIN_DURATION_MIN, who, FATHER_MIN_DURATION_MIN, "at or under"
+        return mins < FATHER_MIN_DURATION_MIN, who, FATHER_MIN_DURATION_MIN, "under"
 
     if duration_col or (start_col and end_col):
         field = ",".join([c for c in [duration_col, start_col, end_col] if c])

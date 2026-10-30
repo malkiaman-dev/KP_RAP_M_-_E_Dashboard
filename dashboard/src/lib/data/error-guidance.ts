@@ -651,25 +651,25 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoidUrdu: "Interview shuru karne se pehle tablet ki date aur time check karein, taake start/end time sahi record ho.",
   },
   GL_CE_FAST_10: {
-    focus: "Girls interview completed too quickly (critical under 10 min, quality under 15 min) despite reading/math modules.",
+    focus: "Girls interview completed too quickly (under 20 min active duration) despite reading/math modules.",
     avoid:
-      "A Girls survey should never take less than 15 minutes. Allow enough time for reading passages and math questions. Do not skip test modules or rush consent/demographics.",
+      "A Girls survey should never take less than 20 minutes. Allow enough time for reading passages and math questions. Do not skip test modules or rush consent/demographics.",
     avoidUrdu:
-      "Girls survey kabhi bhi 15 minute se kam waqt mein complete nahi honi chahiye. Reading passage aur math sawalat ke liye poora waqt dein. Test modules skip na karein ya consent/demographics jaldi mein na karein.",
+      "Girls survey kabhi bhi 20 minute se kam waqt mein complete nahi honi chahiye. Reading passage aur math sawalat ke liye poora waqt dein. Test modules skip na karein ya consent/demographics jaldi mein na karein.",
   },
   // Legacy alias — older error logs may still use the quality-tier rule id.
   GL_QF_10: {
-    focus: "Girls interview completed too quickly (critical under 10 min, quality under 15 min) despite reading/math modules.",
+    focus: "Girls interview completed too quickly (under 20 min active duration) despite reading/math modules.",
     avoid:
-      "A Girls survey should never take less than 15 minutes. Allow enough time for reading passages and math questions. Do not skip test modules or rush consent/demographics.",
+      "A Girls survey should never take less than 20 minutes. Allow enough time for reading passages and math questions. Do not skip test modules or rush consent/demographics.",
     avoidUrdu:
-      "Girls survey kabhi bhi 15 minute se kam waqt mein complete nahi honi chahiye. Reading passage aur math sawalat ke liye poora waqt dein. Test modules skip na karein ya consent/demographics jaldi mein na karein.",
+      "Girls survey kabhi bhi 20 minute se kam waqt mein complete nahi honi chahiye. Reading passage aur math sawalat ke liye poora waqt dein. Test modules skip na karein ya consent/demographics jaldi mein na karein.",
   },
   GL_AN_FAST_DURATION: {
     focus: "Girls interview completed at or under the minimum plausible duration.",
-    avoid: "A Girls survey should never take less than 15 minutes. Give reading and math modules their full time — do not rush the interview.",
+    avoid: "A Girls survey should never take less than 20 minutes. Give reading and math modules their full time — do not rush the interview.",
     avoidUrdu:
-      "Girls survey kabhi bhi 15 minute se kam waqt mein complete nahi honi chahiye. Reading aur math modules ko poora waqt dein, interview jaldi mein khatam na karein.",
+      "Girls survey kabhi bhi 20 minute se kam waqt mein complete nahi honi chahiye. Reading aur math modules ko poora waqt dein, interview jaldi mein khatam na karein.",
   },
   GL_QF_CONSENT_PARENT_UNDERSTAND: {
     focus: "Parental consent was agreed, but the understanding confirmation is missing.",

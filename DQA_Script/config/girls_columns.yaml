@@ -14,7 +14,7 @@ columns:
   district: district
   # Prefer SurveyCTO `duration` (active seconds). Wall-clock start/end is fallback only.
   critical_fast_duration_minutes: 10
-  min_survey_duration_minutes: 15
+  min_survey_duration_minutes: 20
   speed_warning_flag_threshold: 45
   reading_n_words: 72
   gps_jump_meters: 2000

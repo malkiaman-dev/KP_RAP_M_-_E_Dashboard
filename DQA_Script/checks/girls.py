@@ -167,7 +167,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     alt_endtime = cfg("alt_endtime", "Endtime1", "endtime1")
 
     crit_fast_min = float(col.get("critical_fast_duration_minutes", 10) or 10)
-    min_survey_min = float(col.get("min_survey_duration_minutes", 15) or 15)
+    min_survey_min = float(col.get("min_survey_duration_minutes", 20) or 20)
 
     # Decide once how to call make_issue safely
     _make_issue_sig = None
@@ -721,7 +721,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     # --------------------------
     # 6) Time consistency and fast interview (one rule GL_CE_FAST_10)
     # Prefer SurveyCTO `duration` (active seconds). Wall-clock start/end is fallback.
-    # CRITICAL if under 10 minutes; FLAG if under 15 minutes.
+    # Flagged when under the configured floor (min_survey_duration_minutes, 20).
     # --------------------------
     if starttime and endtime and starttime in df.columns and endtime in df.columns:
         st = safe_to_datetime(df[starttime])
@@ -755,8 +755,8 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         # Missing, pending or declined consent can legitimately end an interview early.
         if not _consent_agreed(i):
             continue
-        # At or under 15 minutes: invalid and integrity track (Track 2), not a routine timing flag.
-        too_fast = mins <= min_survey_min
+        # Under the floor: invalid and integrity track (Track 2), not a routine timing flag.
+        too_fast = mins < min_survey_min
 
         # Cross-check against the form's own recorded start/end (starttime1 /
         # Endtime1) when available. SurveyCTO's `duration` (active seconds) can
@@ -767,7 +767,7 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
             alt_et = safe_to_datetime(pd.Series([df.at[i, alt_endtime]], index=[i])).iloc[0]
             if pd.notna(alt_st) and pd.notna(alt_et) and alt_et > alt_st:
                 alt_mins = (alt_et - alt_st).total_seconds() / 60.0
-                if alt_mins > min_survey_min:
+                if alt_mins >= min_survey_min:
                     too_fast = False
 
         if too_fast:
@@ -775,9 +775,9 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                 i,
                 "CRITICAL",
                 "GL_AN_FAST_DURATION",
-                "Girls duration at or under 15 minutes (integrity)",
+                f"Girls duration under {min_survey_min:.0f} minutes (integrity)",
                 (
-                    f"Active duration is {round(mins, 1)} minutes (floor 15). "
+                    f"Active duration is {round(mins, 1)} minutes (floor {min_survey_min:.0f}). "
                     "A completed Girls form with consent, modules and the reading/math assessment "
                     "is not valid this quickly. Refer to the integrity track (Track 2)."
                 ),
