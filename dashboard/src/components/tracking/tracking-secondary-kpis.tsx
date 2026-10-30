@@ -63,7 +63,7 @@ const cards: {
     key: "successRate",
     exportLabel: "success-rate",
     label: "Success Rate %",
-    hint: "Successfully tracked girls vs assignment-frame target",
+    hint: "Successfully tracked girls vs protocol success target",
     icon: Percent,
     color: "text-teal",
     suffix: "%",

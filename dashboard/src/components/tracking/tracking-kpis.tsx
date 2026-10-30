@@ -101,11 +101,11 @@ const kpiConfig: {
     label: "Remaining to Target",
     colorClass: "text-red-600",
     icon: Flag,
-    frameValue: (frame) =>
-      frame.notAttempted + frame.attemptedNotTracked + frame.needsRevisit,
+    frameValue: (frame) => Math.max(0, frame.successTarget - frame.tracked),
     hint: (_m, frame) => {
       if (!frame) return "Loading assignment-frame details…";
       const lines = [
+        `Target ${frame.successTarget.toLocaleString()} − tracked ${frame.tracked.toLocaleString()}`,
         `Not tracked ${frame.attemptedNotTracked.toLocaleString()}`,
         `Not attempted ${frame.notAttempted.toLocaleString()}`,
       ];
@@ -123,10 +123,10 @@ const kpiConfig: {
     suffix: "%",
     decimals: 1,
     frameValue: (frame) =>
-      frame.targetTotal > 0 ? (frame.tracked / frame.targetTotal) * 100 : 0,
+      frame.successTarget > 0 ? (frame.tracked / frame.successTarget) * 100 : 0,
     hint: (_m, frame) =>
       frame
-        ? `${frame.tracked.toLocaleString()} / ${frame.targetTotal.toLocaleString()}`
+        ? `${frame.tracked.toLocaleString()} / ${frame.successTarget.toLocaleString()} protocol target`
         : "Loading…",
   },
 ];

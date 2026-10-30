@@ -295,10 +295,9 @@ function countCompletedHouseholds(
   return completed;
 }
 
-/** Tracking_Targets assignment list: girl IDs (target + survey keys) and its size. */
+/** Tracking_Targets assignment list: girl IDs (target + survey keys). */
 export interface TrackingFrame {
   girlKeys: string[];
-  targetTotal: number;
 }
 
 /**
@@ -353,8 +352,8 @@ export function computeMetrics(
       trackingFrame ? new Set(trackingFrame.girlKeys) : undefined
     );
 
-  const trackingTarget =
-    trackingFrame?.targetTotal || PROTOCOL.SUCCESSFUL_TRACKING_TARGET;
+  // Protocol target; the assignment list can be larger (replacements).
+  const trackingTarget = PROTOCOL.SUCCESSFUL_TRACKING_TARGET;
   const trackingSuccessRate =
     uniqueTrackingGirls > 0 ? (trackedGirls / uniqueTrackingGirls) * 100 : 0;
   const trackingTargetProgress =

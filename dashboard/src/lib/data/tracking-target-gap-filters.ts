@@ -1,3 +1,4 @@
+import { PROTOCOL } from "./protocol";
 import type { TrackingCohort } from "./tracking-metrics";
 import type {
   AssignmentGirlRef,
@@ -58,6 +59,25 @@ function matchesAnyDistrict(
 ): boolean {
   if (!needles || needles.length === 0) return true;
   return needles.some((needle) => matchesDistrict(code, label, needle));
+}
+
+/**
+ * Protocol successful-tracking target for the active filters (4,333 overall).
+ * The assignment list can be larger (replacements), so it is not the target.
+ */
+export function protocolSuccessTarget(
+  filters: {
+    district?: string[];
+    cohort?: "all" | TrackingCohort;
+  } = {}
+): number {
+  let total = 0;
+  for (const [code, d] of Object.entries(PROTOCOL.DISTRICT_TRACKING_TARGETS)) {
+    if (!matchesAnyDistrict(code, d.label, filters.district)) continue;
+    if (filters.cohort !== "new-sample") total += d.baseline;
+    if (filters.cohort !== "baseline") total += d.endline;
+  }
+  return total;
 }
 
 /** Filter assignment-frame girl ID refs by the same district/cohort controls. */
@@ -140,12 +160,16 @@ export function assignmentFrameCounts(
   needsRevisit: number;
   actionable: number;
   tracked: number;
+  /** Girls on the assignment list (includes replacements). */
   targetTotal: number;
+  /** Protocol successful-tracking target for these filters. */
+  successTarget: number;
 } | null {
   if (!gaps?.available) return null;
 
   const districtAll = !filters.district || filters.district.length === 0;
   const cohortAll = !filters.cohort || filters.cohort === "all";
+  const successTarget = protocolSuccessTarget(filters);
 
   if (districtAll && cohortAll) {
     return {
@@ -155,6 +179,7 @@ export function assignmentFrameCounts(
       actionable: gaps.actionable,
       tracked: gaps.tracked,
       targetTotal: gaps.targetTotal,
+      successTarget,
     };
   }
 
@@ -177,7 +202,7 @@ export function assignmentFrameCounts(
       }
       return true;
     });
-    return sumCohortDistrictRows(rows);
+    return { ...sumCohortDistrictRows(rows), successTarget };
   }
 
   // Legacy fallback when girl lists are present (scripts / full compute).
@@ -201,6 +226,7 @@ export function assignmentFrameCounts(
       needsRevisit.length +
       attemptedNotTracked.length +
       tracked.length,
+    successTarget,
   };
 }
 
@@ -313,15 +339,15 @@ function applyCohortFrame<
   return {
     ...cohort,
     assignmentTarget: frame.targetTotal,
-    successTarget: frame.targetTotal,
+    successTarget: frame.successTarget,
     totalTrackedGirls: frame.tracked,
-    remainingToSuccessTarget: rem,
+    remainingToSuccessTarget: Math.max(0, frame.successTarget - frame.tracked),
     uniqueGirlsAttempted: attempted,
     untrackedInData: rem,
     assignmentCoverage:
       frame.targetTotal > 0 ? (attempted / frame.targetTotal) * 100 : 0,
     successRate:
-      frame.targetTotal > 0 ? (frame.tracked / frame.targetTotal) * 100 : 0,
+      frame.successTarget > 0 ? (frame.tracked / frame.successTarget) * 100 : 0,
     districtBreakdown: districtRows.map((d) => ({
       district: d.district,
       label: d.districtLabel,
@@ -424,7 +450,7 @@ export function overlayMetricsWithAssignmentFrame<
 
   const remaining = remainingOf(frame);
   const successRate =
-    frame.targetTotal > 0 ? (frame.tracked / frame.targetTotal) * 100 : 0;
+    frame.successTarget > 0 ? (frame.tracked / frame.successTarget) * 100 : 0;
   const attempted = frame.targetTotal - frame.notAttempted;
 
   const baselineFrame = assignmentFrameCounts(gaps, {
@@ -456,7 +482,10 @@ export function overlayMetricsWithAssignmentFrame<
       label: d.districtLabel,
       tracked: d.tracked,
       untracked: rem,
-      target: d.targetTotal,
+      target: protocolSuccessTarget({
+        district: [d.district],
+        cohort: filters.cohort,
+      }),
       inData: d.targetTotal - d.notAttempted,
       totalSubmissions: existing?.totalSubmissions ?? 0,
     };
@@ -553,10 +582,10 @@ export function overlayMetricsWithAssignmentFrame<
   return {
     ...metrics,
     assignmentPool: frame.targetTotal,
-    successTarget: frame.targetTotal,
+    successTarget: frame.successTarget,
     girlsToTrack: frame.targetTotal,
     totalTrackedGirls: frame.tracked,
-    remainingToSuccessTarget: remaining,
+    remainingToSuccessTarget: Math.max(0, frame.successTarget - frame.tracked),
     totalUntrackedGirls: remaining,
     untrackedInData: remaining,
     successRate,

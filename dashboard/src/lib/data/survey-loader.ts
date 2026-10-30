@@ -65,7 +65,7 @@ function loadTrackingFrame(): TrackingFrame | undefined {
     if (g.girlId) keys.add(g.girlId);
     if (g.surveyGirlKey) keys.add(g.surveyGirlKey);
   }
-  return { girlKeys: [...keys], targetTotal: gaps.targetTotal };
+  return { girlKeys: [...keys] };
 }
 
 /** Prefer shared tracking + HH caches so CSVs are not re-parsed per API. */
