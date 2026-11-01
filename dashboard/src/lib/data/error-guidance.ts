@@ -487,11 +487,11 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
   },
   HH_CR_INCOMPLETE_SUPERSEDED: {
     focus:
-      "A blank-respondent record shares identity/location with another submission for the same household — likely an abandoned or incomplete attempt.",
+      "A household form with no respondent: either a parent said No to consent while another form for the same household has consent agreed, or the parent was unavailable and the household was interviewed on another form.",
     avoid:
-      "Always select a respondent (Father/Mother) before submitting. If a form is abandoned mid-way, do not leave it as a separate incomplete record once the household has been properly interviewed.",
+      "Record each parent's consent answer correctly the first time; if consent is No, do not start a second form for that household without the supervisor. For an unavailable-parent attempt, report it so it can be voided once the household is completed.",
     avoidUrdu:
-      "Submit karne se pehle hamesha respondent (Father/Mother) select karein. Agar form beech mein chhoot jaye to household ka interview mukammal hone ke baad usay alag adhoore record ki soorat mein na chhodein.",
+      "Har parent ka consent jawab pehli dafa hi sahi record karein; agar consent No hai to supervisor ke baghair us household ka doosra form shuru na karein. Parent available na hone wala attempt supervisor ko batayein taake household mukammal hone ke baad usay void kiya ja sake.",
   },
   HH_DUP_OTHER: {
     focus: "Duplicate household record where the respondent (Father/Mother) could not be determined.",

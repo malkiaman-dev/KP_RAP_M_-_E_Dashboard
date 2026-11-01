@@ -1314,9 +1314,88 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         # HH_CR_INCOMPLETE_SUPERSEDED: a blank-respondent record shares
         # identity/location with another submission for the same household.
         # Unlike HH_CR_10 above (which requires a matching respondent), this
-        # catches an abandoned/incomplete attempt — respondent was never
-        # recorded — left behind once the household was actually completed.
+        # catches an attempt that ended before a respondent was recorded:
+        # either a parent said No to consent on this form while another form
+        # for the household has consent agreed, or the parent was unavailable
+        # and the household was interviewed on a later form.
         # =========================================================
+        parent_consent_cols = [
+            (label, c)
+            for label, c in (("Father", consent_father_col), ("Mother", consent_mother_col))
+            if c and c in df.columns
+        ]
+
+        def _form_dt(i):
+            # Interview start orders forms correctly; forms synced together share a SubmissionDate.
+            dt = _parse_date_any(df.at[i, start_col]) if (start_col and start_col in df.columns) else None
+            if dt is None and sub and sub in df.columns:
+                dt = _parse_date_any(df.at[i, sub])
+            return dt
+
+        def _fmt_dt(dt) -> str:
+            # compact: messages are clipped to MAX_MSG_LEN
+            if dt is None:
+                return "date unknown"
+            return f"{dt.day} {dt:%b} {dt.hour % 12 or 12}:{dt:%M} {dt:%p}"
+
+        def _forms_txt(js, resp_series) -> str:
+            js = sorted(js, key=lambda j: (_form_dt(j) is None, _form_dt(j)))
+            items = [f"{_respondent_label(resp_series.get(j, ''))} ({_fmt_dt(_form_dt(j))})" for j in js]
+            if len(items) == 1:
+                label, rest = items[0].split(" ", 1)
+                return f"{label} survey {rest}"
+            return ", ".join(items) + " surveys"
+
+        def _consent_story(i, other_idxs: list, resp_series) -> tuple[str, bool] | None:
+            """Describe where each parent's consent was agreed and where it was refused, in
+            interview order; parents with the same story share one sentence. Returns
+            (text, agreed_elsewhere), or None when no parent answered No on this form."""
+            refused = [(label, c) for label, c in parent_consent_cols if _is_explicit_no(df.at[i, c])]
+            if not refused:
+                return None
+            answered = [label for label, c in parent_consent_cols if _norm_str(df.at[i, c]) != ""]
+            other_labels = {_respondent_label(resp_series.get(j, "")) for j in other_idxs}
+            dt_i = _form_dt(i)
+            if len(answered) == 1:
+                # Only one parent was available, so the form could only be that parent's survey.
+                this_form = f"{'another ' if answered[0] in other_labels else ''}{answered[0]} survey"
+                this_txt = f"in {this_form} ({_fmt_dt(dt_i)})"
+            else:
+                # Both parents were asked consent and both refused, so the form never reached
+                # the respondent question; which parent's survey it was is not recorded.
+                this_txt = f"({_fmt_dt(dt_i)}), so no respondent was selected"
+
+            def _forms(js):
+                return _forms_txt(js, resp_series)
+
+            stories: dict[str, list[str]] = {}
+            for label, c in refused:
+                # consent columns load as floats (1.0), which _is_yes does not accept
+                agreed = [j for j in other_idxs if _to_num(df.at[j, c]) == 1 or _is_yes(df.at[j, c])]
+                if not agreed:
+                    continue
+                before = [j for j in agreed if not (dt_i and _form_dt(j) and dt_i < _form_dt(j))]
+                after = [j for j in agreed if j not in before]
+                s = "; ".join(
+                    p for p in (
+                        f"agreed earlier in {_forms(before)}" if before else "",
+                        f"agreed later in {_forms(after)}" if after else "",
+                    ) if p
+                )
+                stories.setdefault(s, []).append(label)
+
+            def _who(labels) -> str:
+                return "Both parents" if len(labels) == 2 else labels[0]
+
+            parts = [f"{_who([label for label, _ in refused])} refused consent {this_txt}."]
+            if not stories:
+                parts.append(f"Household completed on {_forms(other_idxs)}.")
+            else:
+                parts.append(
+                    "; ".join(f"{'Both' if len(labels) == 2 else labels[0]} {s}" for s, labels in stories.items()) + "."
+                )
+            return " ".join(parts), bool(stories)
+
         if sig_cols and respondent_code_col and respondent_code_col in df.columns:
             resp_series = df[respondent_code_col].map(_resp_code)
             any_filled_sig = (sig_df[sig_cols] != "").any(axis=1)
@@ -1331,18 +1410,30 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                     if not blank_idxs or not other_idxs:
                         continue
                     for i in blank_idxs:
+                        story = _consent_story(i, other_idxs, resp_series)
+                        if story:
+                            text, agreed_elsewhere = story
+                            title = (
+                                "Consent refused on this form, but agreed on another form for the same household"
+                                if agreed_elsewhere
+                                else "Consent refused on this form; the other parent was interviewed on another form"
+                            )
+                            closing = " Confirm the correct answer and void the wrong form."
+                            desc = text + closing if len(text + closing) <= MAX_MSG_LEN else text
+                        else:
+                            title = "Parent unavailable attempt for a household interviewed on another form"
+                            text = (
+                                f"Parent unavailable, so no respondent was recorded ({_fmt_dt(_form_dt(i))}). "
+                                f"Household interviewed on {_forms_txt(other_idxs, resp_series)}."
+                            )
+                            closing = " Void this attempt once that form is confirmed."
+                            desc = text + closing if len(text + closing) <= MAX_MSG_LEN else text
                         add_issue(
                             i,
                             "CRITICAL",
                             "HH_CR_INCOMPLETE_SUPERSEDED",
-                            "Incomplete record superseded by a later household submission",
-                            (
-                                "This household record has no respondent recorded (blank), and the "
-                                "same identity and location fields already exist on another "
-                                "submission for this household. This looks like an abandoned or "
-                                "incomplete attempt — void it once the completed submission(s) are "
-                                "confirmed with the supervisor."
-                            ),
+                            title,
+                            desc,
                             ", ".join(sig_cols + [respondent_code_col]),
                             "; ".join(f"{c}={_clip(df.at[i, c])}" for c in sig_cols),
                         )
