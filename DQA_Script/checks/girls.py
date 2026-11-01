@@ -404,25 +404,65 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         v_miss = is_missing_series(df[village])
         g_miss = is_missing_series(df[girl])
 
+        # girl_available_reason: 1=Gone to school (revisit), 2=Lives in another city (no revisit),
+        # 3=Lives in another country (no revisit), 4=Other (revisit)
+        avail_col = cfg("girl_available", "girl_available")
+        reason_col = cfg("girl_available_reason", "girl_available_reason")
+        revisit_reasons = {1, 4}
+        no_revisit_labels = {2: "Lives in another city", 3: "Lives in another country"}
+
+        def avail_reason(i) -> int | None:
+            """Not-available reason code for an attempt record, else None (girl was available)."""
+            if not avail_col or not reason_col or avail_col not in df.columns or reason_col not in df.columns:
+                return None
+            if to_num(pd.Series([df.at[i, avail_col]])).iloc[0] != 0:
+                return None
+            r = to_num(pd.Series([df.at[i, reason_col]])).iloc[0]
+            return int(r) if pd.notna(r) else None
+
+        def submitted_at(i):
+            if sub and sub in df.columns:
+                return safe_to_datetime(pd.Series([df.at[i, sub]], index=[i])).iloc[0]
+            return pd.NaT
+
         dup_mask = (~v_miss) & (~g_miss) & df.duplicated(subset=[village, girl], keep=False)
         if dup_mask.any():
             tmp = df.loc[dup_mask, [village, girl]].copy()
             for (_, _), subg in tmp.groupby([village, girl], dropna=False):
-                idxs = list(subg.index)
+                ordered = sorted(subg.index, key=lambda i: (pd.isna(submitted_at(i)), submitted_at(i)))
+                # A not-available attempt with a revisit reason, followed by a later form, is a
+                # planned revisit, not a duplicate.
+                idxs = [
+                    i for pos, i in enumerate(ordered)
+                    if not (avail_reason(i) in revisit_reasons and pos < len(ordered) - 1)
+                ]
+                if len(idxs) < 2:
+                    continue
                 retain_msg, keep_i = retain_recommendation(idxs)
                 for i in idxs:
                     if i == keep_i:
                         continue
+                    reason = avail_reason(i)
+                    if reason in no_revisit_labels:
+                        desc = (
+                            f"This attempt marked the girl not available with reason "
+                            f"'{no_revisit_labels[reason]}' (no revisit), yet another Girls form was "
+                            "submitted for her later. Either the reason was wrong or the later form "
+                            "should not exist. "
+                            + retain_msg
+                        )
+                    else:
+                        desc = (
+                            "The same girl ID appears more than once within the same village. "
+                            "This looks like a duplicate record. "
+                            + retain_msg
+                        )
                     add_issue(
                         i,
                         "CRITICAL",
                         "GL_CE_14",
                         "Duplicate girl record in the same village",
-                        (
-                            "The same girl ID appears more than once within the same village. "
-                            "This looks like a duplicate record. "
-                            + retain_msg
-                        ),
+                        desc,
                         f"{village},{girl}",
                         fmt_kv(Village=df.at[i, village], Girl=df.at[i, girl]),
                     )
