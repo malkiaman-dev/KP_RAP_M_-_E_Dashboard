@@ -721,9 +721,9 @@ export function computeHhGirlsMetrics(
     (g) => g.motherNotAvailable
   ).length;
   const girlNotAvailable = unifiedGirls.filter((g) => g.girlNotAvailable).length;
-  const totalUnavailable = unifiedGirls.filter(
-    (g) => g.fatherNotAvailable || g.motherNotAvailable || g.girlNotAvailable
-  ).length;
+  // Counts people, not girls: father and mother of the same girl count separately.
+  const totalUnavailable =
+    fatherNotAvailable + motherNotAvailable + girlNotAvailable;
   const consentRefused =
     household.filter(isConsentRefused).length + girls.filter(isConsentRefused).length;
   const completedHouseholds = unifiedGirls.filter(

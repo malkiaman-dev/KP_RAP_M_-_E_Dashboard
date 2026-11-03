@@ -79,7 +79,7 @@ const kpiConfig: {
     label: "Total Unavailable",
     icon: Ban,
     color: "text-amber-500",
-    hint: "Father, mother, or girl marked unavailable on any visit",
+    hint: "Father + mother + girl not available (each person counted separately; equals the sum of the three cards)",
   },
   {
     key: "fatherNotAvailable",

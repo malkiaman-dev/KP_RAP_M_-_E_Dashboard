@@ -214,12 +214,20 @@ export function computeHhGirlsCoreKpiLists(
     const girlNotAvailable = isGirlMarkedUnavailable(
       gsSubsByGirl.get(girl) || []
     );
-    const unavailable =
-      fatherNotAvailable || motherNotAvailable || girlNotAvailable;
-
-    if (unavailable) {
+    // One row per unavailable person, so a girl can appear more than once.
+    if (fatherNotAvailable) {
       lists.totalUnavailable.push(
-        toHhGirlsExportRow(rep, "Unavailable (any reason)")
+        toHhGirlsExportRow(rep, "Unavailable (father)")
+      );
+    }
+    if (motherNotAvailable) {
+      lists.totalUnavailable.push(
+        toHhGirlsExportRow(rep, "Unavailable (mother)")
+      );
+    }
+    if (girlNotAvailable) {
+      lists.totalUnavailable.push(
+        toHhGirlsExportRow(rep, "Unavailable (girl)")
       );
     }
     if (fatherNotAvailable) {
