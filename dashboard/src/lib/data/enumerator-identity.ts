@@ -34,7 +34,12 @@ export function cleanEnumeratorName(name?: string): string {
 }
 
 export function normalizeEnumeratorNameSlug(name?: string): string {
-  const slug = cleanEnumeratorName(name).toLowerCase().replace(/\s+/g, " ").trim();
+  // Treat "." / "_" / "-" as word separators so "Shafaq.zahra" = "Shafaq Zahra".
+  const slug = cleanEnumeratorName(name)
+    .toLowerCase()
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!slug || slug === "unknown") return "";
   return ENUMERATOR_NAME_ALIASES[slug] ?? slug;
 }
