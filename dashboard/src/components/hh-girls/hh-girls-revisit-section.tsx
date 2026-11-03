@@ -7,6 +7,7 @@ import {
   ChevronDown,
   RefreshCw,
   Target,
+  UserX,
   Users,
 } from "lucide-react";
 import { StatCard, StatCardSkeleton } from "@/components/ui/stat-card";
@@ -17,7 +18,7 @@ import { downloadHhGirlsExcel } from "@/lib/export/hh-girls-excel";
 
 type Detail = NonNullable<HhGirlsMetrics["revisitDetail"]>;
 
-type Group = "overall" | "1st" | "2nd";
+type Group = "1st" | "2nd";
 
 const cards: {
   label: string;
@@ -30,44 +31,6 @@ const cards: {
   getList: (d: Detail) => HhGirlsExportRow[];
   hoverDetail?: (d: Detail) => string;
 }[] = [
-  {
-    label: "Revisit Needed",
-    exportLabel: "revisits-needed",
-    hint: "Revisits still to be done (1st + 2nd revisit). Once a revisit is submitted it moves to Revisited",
-    icon: Target,
-    color: "text-amber-600",
-    group: "overall",
-    value: (d) => d.revisitsNeedToBeDone,
-    getList: (d) => d.lists.revisitsNeedToBeDone,
-    hoverDetail: (d) => `1st: ${d.revisitsNeed2nd} · 2nd: ${d.revisitsNeed3rd}`,
-  },
-  {
-    label: "Revisited",
-    exportLabel: "revisited",
-    hint: "All revisits done (attempt 2 or 3 submitted), found or not",
-    icon: RefreshCw,
-    color: "text-sky-700",
-    group: "overall",
-    value: (d) => d.girls2ndRevisited + d.girls3rdRevisited,
-    getList: (d) => [...d.lists.girls2ndRevisited, ...d.lists.girls3rdRevisited],
-    hoverDetail: (d) =>
-      `1st: ${d.girls2ndRevisited} · 2nd: ${d.girls3rdRevisited} · unique girls: ${d.totalRevisitedGirls}`,
-  },
-  {
-    label: "Completed on Revisit",
-    exportLabel: "completed-on-revisit",
-    hint: "Completed on any revisit (attempt 2 or 3)",
-    icon: CheckCircle2,
-    color: "text-green-600",
-    group: "overall",
-    value: (d) => d.slotsCompletedOn2ndRevisit + d.slotsCompletedOn3rdRevisit,
-    getList: (d) => [
-      ...d.lists.slotsCompletedOn2ndRevisit,
-      ...d.lists.slotsCompletedOn3rdRevisit,
-    ],
-    hoverDetail: (d) =>
-      `1st: ${d.slotsCompletedOn2ndRevisit} · 2nd: ${d.slotsCompletedOn3rdRevisit}`,
-  },
   {
     label: "Revisit Needed",
     exportLabel: "1st-revisit-needed",
@@ -100,6 +63,18 @@ const cards: {
     getList: (d) => d.lists.slotsCompletedOn2ndRevisit,
   },
   {
+    label: "Not Found",
+    exportLabel: "not-found-after-2nd-attempt",
+    hint: "Permanently not found: still unavailable on the 1st revisit (attempt 2) with no revisit left (father). Mother / girl / caretaker not found here move to the 3rd attempt",
+    icon: UserX,
+    color: "text-red-500",
+    group: "1st",
+    value: (d) => d.notFoundAfter2nd,
+    getList: (d) => d.lists.notFoundAfter2nd,
+    hoverDetail: (d) =>
+      `Not completed on attempt 2: ${d.slotsNotCompletedOn2ndRevisit} · moved to 3rd attempt: ${d.revisitsNeed3rd + d.girls3rdRevisited}`,
+  },
+  {
     label: "Revisit Needed",
     exportLabel: "2nd-revisit-needed",
     hint: "Not found on the 1st revisit (attempt 2) and the 2nd revisit (attempt 3) is not done yet. Mother / girl / caretaker only (father max is 1 revisit)",
@@ -130,12 +105,21 @@ const cards: {
     value: (d) => d.slotsCompletedOn3rdRevisit,
     getList: (d) => d.lists.slotsCompletedOn3rdRevisit,
   },
+  {
+    label: "Not Found",
+    exportLabel: "not-found-after-3rd-attempt",
+    hint: "Permanently not found: still unavailable on the 2nd revisit (attempt 3), the last revisit allowed",
+    icon: UserX,
+    color: "text-red-500",
+    group: "2nd",
+    value: (d) => d.notFoundAfter3rd,
+    getList: (d) => d.lists.notFoundAfter3rd,
+  },
 ];
 
 const columns: { group: Group; heading: string }[] = [
-  { group: "overall", heading: "Overall" },
-  { group: "1st", heading: "1st revisit (attempt 2)" },
-  { group: "2nd", heading: "2nd revisit (attempt 3)" },
+  { group: "1st", heading: "2nd attempt (1st revisit)" },
+  { group: "2nd", heading: "3rd attempt (2nd revisit)" },
 ];
 
 function downloadCardList(rows: HhGirlsExportRow[], exportLabel: string) {
@@ -206,11 +190,11 @@ export function HhGirlsRevisitSection({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
+            <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
               {loading
                 ? columns.map((col) => (
                     <div key={col.group} className="flex flex-col gap-3">
-                      <StatCardSkeleton count={3} />
+                      <StatCardSkeleton count={4} />
                     </div>
                   ))
                 : columns.map((col) => {

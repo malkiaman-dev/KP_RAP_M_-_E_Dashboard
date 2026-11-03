@@ -71,7 +71,9 @@ export type HhGirlsRevisitListKey =
   | "slotsCompletedOn3rdRevisit"
   | "slotsNotCompletedOn2ndRevisit"
   | "slotsNotCompletedOn3rdRevisit"
-  | "totalRevisitedGirls";
+  | "totalRevisitedGirls"
+  | "notFoundAfter2nd"
+  | "notFoundAfter3rd";
 
 export interface HhGirlsRevisitDetailMetrics {
   revisitsNeedToBeDone: number;
@@ -86,6 +88,10 @@ export interface HhGirlsRevisitDetailMetrics {
   slotsNotCompletedOn3rdRevisit: number;
   totalRevisitedGirls: number;
   revisitSubmissions: number;
+  /** Still unavailable on attempt 2 with no revisit left (father) → permanently not found. */
+  notFoundAfter2nd: number;
+  /** Still unavailable on attempt 3 (mother / girl / caretaker) → permanently not found. */
+  notFoundAfter3rd: number;
 }
 
 export interface HhGirlsRevisitDetailData extends HhGirlsRevisitDetailMetrics {
@@ -114,6 +120,8 @@ function emptyRevisitLists(): Record<HhGirlsRevisitListKey, HhGirlsExportRow[]> 
     slotsNotCompletedOn2ndRevisit: [],
     slotsNotCompletedOn3rdRevisit: [],
     totalRevisitedGirls: [],
+    notFoundAfter2nd: [],
+    notFoundAfter3rd: [],
   };
 }
 
@@ -596,6 +604,8 @@ export function computeHhGirlsRevisitDetail(
   let slotsCompletedOn3rdRevisit = 0;
   let slotsNotCompletedOn2ndRevisit = 0;
   let slotsNotCompletedOn3rdRevisit = 0;
+  let notFoundAfter2nd = 0;
+  let notFoundAfter3rd = 0;
 
   const revisitSubmissions = [...household, ...girls].filter(
     (r) => parseAttempt(r) > 1
@@ -644,6 +654,14 @@ export function computeHhGirlsRevisitDetail(
       } else {
         slotsNotCompletedOn2ndRevisit += 1;
         lists.slotsNotCompletedOn2ndRevisit.push(exportRow);
+        // Still unavailable and no further revisit allowed → permanently not found.
+        if (
+          priorAttemptRequiresRevisit(second, slot) &&
+          maxAttemptForSlot(slot as HhGirlsRevisitSlot) <= 2
+        ) {
+          notFoundAfter2nd += 1;
+          lists.notFoundAfter2nd.push(exportRow);
+        }
       }
     }
 
@@ -663,6 +681,10 @@ export function computeHhGirlsRevisitDetail(
       } else {
         slotsNotCompletedOn3rdRevisit += 1;
         lists.slotsNotCompletedOn3rdRevisit.push(exportRow);
+        if (priorAttemptRequiresRevisit(third, slot)) {
+          notFoundAfter3rd += 1;
+          lists.notFoundAfter3rd.push(exportRow);
+        }
       }
     }
   }
@@ -686,6 +708,8 @@ export function computeHhGirlsRevisitDetail(
     slotsNotCompletedOn3rdRevisit,
     totalRevisitedGirls: revisitedGirls.size,
     revisitSubmissions,
+    notFoundAfter2nd,
+    notFoundAfter3rd,
     lists,
   };
 }
