@@ -709,7 +709,13 @@ export function computeHhGirlsMetrics(
   const totalUnavailable =
     fatherNotAvailable + motherNotAvailable + girlNotAvailable;
   // Unique people (father / mother / caretaker / girl) who refused consent.
-  const consentRefused = consentRefusedPeople([...household, ...girls]).size;
+  const refusedPeople = [
+    ...consentRefusedPeople([...household, ...girls]).values(),
+  ];
+  const consentRefused = refusedPeople.length;
+  const fatherConsentRefused = refusedPeople.filter((p) => p.person === "father").length;
+  const motherConsentRefused = refusedPeople.filter((p) => p.person === "mother").length;
+  const girlConsentRefused = refusedPeople.filter((p) => p.person === "girl").length;
   const completedHouseholds = unifiedGirls.filter(
     (g) => g.isCompletedHousehold
   ).length;
@@ -862,6 +868,9 @@ export function computeHhGirlsMetrics(
       motherNotAvailable,
       girlNotAvailable,
       consentRefused,
+      fatherConsentRefused,
+      motherConsentRefused,
+      girlConsentRefused,
       completedHouseholds,
       incompleteHouseholds,
       hhTarget,

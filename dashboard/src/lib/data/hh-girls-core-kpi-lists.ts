@@ -35,6 +35,9 @@ export type HhGirlsCoreKpiKey =
   | "motherNotAvailable"
   | "girlNotAvailable"
   | "consentRefused"
+  | "fatherConsentRefused"
+  | "motherConsentRefused"
+  | "girlConsentRefused"
   | "completedHouseholds"
   | "incompleteHouseholds"
   | "hhTarget"
@@ -56,6 +59,9 @@ function emptyCoreKpiLists(): HhGirlsCoreKpiLists {
     motherNotAvailable: [],
     girlNotAvailable: [],
     consentRefused: [],
+    fatherConsentRefused: [],
+    motherConsentRefused: [],
+    girlConsentRefused: [],
     completedHouseholds: [],
     incompleteHouseholds: [],
     hhTarget: [],
@@ -174,7 +180,11 @@ export function computeHhGirlsCoreKpiLists(
     girl: "Consent refused (girl)",
   };
   for (const { person, row } of consentRefusedPeople([...household, ...girls]).values()) {
-    lists.consentRefused.push(toHhGirlsExportRow(row, refusedLabel[person]));
+    const exportRow = toHhGirlsExportRow(row, refusedLabel[person]);
+    lists.consentRefused.push(exportRow);
+    if (person === "father") lists.fatherConsentRefused.push(exportRow);
+    if (person === "mother") lists.motherConsentRefused.push(exportRow);
+    if (person === "girl") lists.girlConsentRefused.push(exportRow);
   }
 
   for (const row of fatherByGirl.values()) {

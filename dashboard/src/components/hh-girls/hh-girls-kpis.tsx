@@ -114,6 +114,30 @@ const kpiConfig: {
     hint: "Unique people (father, mother, caretaker, girl) who refused consent, each counted separately. The person's own form decides; with no own form, their answer on another person's form stands. The latest answer wins (refused then agreed = not counted). Girls survey: only the girl's own consent (child_consent_agree) counts",
   },
   {
+    key: "fatherConsentRefused",
+    exportLabel: "father-consent-refused",
+    label: "Father Consent Refused",
+    icon: Handshake,
+    color: "text-red-500",
+    hint: "Fathers who refused consent (HH survey only). His own form decides; with no own form, his answer on another person's form stands. Latest answer wins",
+  },
+  {
+    key: "motherConsentRefused",
+    exportLabel: "mother-consent-refused",
+    label: "Mother Consent Refused",
+    icon: Handshake,
+    color: "text-red-500",
+    hint: "Mothers who refused consent (HH survey only). Her own form decides; with no own form, her answer on another person's form stands. Latest answer wins",
+  },
+  {
+    key: "girlConsentRefused",
+    exportLabel: "girl-consent-refused",
+    label: "Girl Consent Refused",
+    icon: Handshake,
+    color: "text-red-500",
+    hint: "Girls who refused their own consent (child_consent_agree = 0) on the girls survey. Latest answer wins",
+  },
+  {
     key: "completedHouseholds",
     exportLabel: "completed-households",
     label: "Completed Households",
@@ -153,7 +177,7 @@ export function HhGirlsCoreKpis({
   if (loading || !metrics) {
     return (
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCardSkeleton count={13} />
+        <StatCardSkeleton count={16} />
       </div>
     );
   }
