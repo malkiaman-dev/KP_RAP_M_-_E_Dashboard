@@ -71,9 +71,7 @@ export type HhGirlsRevisitListKey =
   | "slotsCompletedOn3rdRevisit"
   | "slotsNotCompletedOn2ndRevisit"
   | "slotsNotCompletedOn3rdRevisit"
-  | "totalRevisitedGirls"
-  | "revisit1Needed"
-  | "revisit2Needed";
+  | "totalRevisitedGirls";
 
 export interface HhGirlsRevisitDetailMetrics {
   revisitsNeedToBeDone: number;
@@ -88,10 +86,6 @@ export interface HhGirlsRevisitDetailMetrics {
   slotsNotCompletedOn3rdRevisit: number;
   totalRevisitedGirls: number;
   revisitSubmissions: number;
-  /** Slots not found on attempt 1 (temporarily unavailable) → 1st revisit due. Stays counted after the revisit. */
-  revisit1Needed: number;
-  /** Slots revisited on attempt 2 and still temporarily unavailable → 2nd revisit due (not father). */
-  revisit2Needed: number;
 }
 
 export interface HhGirlsRevisitDetailData extends HhGirlsRevisitDetailMetrics {
@@ -120,8 +114,6 @@ function emptyRevisitLists(): Record<HhGirlsRevisitListKey, HhGirlsExportRow[]> 
     slotsNotCompletedOn2ndRevisit: [],
     slotsNotCompletedOn3rdRevisit: [],
     totalRevisitedGirls: [],
-    revisit1Needed: [],
-    revisit2Needed: [],
   };
 }
 
@@ -588,28 +580,6 @@ function slotPendingRevisit(
   return null;
 }
 
-/**
- * Whether this slot needed the revisit after `fromAttempt` (1 → attempt 2,
- * 2 → attempt 3): the slot was not complete by `fromAttempt` and its latest
- * form on that attempt was temporarily unavailable, within the slot's max
- * attempts. A slot that already has the revisit submission always counts, so
- * "needed" never drops once the revisit is done.
- */
-function slotNeededRevisit(
-  subs: HhGirlsRow[],
-  slot: HhGirlsSurveySlot,
-  fromAttempt: number
-): boolean {
-  const toAttempt = fromAttempt + 1;
-  if (latestSubmissionForAttempt(subs, toAttempt)) return true;
-  if (toAttempt > maxAttemptForSlot(slot as HhGirlsRevisitSlot)) return false;
-  const latest = latestSubmissionForAttempt(subs, fromAttempt);
-  if (!latest || !priorAttemptRequiresRevisit(latest, slot)) return false;
-  return !subs.some(
-    (row) => parseAttempt(row) <= fromAttempt && isSlotComplete(row, slot)
-  );
-}
-
 export function computeHhGirlsRevisitDetail(
   household: HhGirlsRow[],
   girls: HhGirlsRow[]
@@ -626,8 +596,6 @@ export function computeHhGirlsRevisitDetail(
   let slotsCompletedOn3rdRevisit = 0;
   let slotsNotCompletedOn2ndRevisit = 0;
   let slotsNotCompletedOn3rdRevisit = 0;
-  let revisit1Needed = 0;
-  let revisit2Needed = 0;
 
   const revisitSubmissions = [...household, ...girls].filter(
     (r) => parseAttempt(r) > 1
@@ -637,21 +605,6 @@ export function computeHhGirlsRevisitDetail(
     const girl = subs[0]?.girl || "";
     const slot = key.split("|")[1] as HhGirlsSurveySlot;
     const pending = slotPendingRevisit(subs, slot);
-
-    if (slotNeededRevisit(subs, slot, 1)) {
-      revisit1Needed += 1;
-      const row = latestSubmissionForAttempt(subs, 1) || subs[0]!;
-      lists.revisit1Needed.push(
-        toRevisitExportRow(row, slot, "1st revisit (attempt 2) needed")
-      );
-    }
-    if (slotNeededRevisit(subs, slot, 2)) {
-      revisit2Needed += 1;
-      const row = latestSubmissionForAttempt(subs, 2) || subs[subs.length - 1]!;
-      lists.revisit2Needed.push(
-        toRevisitExportRow(row, slot, "2nd revisit (attempt 3) needed")
-      );
-    }
 
     if (pending === "2nd") {
       revisitsNeed2nd += 1;
@@ -733,8 +686,6 @@ export function computeHhGirlsRevisitDetail(
     slotsNotCompletedOn3rdRevisit,
     totalRevisitedGirls: revisitedGirls.size,
     revisitSubmissions,
-    revisit1Needed,
-    revisit2Needed,
     lists,
   };
 }

@@ -33,14 +33,13 @@ const cards: {
   {
     label: "Revisit Needed",
     exportLabel: "revisits-needed",
-    hint: "All revisits needed: 1st revisit + 2nd revisit. Stays counted after the revisit",
+    hint: "Revisits still to be done (1st + 2nd revisit). Once a revisit is submitted it moves to Revisited",
     icon: Target,
     color: "text-amber-600",
     group: "overall",
-    value: (d) => d.revisit1Needed + d.revisit2Needed,
-    getList: (d) => [...d.lists.revisit1Needed, ...d.lists.revisit2Needed],
-    hoverDetail: (d) =>
-      `1st: ${d.revisit1Needed} · 2nd: ${d.revisit2Needed} · still to revisit: ${d.revisitsNeedToBeDone}`,
+    value: (d) => d.revisitsNeedToBeDone,
+    getList: (d) => d.lists.revisitsNeedToBeDone,
+    hoverDetail: (d) => `1st: ${d.revisitsNeed2nd} · 2nd: ${d.revisitsNeed3rd}`,
   },
   {
     label: "Revisited",
@@ -72,13 +71,12 @@ const cards: {
   {
     label: "Revisit Needed",
     exportLabel: "1st-revisit-needed",
-    hint: "Not found on attempt 1 (temporarily unavailable), so a 1st revisit (attempt 2) is needed. Stays counted after the revisit",
+    hint: "Not found on attempt 1 (temporarily unavailable) and the 1st revisit (attempt 2) is not done yet",
     icon: Target,
     color: "text-amber-600",
     group: "1st",
-    value: (d) => d.revisit1Needed,
-    getList: (d) => d.lists.revisit1Needed,
-    hoverDetail: (d) => `Still to revisit: ${d.revisitsNeed2nd}`,
+    value: (d) => d.revisitsNeed2nd,
+    getList: (d) => d.lists.revisitsNeed2nd,
   },
   {
     label: "Revisited",
@@ -104,13 +102,12 @@ const cards: {
   {
     label: "Revisit Needed",
     exportLabel: "2nd-revisit-needed",
-    hint: "Revisited on attempt 2 but still temporarily unavailable, so a 2nd revisit (attempt 3) is needed. Mother / girl / caretaker only (father max is 1 revisit)",
+    hint: "Not found on the 1st revisit (attempt 2) and the 2nd revisit (attempt 3) is not done yet. Mother / girl / caretaker only (father max is 1 revisit)",
     icon: Target,
     color: "text-orange-600",
     group: "2nd",
-    value: (d) => d.revisit2Needed,
-    getList: (d) => d.lists.revisit2Needed,
-    hoverDetail: (d) => `Still to revisit: ${d.revisitsNeed3rd}`,
+    value: (d) => d.revisitsNeed3rd,
+    getList: (d) => d.lists.revisitsNeed3rd,
   },
   {
     label: "Revisited",
@@ -176,8 +173,8 @@ export function HhGirlsRevisitSection({
             <p className="mt-1 text-[10px] text-muted-foreground">
               Each survey slot (father / mother / caretaker / girl) not found on
               a visit (temporarily unavailable) needs the next revisit.
-              Revisited = that attempt was submitted; Completed = found and
-              completed on it. Not found on the 1st revisit → counted in the
+              Revisit Needed = still to be done; Revisited = that attempt was
+              submitted; Completed = found and completed on it. Not found on the 1st revisit → counted in the
               2nd revisit column. Father: 1 revisit · mother/caretaker/girl: up
               to 2. Girl codes 1/4 only. Click any card to download Excel.
             </p>
