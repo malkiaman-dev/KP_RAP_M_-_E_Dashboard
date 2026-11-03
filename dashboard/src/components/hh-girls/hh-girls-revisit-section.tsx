@@ -18,7 +18,8 @@ import { downloadHhGirlsExcel } from "@/lib/export/hh-girls-excel";
 
 type Detail = NonNullable<HhGirlsMetrics["revisitDetail"]>;
 
-type Group = "1st" | "2nd";
+/** "all" = full-width card below both attempt columns. */
+type Group = "1st" | "2nd" | "all";
 
 const cards: {
   label: string;
@@ -64,15 +65,15 @@ const cards: {
   },
   {
     label: "Not Found",
-    exportLabel: "not-found-after-2nd-attempt",
-    hint: "Permanently not found: still unavailable on the 1st revisit (attempt 2) with no revisit left (father). Mother / girl / caretaker not found here move to the 3rd attempt",
+    exportLabel: "permanently-not-found",
+    hint: "Permanently not found: still unavailable after the last revisit allowed (father after attempt 2; mother / girl / caretaker after attempt 3)",
     icon: UserX,
     color: "text-red-500",
-    group: "1st",
-    value: (d) => d.notFoundAfter2nd,
-    getList: (d) => d.lists.notFoundAfter2nd,
+    group: "all",
+    value: (d) => d.notFoundAfter2nd + d.notFoundAfter3rd,
+    getList: (d) => [...d.lists.notFoundAfter2nd, ...d.lists.notFoundAfter3rd],
     hoverDetail: (d) =>
-      `Not completed on attempt 2: ${d.slotsNotCompletedOn2ndRevisit} · moved to 3rd attempt: ${d.revisitsNeed3rd + d.girls3rdRevisited}`,
+      `Father after attempt 2: ${d.notFoundAfter2nd} · mother / girl / caretaker after attempt 3: ${d.notFoundAfter3rd}`,
   },
   {
     label: "Revisit Needed",
@@ -105,19 +106,9 @@ const cards: {
     value: (d) => d.slotsCompletedOn3rdRevisit,
     getList: (d) => d.lists.slotsCompletedOn3rdRevisit,
   },
-  {
-    label: "Not Found",
-    exportLabel: "not-found-after-3rd-attempt",
-    hint: "Permanently not found: still unavailable on the 2nd revisit (attempt 3), the last revisit allowed",
-    icon: UserX,
-    color: "text-red-500",
-    group: "2nd",
-    value: (d) => d.notFoundAfter3rd,
-    getList: (d) => d.lists.notFoundAfter3rd,
-  },
 ];
 
-const columns: { group: Group; heading: string }[] = [
+const columns: { group: Exclude<Group, "all">; heading: string }[] = [
   { group: "1st", heading: "2nd attempt (1st revisit)" },
   { group: "2nd", heading: "3rd attempt (2nd revisit)" },
 ];
@@ -125,6 +116,26 @@ const columns: { group: Group; heading: string }[] = [
 function downloadCardList(rows: HhGirlsExportRow[], exportLabel: string) {
   const date = new Date().toISOString().slice(0, 10);
   downloadHhGirlsExcel(rows, `hh-girls-follow-up-${exportLabel}-${date}.xlsx`);
+}
+
+function renderCard(card: (typeof cards)[number], index: number, d: Detail) {
+  const list = card.getList(d);
+  return (
+    <StatCard
+      key={card.label}
+      index={index}
+      muted
+      label={card.label}
+      value={card.value(d)}
+      icon={card.icon}
+      color={card.color}
+      hint={card.hint}
+      hoverDetail={card.hoverDetail?.(d)}
+      onClick={
+        list.length ? () => downloadCardList(list, card.exportLabel) : undefined
+      }
+    />
+  );
 }
 
 export function HhGirlsRevisitSection({
@@ -194,41 +205,28 @@ export function HhGirlsRevisitSection({
               {loading
                 ? columns.map((col) => (
                     <div key={col.group} className="flex flex-col gap-3">
-                      <StatCardSkeleton count={4} />
+                      <StatCardSkeleton count={3} />
                     </div>
                   ))
-                : columns.map((col) => {
-                    const colCards = cards.filter((c) => c.group === col.group);
-                    return (
-                      <div key={col.group} className="flex flex-col gap-3">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          {col.heading}
-                        </p>
-                        {colCards.map((card, i) => {
-                          const Icon = card.icon;
-                          const list = card.getList(d!);
-                          return (
-                            <StatCard
-                              key={card.label}
-                              index={i}
-                              muted
-                              label={card.label}
-                              value={card.value(d!)}
-                              icon={Icon}
-                              color={card.color}
-                              hint={card.hint}
-                              hoverDetail={card.hoverDetail?.(d!)}
-                              onClick={
-                                list.length
-                                  ? () => downloadCardList(list, card.exportLabel)
-                                  : undefined
-                              }
-                            />
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
+                : columns.map((col) => (
+                    <div key={col.group} className="flex flex-col gap-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {col.heading}
+                      </p>
+                      {cards
+                        .filter((c) => c.group === col.group)
+                        .map((card, i) => renderCard(card, i, d!))}
+                    </div>
+                  ))}
+              <div className="flex flex-col gap-3 sm:col-span-2">
+                {loading ? (
+                  <StatCardSkeleton count={1} />
+                ) : (
+                  cards
+                    .filter((c) => c.group === "all")
+                    .map((card, i) => renderCard(card, i, d!))
+                )}
+              </div>
             </div>
           </motion.div>
         )}
