@@ -685,16 +685,20 @@ export function computeHhGirlsMetrics(
   const hhTrend = buildTrend(household);
   const combinedTrend = buildCombinedTrend(household, girls);
 
-  const fatherSurveys = household.filter((r) =>
-    isFatherRespondent(r.respondent)
-  ).length;
-  const motherSurveys = household.filter((r) =>
-    isMotherRespondent(r.respondent)
-  ).length;
-  const caretakerSurveys = household.filter((r) =>
-    isCaretakerRespondent(r)
-  ).length;
-  const girlsSurveys = girls.length;
+  // Respondent survey counts are unique girls, so repeat forms for the same
+  // girl (duplicates, revisits) count once.
+  const countGirls = (rows: HhGirlsRow[]) =>
+    new Set(rows.map((r) => r.girl).filter(Boolean)).size;
+  const fatherSurveys = countGirls(
+    household.filter((r) => isFatherRespondent(r.respondent))
+  );
+  const motherSurveys = countGirls(
+    household.filter((r) => isMotherRespondent(r.respondent))
+  );
+  const caretakerSurveys = countGirls(
+    household.filter((r) => isCaretakerRespondent(r))
+  );
+  const girlsSurveys = countGirls(girls);
   const totalSubmissions = household.length + girls.length;
   const uniqueGirlsRollout = unifiedGirls.length;
   const totalVillages = new Set(

@@ -47,7 +47,7 @@ const kpiConfig: {
     label: "Father Surveys",
     icon: UserCheck,
     color: "text-gold",
-    hint: "Household survey submissions with father respondent",
+    hint: "Unique girls with a father-respondent household survey (repeat forms count once)",
   },
   {
     key: "motherSurveys",
@@ -55,7 +55,7 @@ const kpiConfig: {
     label: "Mother Surveys",
     icon: UserCheck,
     color: "text-teal",
-    hint: "Household survey submissions with mother respondent",
+    hint: "Unique girls with a mother-respondent household survey (repeat forms count once)",
   },
   {
     key: "caretakerSurveys",
@@ -63,7 +63,7 @@ const kpiConfig: {
     label: "Caretaker Surveys",
     icon: UserCheck,
     color: "text-violet-500",
-    hint: "Household surveys with female caretaker when both parents are permanently unavailable",
+    hint: "Unique girls with a female-caretaker household survey (both parents permanently unavailable)",
   },
   {
     key: "girlsSurveys",
@@ -71,7 +71,7 @@ const kpiConfig: {
     label: "Girls Surveys",
     icon: UserCheck,
     color: "text-blue-500",
-    hint: "Direct girl interview submissions",
+    hint: "Unique girls with a direct girl interview (repeat forms count once)",
   },
   {
     key: "totalUnavailable",

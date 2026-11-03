@@ -118,18 +118,24 @@ export function computeHhGirlsCoreKpiLists(
     gsByGirl.set(row.girl, row);
   }
 
+  // Respondent survey lists hold one row per girl (latest form), matching the
+  // unique-girl counts on the KPI cards.
+  const fatherByGirl = new Map<string, HhGirlsRow>();
+  const motherByGirl = new Map<string, HhGirlsRow>();
+  const caretakerByGirl = new Map<string, HhGirlsRow>();
+
   for (const row of household) {
     lists.totalSubmissions.push(
       toHhGirlsExportRow(row, "Total submission")
     );
-    if (isFatherRespondent(row.respondent)) {
-      lists.fatherSurveys.push(toHhGirlsExportRow(row, "Father survey"));
+    if (row.girl && isFatherRespondent(row.respondent)) {
+      fatherByGirl.set(row.girl, row);
     }
-    if (isMotherRespondent(row.respondent)) {
-      lists.motherSurveys.push(toHhGirlsExportRow(row, "Mother survey"));
+    if (row.girl && isMotherRespondent(row.respondent)) {
+      motherByGirl.set(row.girl, row);
     }
-    if (isCaretakerRespondent(row)) {
-      lists.caretakerSurveys.push(toHhGirlsExportRow(row, "Caretaker survey"));
+    if (row.girl && isCaretakerRespondent(row)) {
+      caretakerByGirl.set(row.girl, row);
     }
     if (isConsentRefused(row)) {
       lists.consentRefused.push(toHhGirlsExportRow(row, "Consent refused"));
@@ -140,7 +146,6 @@ export function computeHhGirlsCoreKpiLists(
     lists.totalSubmissions.push(
       toHhGirlsExportRow(row, "Total submission")
     );
-    lists.girlsSurveys.push(toHhGirlsExportRow(row, "Girls survey"));
     if (isConsentRefused(row)) {
       lists.consentRefused.push(toHhGirlsExportRow(row, "Consent refused"));
     }
@@ -166,6 +171,19 @@ export function computeHhGirlsCoreKpiLists(
           .join(" · "),
       });
     }
+  }
+
+  for (const row of fatherByGirl.values()) {
+    lists.fatherSurveys.push(toHhGirlsExportRow(row, "Father survey"));
+  }
+  for (const row of motherByGirl.values()) {
+    lists.motherSurveys.push(toHhGirlsExportRow(row, "Mother survey"));
+  }
+  for (const row of caretakerByGirl.values()) {
+    lists.caretakerSurveys.push(toHhGirlsExportRow(row, "Caretaker survey"));
+  }
+  for (const row of gsByGirl.values()) {
+    lists.girlsSurveys.push(toHhGirlsExportRow(row, "Girls survey"));
   }
 
   for (const girl of girlIds) {
