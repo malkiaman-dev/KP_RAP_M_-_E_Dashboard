@@ -8,6 +8,7 @@ import {
   girlUnavailableLabel,
   isTemporaryGirlUnavailable,
   parentUnavailableLabel,
+  pickGirlsRow,
 } from "./hh-girls-completion";
 import {
   isCaretakerRespondent,
@@ -100,7 +101,7 @@ export function computeHhGirlsCoreKpiLists(
   for (const row of girls) {
     if (!row.girl) continue;
     girlIds.add(row.girl);
-    gsByGirl.set(row.girl, row);
+    gsByGirl.set(row.girl, pickGirlsRow(gsByGirl.get(row.girl), row));
   }
 
   // Respondent survey lists hold one row per girl (latest form), matching the

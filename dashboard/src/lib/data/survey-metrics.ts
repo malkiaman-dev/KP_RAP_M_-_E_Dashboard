@@ -9,6 +9,7 @@ import {
 import {
   isCompletedHouseholdForGirl,
   isHhGirlsFormComplete,
+  pickGirlsRow,
 } from "./hh-girls-completion";
 import type { HhGirlsRow } from "./hh-girls-metrics";
 import { PROTOCOL } from "./protocol";
@@ -281,15 +282,15 @@ function countCompletedHouseholds(
     hhByGirl.get(row.girl)!.push(row);
   }
 
-  const gsByGirl = new Map<string, SurveyRow>();
-  for (const row of girls) {
-    if (row.girl) gsByGirl.set(row.girl, row);
+  const gsByGirl = new Map<string, HhGirlsRow>();
+  for (const row of girls as HhGirlsRow[]) {
+    if (row.girl) gsByGirl.set(row.girl, pickGirlsRow(gsByGirl.get(row.girl), row));
   }
 
   let completed = 0;
   for (const girl of new Set([...hhByGirl.keys(), ...gsByGirl.keys()])) {
     const hhSubs = (hhByGirl.get(girl) || []) as HhGirlsRow[];
-    const gsRow = gsByGirl.get(girl) as HhGirlsRow | undefined;
+    const gsRow = gsByGirl.get(girl);
     if (isCompletedHouseholdForGirl(hhSubs, gsRow)) completed += 1;
   }
   return completed;

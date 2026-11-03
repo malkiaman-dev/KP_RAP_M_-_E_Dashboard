@@ -413,6 +413,20 @@ export function isCaretakerMarkedUnavailable(hhSubs: HhGirlsRow[]): boolean {
   return hhSubs.some((s) => (s.available_caretaker || "").trim() === "0");
 }
 
+/**
+ * The girls survey row that represents a girl: a complete form wins over any
+ * incomplete one (file order does not matter); otherwise the latest form.
+ */
+export function pickGirlsRow(
+  current: HhGirlsRow | undefined,
+  row: HhGirlsRow
+): HhGirlsRow {
+  if (current && isGirlsFormComplete(current) && !isGirlsFormComplete(row)) {
+    return current;
+  }
+  return row;
+}
+
 function isGirlSurveyComplete(gsRow: HhGirlsRow | undefined): boolean {
   if (!gsRow) return false;
   return (

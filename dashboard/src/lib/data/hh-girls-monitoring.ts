@@ -3,7 +3,7 @@ import {
   parseFlexibleDate,
   toIsoDateString,
 } from "../utils";
-import { isCompletedHouseholdForGirl } from "./hh-girls-completion";
+import { isCompletedHouseholdForGirl, pickGirlsRow } from "./hh-girls-completion";
 import {
   districtLabel,
   isFatherRespondent,
@@ -193,7 +193,7 @@ function buildCompletedGirlSet(
   for (const girl of girlIds) {
     const hhSubs = household.filter((r) => girlKey(r) === girl);
     const gsSubs = girls.filter((r) => girlKey(r) === girl);
-    const gsRow = gsSubs[gsSubs.length - 1];
+    const gsRow = gsSubs.reduce<HhGirlsRow | undefined>(pickGirlsRow, undefined);
     if (isCompletedHouseholdForGirl(hhSubs, gsRow)) {
       completed.add(girl);
     }

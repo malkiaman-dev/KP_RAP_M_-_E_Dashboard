@@ -1,5 +1,8 @@
 import { PROTOCOL } from "@/lib/data/protocol";
-import { isCompletedHouseholdForGirl } from "@/lib/data/hh-girls-completion";
+import {
+  isCompletedHouseholdForGirl,
+  pickGirlsRow,
+} from "@/lib/data/hh-girls-completion";
 import type { HhGirlsMetrics, HhGirlsRow } from "@/lib/data/hh-girls-metrics";
 import type { DashboardMetrics } from "@/lib/data/survey-metrics";
 import type { TrackingMetrics } from "@/lib/data/tracking-metrics";
@@ -116,7 +119,7 @@ export function buildHhCompletionTrend(
 
   const gsByGirl = new Map<string, HhGirlsRow>();
   for (const row of girls) {
-    if (row.girl) gsByGirl.set(row.girl, row);
+    if (row.girl) gsByGirl.set(row.girl, pickGirlsRow(gsByGirl.get(row.girl), row));
   }
 
   const girlIds = new Set([...hhByGirl.keys(), ...gsByGirl.keys()]);

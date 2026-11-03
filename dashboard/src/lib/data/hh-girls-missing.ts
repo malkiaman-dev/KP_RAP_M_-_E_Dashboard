@@ -5,6 +5,7 @@ import {
   isCompletedHouseholdForGirl,
   isGirlUnavailableWithoutRevisit,
   isTemporaryGirlUnavailable,
+  pickGirlsRow,
 } from "./hh-girls-completion";
 import type { HhGirlsRow } from "./hh-girls-metrics";
 import {
@@ -100,7 +101,7 @@ export function computeHhGirlsMissingDetail(
   for (const row of girls) {
     if (!row.girl) continue;
     girlIds.add(row.girl);
-    gsByGirl.set(row.girl, row);
+    gsByGirl.set(row.girl, pickGirlsRow(gsByGirl.get(row.girl), row));
   }
 
   const girlsWithMissing = new Set<string>();

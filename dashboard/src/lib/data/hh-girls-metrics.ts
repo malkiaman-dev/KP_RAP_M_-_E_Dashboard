@@ -10,6 +10,7 @@ import {
   isGirlMarkedUnavailable,
   isHouseholdRefusalWithoutRespondent,
   isParentMarkedUnavailable,
+  pickGirlsRow,
 } from "./hh-girls-completion";
 import { computeHhGirlsCoreKpiLists } from "./hh-girls-core-kpi-lists";
 import { computeHhGirlsDuplicateDetail } from "./hh-girls-duplicates";
@@ -297,7 +298,7 @@ function analyzeUnifiedGirls(
   const gsSubsByGirl = new Map<string, HhGirlsRow[]>();
   for (const r of girls) {
     if (!r.girl) continue;
-    gsByGirl.set(r.girl, r);
+    gsByGirl.set(r.girl, pickGirlsRow(gsByGirl.get(r.girl), r));
     if (!gsSubsByGirl.has(r.girl)) gsSubsByGirl.set(r.girl, []);
     gsSubsByGirl.get(r.girl)!.push(r);
   }
