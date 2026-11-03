@@ -111,7 +111,7 @@ const kpiConfig: {
     label: "Consent Refused",
     icon: Handshake,
     color: "text-red-500",
-    hint: "Parent or child consent explicitly refused across all survey forms",
+    hint: "Unique people (father, mother, caretaker, girl) who refused consent, each counted separately. The person's own form decides; with no own form, their answer on another person's form stands. The latest answer wins (refused then agreed = not counted). Girls survey: only the girl's own consent (child_consent_agree) counts",
   },
   {
     key: "completedHouseholds",

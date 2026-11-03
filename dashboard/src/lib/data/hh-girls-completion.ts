@@ -1,4 +1,5 @@
 import type { HhGirlsRow } from "./hh-girls-metrics";
+import { submissionTimestamp } from "../utils";
 import {
   isCaretakerRespondent,
   isFatherRespondent,
@@ -222,6 +223,92 @@ export function isHouseholdRefusalWithoutRespondent(row: HhGirlsRow): boolean {
     row.agree_consent_caregiver,
   ].map((v) => (v || "").trim());
   return consents.includes("0") && !consents.includes("1");
+}
+
+export type ConsentPerson = "father" | "mother" | "caretaker" | "girl";
+
+interface ConsentAnswer {
+  person: ConsentPerson;
+  agreed: boolean;
+  /** True when the person is this form's respondent (girls: always). */
+  own: boolean;
+}
+
+/** Every consent answer (agree / refuse) this form recorded, per person. */
+function consentAnswers(row: HhGirlsRow): ConsentAnswer[] {
+  // Girls survey: only the girl's own consent counts; parental consent asked
+  // in the girls survey is not counted for anyone.
+  if (row.survey_type === "girls") {
+    const c = (row.child_consent_agree || "").trim();
+    if (c === "0") return [{ person: "girl", agreed: false, own: true }];
+    if (c === "1") return [{ person: "girl", agreed: true, own: true }];
+    return [];
+  }
+  const respondent: ConsentPerson | null = isFatherRespondent(row.respondent)
+    ? "father"
+    : isMotherRespondent(row.respondent)
+      ? "mother"
+      : isCaretakerRespondent(row)
+        ? "caretaker"
+        : null;
+  const fields: [ConsentPerson, string | undefined][] = [
+    ["father", row.agree_consent_father],
+    ["mother", row.agree_consent_mother],
+    ["caretaker", row.agree_consent_caregiver],
+  ];
+  const answers: ConsentAnswer[] = [];
+  for (const [person, value] of fields) {
+    const v = (value || "").trim();
+    if (v !== "0" && v !== "1") continue;
+    answers.push({ person, agreed: v === "1", own: person === respondent });
+  }
+  return answers;
+}
+
+/** When the form was filled (end, then start, then upload time). */
+function consentAnswerTime(row: HhGirlsRow): number {
+  return (
+    submissionTimestamp(row.endtime) ||
+    submissionTimestamp(row.starttime) ||
+    submissionTimestamp(row.SubmissionDate)
+  );
+}
+
+/**
+ * Unique people counted as consent refused, keyed `girl|person`, with the
+ * deciding form. A person's own forms (as respondent) decide when they exist;
+ * otherwise their answers on other people's forms do. Among the deciding
+ * forms the latest answer wins (refused then agreed = not counted).
+ */
+export function consentRefusedPeople(
+  rows: HhGirlsRow[]
+): Map<string, { person: ConsentPerson; row: HhGirlsRow }> {
+  type Latest = { agreed: boolean; row: HhGirlsRow; time: number };
+  type Tally = { person: ConsentPerson; own?: Latest; other?: Latest };
+  const byPerson = new Map<string, Tally>();
+  for (const row of rows) {
+    if (!row.girl) continue;
+    const time = consentAnswerTime(row);
+    for (const a of consentAnswers(row)) {
+      const key = `${row.girl}|${a.person}`;
+      if (!byPerson.has(key)) byPerson.set(key, { person: a.person });
+      const t = byPerson.get(key)!;
+      const slot = a.own ? "own" : "other";
+      const prev = t[slot];
+      if (!prev || time >= prev.time) {
+        t[slot] = { agreed: a.agreed, row, time };
+      }
+    }
+  }
+
+  const refused = new Map<string, { person: ConsentPerson; row: HhGirlsRow }>();
+  for (const [key, t] of byPerson) {
+    const deciding = t.own ?? t.other;
+    if (deciding && !deciding.agreed) {
+      refused.set(key, { person: t.person, row: deciding.row });
+    }
+  }
+  return refused;
 }
 
 /** Form-level completion for any HH/Girls row, by survey type. */

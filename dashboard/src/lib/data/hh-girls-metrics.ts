@@ -4,6 +4,7 @@ import {
   toIsoDateString,
 } from "../utils";
 import {
+  consentRefusedPeople,
   isCompletedHouseholdForGirl,
   isHhGirlsFormComplete,
   isGirlMarkedUnavailable,
@@ -271,24 +272,6 @@ interface GirlUnifiedStatus {
   motherNotAvailable: boolean;
   girlNotAvailable: boolean;
   isCompletedHousehold: boolean;
-}
-
-function isConsentRefused(row: HhGirlsRow): boolean {
-  if (row.survey_type === "girls") {
-    return (
-      row.parental_consent_agree === "0" || row.child_consent_agree === "0"
-    );
-  }
-  if (isCaretakerRespondent(row)) {
-    return row.agree_consent_caregiver === "0";
-  }
-  if (isMotherRespondent(row.respondent)) {
-    return row.agree_consent_mother === "0";
-  }
-  if (isFatherRespondent(row.respondent)) {
-    return row.agree_consent_father === "0";
-  }
-  return isHouseholdRefusalWithoutRespondent(row);
 }
 
 function analyzeUnifiedGirls(
@@ -724,8 +707,8 @@ export function computeHhGirlsMetrics(
   // Counts people, not girls: father and mother of the same girl count separately.
   const totalUnavailable =
     fatherNotAvailable + motherNotAvailable + girlNotAvailable;
-  const consentRefused =
-    household.filter(isConsentRefused).length + girls.filter(isConsentRefused).length;
+  // Unique people (father / mother / caretaker / girl) who refused consent.
+  const consentRefused = consentRefusedPeople([...household, ...girls]).size;
   const completedHouseholds = unifiedGirls.filter(
     (g) => g.isCompletedHousehold
   ).length;

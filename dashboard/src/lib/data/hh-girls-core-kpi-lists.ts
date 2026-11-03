@@ -1,7 +1,7 @@
 import {
+  consentRefusedPeople,
   isCompletedHouseholdForGirl,
   isGirlMarkedUnavailable,
-  isHouseholdRefusalWithoutRespondent,
   isParentMarkedUnavailable,
   latestParentUnavailableCode,
   latestParentUnavailableOther,
@@ -59,24 +59,6 @@ function emptyCoreKpiLists(): HhGirlsCoreKpiLists {
     remainingToTarget: [],
     progressToTarget: [],
   };
-}
-
-function isConsentRefused(row: HhGirlsRow): boolean {
-  if (row.survey_type === "girls") {
-    return (
-      row.parental_consent_agree === "0" || row.child_consent_agree === "0"
-    );
-  }
-  if (isCaretakerRespondent(row)) {
-    return row.agree_consent_caregiver === "0";
-  }
-  if (isMotherRespondent(row.respondent)) {
-    return row.agree_consent_mother === "0";
-  }
-  if (isFatherRespondent(row.respondent)) {
-    return row.agree_consent_father === "0";
-  }
-  return isHouseholdRefusalWithoutRespondent(row);
 }
 
 function rowTimestamp(row: HhGirlsRow): number {
@@ -138,9 +120,6 @@ export function computeHhGirlsCoreKpiLists(
     if (row.girl && isCaretakerRespondent(row)) {
       caretakerByGirl.set(row.girl, row);
     }
-    if (isConsentRefused(row)) {
-      lists.consentRefused.push(toHhGirlsExportRow(row, "Consent refused"));
-    }
   }
 
   // Girl not available: one row per girl (latest unavailable visit), cleared
@@ -156,9 +135,6 @@ export function computeHhGirlsCoreKpiLists(
     lists.totalSubmissions.push(
       toHhGirlsExportRow(row, "Total submission")
     );
-    if (isConsentRefused(row)) {
-      lists.consentRefused.push(toHhGirlsExportRow(row, "Consent refused"));
-    }
     if (row.girl && row.girl_available === "0") {
       girlUnavailableByGirl.set(row.girl, row);
     }
@@ -186,6 +162,16 @@ export function computeHhGirlsCoreKpiLists(
         .filter(Boolean)
         .join(" · "),
     });
+  }
+
+  const refusedLabel: Record<string, string> = {
+    father: "Consent refused (father)",
+    mother: "Consent refused (mother)",
+    caretaker: "Consent refused (caretaker)",
+    girl: "Consent refused (girl)",
+  };
+  for (const { person, row } of consentRefusedPeople([...household, ...girls]).values()) {
+    lists.consentRefused.push(toHhGirlsExportRow(row, refusedLabel[person]));
   }
 
   for (const row of fatherByGirl.values()) {
