@@ -712,6 +712,8 @@ export function computeHhGirlsMetrics(
   const completedHouseholds = unifiedGirls.filter(
     (g) => g.isCompletedHousehold
   ).length;
+  // Households (unique girls) with any HH/Girls form that are not complete.
+  const incompleteHouseholds = unifiedGirls.length - completedHouseholds;
   const hhTarget = PROTOCOL.HH_SURVEY_TARGET;
   const remainingToTarget = Math.max(0, hhTarget - completedHouseholds);
   const progressToTarget =
@@ -860,6 +862,7 @@ export function computeHhGirlsMetrics(
       girlNotAvailable,
       consentRefused,
       completedHouseholds,
+      incompleteHouseholds,
       hhTarget,
       remainingToTarget,
       progressToTarget,

@@ -123,6 +123,14 @@ const kpiConfig: {
     hoverDetail: (metrics) =>
       `${metrics.core.progressToTarget.toFixed(1)}% of ${metrics.core.hhTarget.toLocaleString()} target`,
   },
+  {
+    key: "incompleteHouseholds",
+    exportLabel: "incomplete-households",
+    label: "Incomplete Households",
+    icon: Home,
+    color: "text-amber-500",
+    hint: "Households (unique girls) with at least one HH/Girls form that do not yet meet the Completed Households rule. Equals Unique Submissions minus Completed Households",
+  },
 ];
 
 function downloadCoreKpi(
@@ -145,7 +153,7 @@ export function HhGirlsCoreKpis({
   if (loading || !metrics) {
     return (
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCardSkeleton count={12} />
+        <StatCardSkeleton count={13} />
       </div>
     );
   }
