@@ -406,30 +406,6 @@ def _duration_minutes(
     return None
 
 
-def _grade_label(code: Any) -> str:
-    n = _to_num(code)
-    if n is None:
-        return ""
-    n = int(round(n))
-    if n == 26:
-        return "Nursery"
-    if n == 27:
-        return "Prep"
-    return f"Class {n}"
-
-
-def _grade_school_from_code(x: Any, grade_map: dict) -> int | None:
-    s = _norm_str(x)
-    if s == "":
-        return None
-    if s in grade_map:
-        try:
-            return int(grade_map[s])
-        except Exception:
-            return None
-    return None
-
-
 def _skip_special_codes(x: Any) -> bool:
     s = _norm_str(x)
     return s in SPECIAL_SKIP_CODES
@@ -762,10 +738,6 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
     relation_value_map = _norm_map_keys(col.get("relation_value_map"))
     edu_value_map = _norm_map_keys(col.get("edu_value_map"))
     marital_value_map = _norm_map_keys(col.get("marital_value_map"))
-
-    # grade mapping
-    raw_grade_map = col.get("grade_value_map", {}) or {}
-    grade_value_map = {str(k).strip().lower(): v for k, v in raw_grade_map.items()}
 
     # dummy tokens
     dummy_tokens_cfg = col.get("dummy_name_tokens") or []
@@ -1146,7 +1118,6 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
         sib_dob_cols = _pattern_cols(df, "date_of_birth_sib_", SIBLING_MAX)
 
     edu_background_cols = _pattern_cols(df, "edu_background_", EDU_MAX)
-    grade_2425_cols = _pattern_cols(df, "grade_24_25_", EDU_MAX)
 
     # =========================================================
     # HH_CR_09: Duplicate submission IDs (KEY, instanceID)
@@ -2306,123 +2277,6 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                     "No electricity reported but asset present, verify answers.",
                     f"{electricity},{a}",
                     f"electricity={_norm_str(df.at[i, electricity])}, {a}={_norm_str(df.at[i, a])}",
-                )
-
-    # -------------------------------------------------
-    # HH_QF_05: grade vs age plausibility (PERSON-LEVEL, matched by index)
-    # -------------------------------------------------
-    PREPRIMARY_MIN = float(col.get("preprimary_min_age_years", 2.0) or 2.0)
-    PREPRIMARY_MAX = float(col.get("preprimary_max_age_years", 6.5) or 6.5)
-
-    if grade_2425_cols and (age_cols or sib_age_cols):
-        for i in df.index:
-            flagged: list[dict] = []
-
-            for pos in range(1, EDU_MAX + 1):
-                gr_col = f"grade_24_25_{pos}"
-                if gr_col not in df.columns:
-                    continue
-
-                if f"age_sibling_{pos}" in df.columns:
-                    age_col = f"age_sibling_{pos}"
-                elif f"age_{pos}" in df.columns:
-                    age_col = f"age_{pos}"
-                else:
-                    continue
-
-                age_val = _to_num(df.at[i, age_col])
-                grade_raw = df.at[i, gr_col]
-                grade_num = _to_num(grade_raw)
-
-                if age_val is None or grade_num is None:
-                    continue
-
-                grade_num = int(round(grade_num))
-
-                name_col = None
-                if f"name_sibling_{pos}" in df.columns:
-                    name_col = f"name_sibling_{pos}"
-                elif f"name_{pos}" in df.columns:
-                    name_col = f"name_{pos}"
-
-                person_name = _norm_str(df.at[i, name_col]) if name_col else ""
-                person = f"{person_name} (#{pos})" if person_name else f"Person #{pos}"
-
-                if grade_num in (26, 27):
-                    if age_val < PREPRIMARY_MIN or age_val > PREPRIMARY_MAX:
-                        flagged.append(
-                            {
-                                "pos": pos,
-                                "person": person,
-                                "age_col": age_col,
-                                "age": round(float(age_val), 2),
-                                "grade_col": gr_col,
-                                "grade": _grade_label(grade_num),
-                                "note": f"Expected age {PREPRIMARY_MIN}-{PREPRIMARY_MAX} years",
-                            }
-                        )
-                    continue
-
-                grade_mapped = _grade_school_from_code(str(grade_num), grade_value_map)
-                if grade_mapped is None:
-                    continue
-
-                if grade_mapped >= 6 and age_val < 9:
-                    flagged.append(
-                        {
-                            "pos": pos,
-                            "person": person,
-                            "age_col": age_col,
-                            "age": round(float(age_val), 2),
-                            "grade_col": gr_col,
-                            "grade": _grade_label(grade_mapped),
-                            "note": "High class for young age",
-                        }
-                    )
-
-                if grade_mapped <= 2 and age_val > 16:
-                    flagged.append(
-                        {
-                            "pos": pos,
-                            "person": person,
-                            "age_col": age_col,
-                            "age": round(float(age_val), 2),
-                            "grade_col": gr_col,
-                            "grade": _grade_label(grade_mapped),
-                            "note": "Low class for older age",
-                        }
-                    )
-
-            if flagged:
-                seen = set()
-                uniq = []
-                for f in flagged:
-                    sig = (f["pos"], f["age_col"], f["grade_col"], f["note"])
-                    if sig in seen:
-                        continue
-                    seen.add(sig)
-                    uniq.append(f)
-
-                fields = []
-                ev_parts = []
-                for f in uniq[:5]:
-                    ev_parts.append(
-                        f'{f["person"]}: {f["age_col"]}={_age_to_human(float(f["age"]))}, '
-                        f'{f["grade_col"]}={f["grade"]} ({f["note"]})'
-                    )
-                    fields.extend([f["age_col"], f["grade_col"]])
-
-                if len(uniq) > 5:
-                    ev_parts.append(f"+{len(uniq) - 5} more")
-
-                add_issue(
-                    i,
-                    "FLAG",
-                    "HH_QF_05",
-                    "Grade vs age plausibility",
-                    "Age and grade combination looks unusual, verify.",
-                    ", ".join(dict.fromkeys(fields)),
-                    " | ".join(ev_parts),
                 )
 
     # -------------------------------------------------
