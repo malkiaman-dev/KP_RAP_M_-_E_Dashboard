@@ -7,7 +7,6 @@ import {
   ChevronDown,
   RefreshCw,
   Target,
-  UserX,
   Users,
 } from "lucide-react";
 import { StatCard, StatCardSkeleton } from "@/components/ui/stat-card";
@@ -17,13 +16,8 @@ import type { HhGirlsExportRow } from "@/lib/data/hh-girls-revisit";
 import { downloadHhGirlsExcel } from "@/lib/export/hh-girls-excel";
 
 type Detail = NonNullable<HhGirlsMetrics["revisitDetail"]>;
-type ListKey = keyof Detail["lists"];
 
-function dedupeGirls(rows: HhGirlsExportRow[]): HhGirlsExportRow[] {
-  const map = new Map<string, HhGirlsExportRow>();
-  for (const r of rows) map.set(r.girlId, r);
-  return [...map.values()];
-}
+type Group = "overall" | "1st" | "2nd";
 
 const cards: {
   label: string;
@@ -31,147 +25,120 @@ const cards: {
   exportLabel: string;
   icon: typeof RefreshCw;
   color: string;
-  group: "general" | "2nd" | "3rd";
+  group: Group;
   value: (d: Detail) => number;
-  listKey?: ListKey;
-  getList?: (d: Detail) => HhGirlsExportRow[];
+  getList: (d: Detail) => HhGirlsExportRow[];
   hoverDetail?: (d: Detail) => string;
 }[] = [
   {
-    label: "Revisits Still Needed",
-    exportLabel: "revisits-still-needed",
-    hint: "Survey slots still needing attempt 2 or 3 (SurveyCTO revisits)",
+    label: "Revisit Needed",
+    exportLabel: "revisits-needed",
+    hint: "All revisits needed: 1st revisit + 2nd revisit. Stays counted after the revisit",
     icon: Target,
     color: "text-amber-600",
-    group: "general",
-    value: (d) => d.revisitsNeedToBeDone,
-    getList: (d) => d.lists.revisitsNeedToBeDone,
+    group: "overall",
+    value: (d) => d.revisit1Needed + d.revisit2Needed,
+    getList: (d) => [...d.lists.revisit1Needed, ...d.lists.revisit2Needed],
     hoverDetail: (d) =>
-      `2nd attempt: ${d.revisitsNeed2nd} · 3rd attempt: ${d.revisitsNeed3rd}`,
+      `1st: ${d.revisit1Needed} · 2nd: ${d.revisit2Needed} · still to revisit: ${d.revisitsNeedToBeDone}`,
   },
   {
-    label: "Total Remaining Revisits",
-    exportLabel: "total-remaining-revisits",
-    hint: "Follow-ups still needed minus slots completed on a revisit",
+    label: "Revisited",
+    exportLabel: "revisited",
+    hint: "All revisits done (attempt 2 or 3 submitted), found or not",
     icon: RefreshCw,
-    color: "text-amber-700",
-    group: "general",
-    value: (d) => d.totalRemainingRevisits,
-    getList: (d) => d.lists.revisitsNeedToBeDone,
+    color: "text-sky-700",
+    group: "overall",
+    value: (d) => d.girls2ndRevisited + d.girls3rdRevisited,
+    getList: (d) => [...d.lists.girls2ndRevisited, ...d.lists.girls3rdRevisited],
+    hoverDetail: (d) =>
+      `1st: ${d.girls2ndRevisited} · 2nd: ${d.girls3rdRevisited} · unique girls: ${d.totalRevisitedGirls}`,
   },
   {
-    label: "Total Revisited Girls",
-    exportLabel: "total-revisited-girls",
-    hint: "Unique girls with at least one follow-up submission (attempt 2 or 3)",
-    icon: RefreshCw,
-    color: "text-teal",
-    group: "general",
-    value: (d) => d.totalRevisitedGirls,
-    getList: (d) => d.lists.totalRevisitedGirls,
-  },
-  {
-    label: "Completed via Revisit",
-    exportLabel: "completed-via-revisit",
-    hint: "Survey slots completed on attempt 2 or 3",
+    label: "Completed on Revisit",
+    exportLabel: "completed-on-revisit",
+    hint: "Completed on any revisit (attempt 2 or 3)",
     icon: CheckCircle2,
     color: "text-green-600",
-    group: "general",
-    value: (d) =>
-      d.slotsCompletedOn2ndRevisit + d.slotsCompletedOn3rdRevisit,
-    getList: (d) =>
-      dedupeGirls([
-        ...d.lists.slotsCompletedOn2ndRevisit,
-        ...d.lists.slotsCompletedOn3rdRevisit,
-      ]),
+    group: "overall",
+    value: (d) => d.slotsCompletedOn2ndRevisit + d.slotsCompletedOn3rdRevisit,
+    getList: (d) => [
+      ...d.lists.slotsCompletedOn2ndRevisit,
+      ...d.lists.slotsCompletedOn3rdRevisit,
+    ],
     hoverDetail: (d) =>
-      `2nd: ${d.slotsCompletedOn2ndRevisit} · 3rd: ${d.slotsCompletedOn3rdRevisit}`,
+      `1st: ${d.slotsCompletedOn2ndRevisit} · 2nd: ${d.slotsCompletedOn3rdRevisit}`,
   },
   {
-    label: "2nd Attempt Still Needed",
-    exportLabel: "2nd-attempt-still-needed",
-    hint: "1st revisit still due (father max stops here if not found)",
+    label: "Revisit Needed",
+    exportLabel: "1st-revisit-needed",
+    hint: "Not found on attempt 1 (temporarily unavailable), so a 1st revisit (attempt 2) is needed. Stays counted after the revisit",
     icon: Target,
-    color: "text-amber-500",
-    group: "2nd",
-    value: (d) => d.revisitsNeed2nd,
-    getList: (d) => d.lists.revisitsNeed2nd,
+    color: "text-amber-600",
+    group: "1st",
+    value: (d) => d.revisit1Needed,
+    getList: (d) => d.lists.revisit1Needed,
+    hoverDetail: (d) => `Still to revisit: ${d.revisitsNeed2nd}`,
   },
   {
-    label: "2nd Attempt Slots",
-    exportLabel: "2nd-attempt-slots",
-    hint: "Slots with an actual attempt-2 (1st revisit) submission",
+    label: "Revisited",
+    exportLabel: "1st-revisited",
+    hint: "1st revisit done (attempt 2 submitted), found or not",
     icon: Users,
     color: "text-sky-600",
-    group: "2nd",
+    group: "1st",
     value: (d) => d.girls2ndRevisited,
     getList: (d) => d.lists.girls2ndRevisited,
+    hoverDetail: (d) => `Not found on revisit: ${d.slotsNotCompletedOn2ndRevisit}`,
   },
   {
-    label: "Completed on 2nd Attempt",
-    exportLabel: "completed-on-2nd-attempt",
-    hint: "Slots completed on attempt 2 (1st revisit)",
+    label: "Completed on Revisit",
+    exportLabel: "completed-on-1st-revisit",
+    hint: "Completed on the 1st revisit (attempt 2)",
     icon: CheckCircle2,
     color: "text-teal",
-    group: "2nd",
+    group: "1st",
     value: (d) => d.slotsCompletedOn2ndRevisit,
     getList: (d) => d.lists.slotsCompletedOn2ndRevisit,
   },
   {
-    label: "Not Completed on 2nd",
-    exportLabel: "not-completed-on-2nd-attempt",
-    hint: "Attempt 2 filed but slot still not complete",
-    icon: UserX,
-    color: "text-orange-600",
-    group: "2nd",
-    value: (d) => d.slotsNotCompletedOn2ndRevisit,
-    getList: (d) => d.lists.slotsNotCompletedOn2ndRevisit,
-  },
-  {
-    label: "3rd Attempt Still Needed",
-    exportLabel: "3rd-attempt-still-needed",
-    hint: "2nd revisit still due (mother / girl / caretaker; not father)",
+    label: "Revisit Needed",
+    exportLabel: "2nd-revisit-needed",
+    hint: "Revisited on attempt 2 but still temporarily unavailable, so a 2nd revisit (attempt 3) is needed. Mother / girl / caretaker only (father max is 1 revisit)",
     icon: Target,
     color: "text-orange-600",
-    group: "3rd",
-    value: (d) => d.revisitsNeed3rd,
-    getList: (d) => d.lists.revisitsNeed3rd,
+    group: "2nd",
+    value: (d) => d.revisit2Needed,
+    getList: (d) => d.lists.revisit2Needed,
+    hoverDetail: (d) => `Still to revisit: ${d.revisitsNeed3rd}`,
   },
   {
-    label: "3rd Attempt Slots",
-    exportLabel: "3rd-attempt-slots",
-    hint: "Slots with an actual attempt-3 (2nd revisit) submission",
+    label: "Revisited",
+    exportLabel: "2nd-revisited",
+    hint: "2nd revisit done (attempt 3 submitted), found or not",
     icon: Users,
     color: "text-indigo-600",
-    group: "3rd",
+    group: "2nd",
     value: (d) => d.girls3rdRevisited,
     getList: (d) => d.lists.girls3rdRevisited,
+    hoverDetail: (d) => `Not found on revisit: ${d.slotsNotCompletedOn3rdRevisit}`,
   },
   {
-    label: "Completed on 3rd Attempt",
-    exportLabel: "completed-on-3rd-attempt",
-    hint: "Slots completed on attempt 3 (2nd revisit)",
+    label: "Completed on Revisit",
+    exportLabel: "completed-on-2nd-revisit",
+    hint: "Completed on the 2nd revisit (attempt 3)",
     icon: CheckCircle2,
     color: "text-deep-teal",
-    group: "3rd",
+    group: "2nd",
     value: (d) => d.slotsCompletedOn3rdRevisit,
     getList: (d) => d.lists.slotsCompletedOn3rdRevisit,
   },
-  {
-    label: "Not Completed on 3rd",
-    exportLabel: "not-completed-on-3rd-attempt",
-    hint: "Attempt 3 filed but slot still not complete",
-    icon: UserX,
-    color: "text-red-500",
-    group: "3rd",
-    value: (d) => d.slotsNotCompletedOn3rdRevisit,
-    getList: (d) => d.lists.slotsNotCompletedOn3rdRevisit,
-  },
 ];
 
-const columns: { group: "general" | "2nd" | "3rd"; heading: string }[] = [
-  { group: "general", heading: "Overall" },
-  { group: "2nd", heading: "2nd attempt (1st revisit)" },
-  { group: "3rd", heading: "3rd attempt (2nd revisit)" },
+const columns: { group: Group; heading: string }[] = [
+  { group: "overall", heading: "Overall" },
+  { group: "1st", heading: "1st revisit (attempt 2)" },
+  { group: "2nd", heading: "2nd revisit (attempt 3)" },
 ];
 
 function downloadCardList(rows: HhGirlsExportRow[], exportLabel: string) {
@@ -207,10 +174,12 @@ export function HhGirlsRevisitSection({
           </div>
           {expanded && (
             <p className="mt-1 text-[10px] text-muted-foreground">
-              SurveyCTO attempt 1 = first visit · attempt 2 = 1st revisit ·
-              attempt 3 = 2nd revisit. Father: 1 revisit (attempt 2) ·
-              mother/caretaker/girl: up to 2 revisits (attempts 2–3). Girl
-              codes 1/4 only for revisits. Click any card to download Excel.
+              Each survey slot (father / mother / caretaker / girl) not found on
+              a visit (temporarily unavailable) needs the next revisit.
+              Revisited = that attempt was submitted; Completed = found and
+              completed on it. Not found on the 1st revisit → counted in the
+              2nd revisit column. Father: 1 revisit · mother/caretaker/girl: up
+              to 2. Girl codes 1/4 only. Click any card to download Excel.
             </p>
           )}
         </div>
@@ -244,7 +213,7 @@ export function HhGirlsRevisitSection({
               {loading
                 ? columns.map((col) => (
                     <div key={col.group} className="flex flex-col gap-3">
-                      <StatCardSkeleton count={4} />
+                      <StatCardSkeleton count={3} />
                     </div>
                   ))
                 : columns.map((col) => {
@@ -256,7 +225,7 @@ export function HhGirlsRevisitSection({
                         </p>
                         {colCards.map((card, i) => {
                           const Icon = card.icon;
-                          const list = card.getList?.(d!);
+                          const list = card.getList(d!);
                           return (
                             <StatCard
                               key={card.label}
@@ -269,7 +238,7 @@ export function HhGirlsRevisitSection({
                               hint={card.hint}
                               hoverDetail={card.hoverDetail?.(d!)}
                               onClick={
-                                list?.length
+                                list.length
                                   ? () => downloadCardList(list, card.exportLabel)
                                   : undefined
                               }
