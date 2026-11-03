@@ -87,7 +87,7 @@ const kpiConfig: {
     label: "Father Not Available",
     icon: UserX,
     color: "text-orange-500",
-    hint: "Father marked unavailable (father_unavailable1): codes 1–6",
+    hint: "Father marked unavailable (father_unavailable1): codes 1–6, excluding fathers later interviewed with a complete form",
   },
   {
     key: "motherNotAvailable",
@@ -95,7 +95,7 @@ const kpiConfig: {
     label: "Mother Not Available",
     icon: UserX,
     color: "text-red-500",
-    hint: "Mother marked unavailable (mother_unavailable1): codes 1–6",
+    hint: "Mother marked unavailable (mother_unavailable1): codes 1–6, excluding mothers later interviewed with a complete form",
   },
   {
     key: "girlNotAvailable",

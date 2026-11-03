@@ -124,11 +124,15 @@ export function latestParentUnavailableOther(
   return "";
 }
 
-/** True when any HH visit recorded an unavailable reason for this parent. */
+/**
+ * True when an HH visit recorded an unavailable reason for this parent and
+ * no visit has a complete interview with them (a later complete form clears it).
+ */
 export function isParentMarkedUnavailable(
   hhSubs: HhGirlsRow[],
   role: "father" | "mother"
 ): boolean {
+  if (hhSubs.some((s) => isParentSlotComplete(s, role))) return false;
   return Boolean(latestParentUnavailableCode(hhSubs, role));
 }
 
