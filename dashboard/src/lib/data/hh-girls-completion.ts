@@ -136,6 +136,15 @@ export function isParentMarkedUnavailable(
   return Boolean(latestParentUnavailableCode(hhSubs, role));
 }
 
+/**
+ * True when a girls survey visit recorded the girl unavailable and no visit
+ * has a complete girls form (a later complete form clears it).
+ */
+export function isGirlMarkedUnavailable(gsSubs: HhGirlsRow[]): boolean {
+  if (gsSubs.some((s) => isGirlsFormComplete(s))) return false;
+  return gsSubs.some((s) => s.girl_available === "0");
+}
+
 export function isPermanentGirlUnavailable(reason?: string): boolean {
   return PERMANENT_GIRL_UNAVAILABLE_CODES.has((reason || "").trim());
 }

@@ -6,6 +6,7 @@ import {
 import {
   isCompletedHouseholdForGirl,
   isHhGirlsFormComplete,
+  isGirlMarkedUnavailable,
   isHouseholdRefusalWithoutRespondent,
   isParentMarkedUnavailable,
 } from "./hh-girls-completion";
@@ -310,8 +311,12 @@ function analyzeUnifiedGirls(
   }
 
   const gsByGirl = new Map<string, HhGirlsRow>();
+  const gsSubsByGirl = new Map<string, HhGirlsRow[]>();
   for (const r of girls) {
-    if (r.girl) gsByGirl.set(r.girl, r);
+    if (!r.girl) continue;
+    gsByGirl.set(r.girl, r);
+    if (!gsSubsByGirl.has(r.girl)) gsSubsByGirl.set(r.girl, []);
+    gsSubsByGirl.get(r.girl)!.push(r);
   }
 
   return [...girlIds].map((girl) => {
@@ -323,7 +328,9 @@ function analyzeUnifiedGirls(
 
     const fatherNotAvailable = isParentMarkedUnavailable(hhSubs, "father");
     const motherNotAvailable = isParentMarkedUnavailable(hhSubs, "mother");
-    const girlNotAvailable = hasGirlSurvey && gsRow?.girl_available === "0";
+    const girlNotAvailable = isGirlMarkedUnavailable(
+      gsSubsByGirl.get(girl) || []
+    );
 
     const isCompletedHousehold = isCompletedHouseholdForGirl(hhSubs, gsRow);
 

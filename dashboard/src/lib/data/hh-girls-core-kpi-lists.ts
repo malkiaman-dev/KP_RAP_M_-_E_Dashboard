@@ -1,5 +1,6 @@
 import {
   isCompletedHouseholdForGirl,
+  isGirlMarkedUnavailable,
   isHouseholdRefusalWithoutRespondent,
   isParentMarkedUnavailable,
   latestParentUnavailableCode,
@@ -142,35 +143,49 @@ export function computeHhGirlsCoreKpiLists(
     }
   }
 
+  // Girl not available: one row per girl (latest unavailable visit), cleared
+  // once a complete girls form exists.
+  const gsSubsByGirl = new Map<string, HhGirlsRow[]>();
+  const girlUnavailableByGirl = new Map<string, HhGirlsRow>();
+
   for (const row of girls) {
+    if (row.girl) {
+      if (!gsSubsByGirl.has(row.girl)) gsSubsByGirl.set(row.girl, []);
+      gsSubsByGirl.get(row.girl)!.push(row);
+    }
     lists.totalSubmissions.push(
       toHhGirlsExportRow(row, "Total submission")
     );
     if (isConsentRefused(row)) {
       lists.consentRefused.push(toHhGirlsExportRow(row, "Consent refused"));
     }
-    if (row.girl_available === "0") {
-      const code = (row.girl_available_reason || "").trim();
-      const other = (row.girl_available_reason_other || "").trim();
-      const reason = girlUnavailableLabel(code);
-      const needsRevisit = isTemporaryGirlUnavailable(
-        row.girl_available,
-        row.girl_available_reason
-      );
-      lists.girlNotAvailable.push({
-        ...toHhGirlsExportRow(row, "Girl not available"),
-        unavailableCode: code,
-        unavailableReason: reason,
-        unavailableOther: other,
-        exportReason: [
-          reason || "Not available",
-          needsRevisit ? "Revisit required (up to 3 attempts)" : "No revisit — incomplete",
-          other,
-        ]
-          .filter(Boolean)
-          .join(" · "),
-      });
+    if (row.girl && row.girl_available === "0") {
+      girlUnavailableByGirl.set(row.girl, row);
     }
+  }
+
+  for (const [girl, row] of girlUnavailableByGirl) {
+    if (!isGirlMarkedUnavailable(gsSubsByGirl.get(girl) || [])) continue;
+    const code = (row.girl_available_reason || "").trim();
+    const other = (row.girl_available_reason_other || "").trim();
+    const reason = girlUnavailableLabel(code);
+    const needsRevisit = isTemporaryGirlUnavailable(
+      row.girl_available,
+      row.girl_available_reason
+    );
+    lists.girlNotAvailable.push({
+      ...toHhGirlsExportRow(row, "Girl not available"),
+      unavailableCode: code,
+      unavailableReason: reason,
+      unavailableOther: other,
+      exportReason: [
+        reason || "Not available",
+        needsRevisit ? "Revisit required (up to 3 attempts)" : "No revisit — incomplete",
+        other,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    });
   }
 
   for (const row of fatherByGirl.values()) {
@@ -196,7 +211,9 @@ export function computeHhGirlsCoreKpiLists(
 
     const fatherNotAvailable = isParentMarkedUnavailable(hhSubs, "father");
     const motherNotAvailable = isParentMarkedUnavailable(hhSubs, "mother");
-    const girlNotAvailable = Boolean(gsRow && gsRow.girl_available === "0");
+    const girlNotAvailable = isGirlMarkedUnavailable(
+      gsSubsByGirl.get(girl) || []
+    );
     const unavailable =
       fatherNotAvailable || motherNotAvailable || girlNotAvailable;
 

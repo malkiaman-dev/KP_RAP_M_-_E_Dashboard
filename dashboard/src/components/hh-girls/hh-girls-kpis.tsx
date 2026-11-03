@@ -103,7 +103,7 @@ const kpiConfig: {
     label: "Girl Not Available",
     icon: UserX,
     color: "text-purple-500",
-    hint: "Girls survey visits where girl_available=0 (reason 1/4 = revisit; 2/3 = incomplete, no revisit)",
+    hint: "Unique girls with girl_available=0 on a girls survey visit, excluding girls later interviewed with a complete form (reason 1/4 = revisit; 2/3 = incomplete, no revisit)",
   },
   {
     key: "consentRefused",
