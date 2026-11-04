@@ -1550,6 +1550,99 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                     )
 
     # =========================================================
+    # HH_CR_SAME_GIRL_TWO_IDS: the same girl interviewed under two girl IDs.
+    # Strict, to avoid flagging sisters: same district, same real phone,
+    # girl and father names >= 80% similar, and neither household roster lists
+    # the other girl as a separate member. Flagged on the ID with fewer forms.
+    # =========================================================
+    phone_col = _find_existing(df, ["phonenumber", "phone_number"])
+    roster_name_cols = [c for c in df.columns if re.fullmatch(r"name_(sibling_)?\d+", str(c))]
+    if (
+        gid_col and gid_col in df.columns
+        and phone_col and girl_name_label and father_name_label
+        and district and district in df.columns
+    ):
+        from difflib import SequenceMatcher
+
+        def _letters(x: Any) -> str:
+            return re.sub(r"(bibi|bb)$", "", re.sub(r"[^a-z]", "", _norm_str(x)))
+
+        def _similar(a: str, b: str) -> bool:
+            return bool(a and b) and SequenceMatcher(None, a, b).ratio() >= 0.8
+
+        def _real_phone(x: Any) -> str:
+            digits = re.sub(r"\D", "", _norm_str(x))[-10:]
+            if len(digits) < 10 or len(set(digits[1:])) <= 1 or digits in {"3123456789", "1234567890"}:
+                return ""
+            return digits
+
+        by_id: dict[str, dict] = {}
+        for i in df.index:
+            g = _norm_str(df.at[i, gid_col])
+            if not g:
+                continue
+            ent = by_id.setdefault(
+                g,
+                dict(idxs=[], girl="", father="", girl_raw="", father_raw="", district="", phones=set(), roster=set()),
+            )
+            ent["idxs"].append(i)
+            if not ent["girl"]:
+                ent["girl"], ent["girl_raw"] = _letters(df.at[i, girl_name_label]), _norm_str(df.at[i, girl_name_label])
+            if not ent["father"]:
+                ent["father"], ent["father_raw"] = _letters(df.at[i, father_name_label]), _norm_str(df.at[i, father_name_label])
+            ent["district"] = ent["district"] or _norm_str(df.at[i, district])
+            p = _real_phone(df.at[i, phone_col])
+            if p:
+                ent["phones"].add(p)
+            ent["roster"] |= {_letters(df.at[i, c]) for c in roster_name_cols} - {""}
+
+        def _best_member(name: str, roster: set) -> str:
+            scored = [(SequenceMatcher(None, name, m).ratio(), m) for m in roster]
+            best = max(scored, default=(0.0, ""))
+            return best[1] if best[0] >= 0.8 else ""
+
+        def _lists_as_other_member(a: dict, b: dict) -> bool:
+            # both girls found in a's roster as two different members -> sisters
+            ma, mb = _best_member(a["girl"], a["roster"]), _best_member(b["girl"], a["roster"])
+            return bool(ma and mb and ma != mb)
+
+        by_phone: dict[tuple, list[str]] = {}
+        for g, ent in by_id.items():
+            for p in ent["phones"]:
+                by_phone.setdefault((ent["district"], p), []).append(g)
+
+        seen_pairs: set[tuple] = set()
+        for ids in by_phone.values():
+            for x in range(len(ids)):
+                for y in range(x + 1, len(ids)):
+                    pair = tuple(sorted((ids[x], ids[y])))
+                    if pair in seen_pairs:
+                        continue
+                    seen_pairs.add(pair)
+                    a, b = by_id[pair[0]], by_id[pair[1]]
+                    if not (_similar(a["girl"], b["girl"]) and _similar(a["father"], b["father"])):
+                        continue
+                    if _lists_as_other_member(a, b) or _lists_as_other_member(b, a):
+                        continue
+                    # flag the ID with fewer forms; keep the fuller record
+                    keep_id, dup_id = (pair[0], pair[1]) if len(a["idxs"]) >= len(b["idxs"]) else (pair[1], pair[0])
+                    keep, dup = by_id[keep_id], by_id[dup_id]
+                    for i in dup["idxs"]:
+                        add_issue(
+                            i,
+                            "CRITICAL",
+                            "HH_CR_SAME_GIRL_TWO_IDS",
+                            "Same girl interviewed under two girl IDs",
+                            (
+                                f"Girl {dup['girl_raw'].title()} (ID {dup_id}) is the same girl as "
+                                f"{keep['girl_raw'].title()} (ID {keep_id}): same father and phone number. "
+                                "Only one ID should be surveyed."
+                            ),
+                            f"{gid_col},{girl_name_label},{father_name_label},{phone_col}",
+                            f"girl={dup_id}; same_as={keep_id}",
+                        )
+
+    # =========================================================
     # HH_CR_12: days_school range check (0-12)
     # =========================================================
     if days_school and days_school in df.columns:

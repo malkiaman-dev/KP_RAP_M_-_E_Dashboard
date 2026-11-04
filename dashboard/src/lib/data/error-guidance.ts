@@ -501,6 +501,14 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoidUrdu:
       "Parent ka status record karne se pehle household se confirm karein. Agar parent mojood hai to usay dusre shehar/mulk mein rehne wala na likhein; aur agar waqai bahar rehta hai to us ka consent ya interview record na karein. Ghalat form void karwane ke liye supervisor ko batayein.",
   },
+  HH_CR_SAME_GIRL_TWO_IDS: {
+    focus:
+      "The same girl was surveyed under two different girl IDs: girl and father names match (allowing for spelling), the phone number is the same, and neither household lists the other girl as a separate member.",
+    avoid:
+      "Before starting a household, check whether this girl was already surveyed under another ID (same father, same phone). If she was, do not survey her again; report the duplicate ID to the supervisor.",
+    avoidUrdu:
+      "Household shuru karne se pehle check karein ke ye girl kisi aur ID se pehle survey to nahi hui (same father, same phone). Agar ho chuki hai to dobara survey na karein; duplicate ID supervisor ko batayein.",
+  },
   HH_DUP_OTHER: {
     focus: "Duplicate household record where the respondent (Father/Mother) could not be determined.",
     avoid: "Confirm the respondent for each copy, keep the latest complete KEY, and void the rest after supervisor review.",
