@@ -19,6 +19,10 @@ import {
 } from "@/lib/export/hh-girls-progress-report-shared";
 import { ReportCard } from "@/components/reports/report-card";
 import { PROTOCOL } from "@/lib/data/protocol";
+import {
+  HH_GIRLS_PROGRESS_BASIS_LABELS,
+  type HhGirlsProgressBasis,
+} from "@/lib/data/hh-girls-progress-basis";
 
 const FORMAT_OPTIONS = [
   { value: "pdf", label: "PDF (.pdf)" },
@@ -30,12 +34,15 @@ export function HhGirlsProgressReportCard({
   allGirls,
   filters,
   districtOptions,
+  progressBasis = "completed",
   loading,
 }: {
   allHousehold?: HhGirlsRow[];
   allGirls?: HhGirlsRow[];
   filters: HhGirlsMonitoringFilters;
   districtOptions?: { value: string; label: string }[];
+  /** Chosen on the Reports page: what target progress is measured on. */
+  progressBasis?: HhGirlsProgressBasis;
   loading?: boolean;
 }) {
   const [selectedDistrict, setSelectedDistrict] = useState("");
@@ -80,7 +87,7 @@ export function HhGirlsProgressReportCard({
     if (household.length + girls.length === 0) return null;
     return {
       districtLabel,
-      metrics: computeHhGirlsProgressReportMetrics(household, girls),
+      metrics: computeHhGirlsProgressReportMetrics(household, girls, progressBasis),
     };
   };
 
@@ -90,7 +97,8 @@ export function HhGirlsProgressReportCard({
         districtLabel: "All Districts",
         metrics: computeHhGirlsProgressReportMetrics(
           base.household,
-          base.girls
+          base.girls,
+          progressBasis
         ),
       },
     ];
@@ -117,7 +125,7 @@ export function HhGirlsProgressReportCard({
           generatedAt: new Date(),
           sections: [section],
         },
-        buildHhGirlsProgressReportFilename(district.label, filters, format),
+        buildHhGirlsProgressReportFilename(district.label, filters, format, progressBasis),
         format
       );
     } finally {
@@ -136,7 +144,7 @@ export function HhGirlsProgressReportCard({
           generatedAt: new Date(),
           sections: buildAllDistrictsSections(),
         },
-        buildHhGirlsProgressReportFilename("All_Districts", filters, format),
+        buildHhGirlsProgressReportFilename("All_Districts", filters, format, progressBasis),
         format
       );
     } finally {
@@ -160,7 +168,7 @@ export function HhGirlsProgressReportCard({
       description={`Programme-wide and district-level summary of household completion toward the ${PROTOCOL.HH_SURVEY_TARGET.toLocaleString()} target, form coverage, consent, revisits, and missing surveys. Excludes enumerator daily-target performance.`}
       status="available"
       accentClass="bg-amber-500/10 text-amber-600 dark:text-amber-400"
-      footer={`Period: ${dateRangeLabel} · Formats: Word (.docx) & PDF · Combined household + girls survey`}
+      footer={`Period: ${dateRangeLabel} · Target progress on ${HH_GIRLS_PROGRESS_BASIS_LABELS[progressBasis].toLowerCase()} · Formats: Word (.docx) & PDF · Combined household + girls survey`}
     >
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-[160px] flex-1 basis-[160px] sm:max-w-[220px]">

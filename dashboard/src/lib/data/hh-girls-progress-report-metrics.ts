@@ -3,6 +3,10 @@ import {
   computeHhGirlsMetrics,
   type HhGirlsRow,
 } from "@/lib/data/hh-girls-metrics";
+import {
+  applyHhGirlsProgressBasis,
+  type HhGirlsProgressBasis,
+} from "@/lib/data/hh-girls-progress-basis";
 
 /** Programme progress metrics for HH + Girls combined reports. */
 export interface HhGirlsProgressReportMetrics {
@@ -16,6 +20,9 @@ export interface HhGirlsProgressReportMetrics {
   completedHouseholds: number;
   remainingToTarget: number;
   progressToTarget: number;
+  /** What progress / remaining are measured on, and its count. */
+  progressBasis: HhGirlsProgressBasis;
+  progressBase: number;
   hhTarget: number;
   completionRate: number;
   consentRefused: number;
@@ -24,6 +31,8 @@ export interface HhGirlsProgressReportMetrics {
   girlNotAvailable: number;
   revisitsNeeded: number;
   totalRevisitedGirls: number;
+  /** People (father / mother / caretaker / girl) with a revisit submitted, as on the dashboard. */
+  revisitedPeople: number;
   missingSurveys: number;
   parentalConsentRate: number;
   childConsentRate: number;
@@ -34,9 +43,10 @@ export interface HhGirlsProgressReportMetrics {
 
 export function computeHhGirlsProgressReportMetrics(
   household: HhGirlsRow[],
-  girls: HhGirlsRow[]
+  girls: HhGirlsRow[],
+  basis: HhGirlsProgressBasis = "completed"
 ): HhGirlsProgressReportMetrics {
-  const m = computeHhGirlsMetrics(household, girls);
+  const m = applyHhGirlsProgressBasis(computeHhGirlsMetrics(household, girls), basis);
   const uniqueGirls = m.core.uniqueGirls;
   const completed = m.core.completedHouseholds;
 
@@ -51,6 +61,8 @@ export function computeHhGirlsProgressReportMetrics(
     completedHouseholds: completed,
     remainingToTarget: m.core.remainingToTarget,
     progressToTarget: m.core.progressToTarget,
+    progressBasis: m.core.progressBasis,
+    progressBase: m.core.progressBase,
     hhTarget: m.core.hhTarget || PROTOCOL.HH_SURVEY_TARGET,
     completionRate: uniqueGirls > 0 ? (completed / uniqueGirls) * 100 : 0,
     consentRefused: m.core.consentRefused,
@@ -59,6 +71,7 @@ export function computeHhGirlsProgressReportMetrics(
     girlNotAvailable: m.core.girlNotAvailable,
     revisitsNeeded: m.revisitDetail.revisitsNeedToBeDone,
     totalRevisitedGirls: m.revisitDetail.totalRevisitedGirls,
+    revisitedPeople: m.revisitDetail.girls2ndRevisited + m.revisitDetail.girls3rdRevisited,
     missingSurveys: m.missingDetail.totalMissingSurveys,
     parentalConsentRate: m.girls.parentalConsentRate,
     childConsentRate: m.girls.childConsentRate,

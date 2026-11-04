@@ -145,7 +145,7 @@ const kpiConfig: {
     color: "text-teal",
     hint: "Girl survey + parent slots complete/permanent, or caretaker + girl when both parents permanently unavailable",
     hoverDetail: (metrics) =>
-      `${metrics.core.progressToTarget.toFixed(1)}% of ${metrics.core.hhTarget.toLocaleString()} target`,
+      `${(metrics.core.hhTarget > 0 ? (metrics.core.completedHouseholds / metrics.core.hhTarget) * 100 : 0).toFixed(1)}% of ${metrics.core.hhTarget.toLocaleString()} target`,
   },
   {
     key: "incompleteHouseholds",

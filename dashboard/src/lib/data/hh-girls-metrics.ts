@@ -14,6 +14,7 @@ import {
   pickGirlsRow,
 } from "./hh-girls-completion";
 import { computeHhGirlsCoreKpiLists } from "./hh-girls-core-kpi-lists";
+import type { HhGirlsProgressBasis } from "./hh-girls-progress-basis";
 import { computeHhGirlsDuplicateDetail } from "./hh-girls-duplicates";
 import { computeHhGirlsMissingDetail } from "./hh-girls-missing";
 import { computeHhGirlsRevisitDetail } from "./hh-girls-revisit";
@@ -873,6 +874,9 @@ export function computeHhGirlsMetrics(
       hhTarget,
       remainingToTarget,
       progressToTarget,
+      /** What progress is measured on; see applyHhGirlsProgressBasis. */
+      progressBasis: "completed" as HhGirlsProgressBasis,
+      progressBase: completedHouseholds,
       surveyMix,
       unavailabilityBreakdown,
       combinedTrend,

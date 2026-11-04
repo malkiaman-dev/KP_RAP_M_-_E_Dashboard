@@ -5,6 +5,7 @@ import { Home, Target, TrendingUp } from "lucide-react";
 import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { cn } from "@/lib/utils";
 import type { HhGirlsMetrics } from "@/lib/data/hh-girls-metrics";
+import { HH_GIRLS_PROGRESS_BASIS_LABELS } from "@/lib/data/hh-girls-progress-basis";
 
 function ProgressBar({ value, max }: { value: number; max: number }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
@@ -35,7 +36,10 @@ export function HhGirlsRolloutOverview({
 
   const stats = [
     { label: "HH target", value: c.hhTarget },
-    { label: "Completed households", value: c.completedHouseholds },
+    {
+      label: HH_GIRLS_PROGRESS_BASIS_LABELS[c.progressBasis],
+      value: c.progressBase,
+    },
     { label: "Remaining to target", value: c.remainingToTarget },
     {
       label: "Progress to target",
@@ -61,7 +65,8 @@ export function HhGirlsRolloutOverview({
           </h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Father, mother, and girl surveys fielded together ·{" "}
-            {metrics.targetN.toLocaleString()} completed households target
+            {metrics.targetN.toLocaleString()} households target · progress on{" "}
+            {HH_GIRLS_PROGRESS_BASIS_LABELS[c.progressBasis].toLowerCase()}
           </p>
         </div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -87,7 +92,7 @@ export function HhGirlsRolloutOverview({
         ))}
       </div>
 
-      <ProgressBar value={c.completedHouseholds} max={metrics.targetN} />
+      <ProgressBar value={c.progressBase} max={metrics.targetN} />
       <p className="mt-2 text-[10px] text-muted-foreground">
         Completed when the girl survey succeeds (available + both consents) and:
         father+girl (mother permanent), mother+girl (father permanent),

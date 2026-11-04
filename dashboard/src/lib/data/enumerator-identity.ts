@@ -19,6 +19,8 @@ const ENUMERATOR_NAME_ALIASES: Record<string, string> = {
   "norreen khan": "naureen khan",
   lati: "lati khan",
   "lati khan": "lati khan",
+  // second account (ID 51020) of the same Hangu enumerator
+  "summiya hayat 123": "summiya hayat",
 };
 
 /** Preferred Title Case labels for merged identities. */

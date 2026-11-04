@@ -12,7 +12,7 @@ import { HhGirlsCharts } from "@/components/hh-girls/hh-girls-charts";
 import { HhGirlsDuplicateSection } from "@/components/hh-girls/hh-girls-duplicate-section";
 import { HhGirlsMissingSection } from "@/components/hh-girls/hh-girls-missing-section";
 import { HhGirlsRevisitSection } from "@/components/hh-girls/hh-girls-revisit-section";
-import { PageHero, SectionHeader } from "@/components/ui/page-hero";
+import { ModeToggle, PageHero, SectionHeader } from "@/components/ui/page-hero";
 import { useFieldPeriod } from "@/components/filters/field-period-provider";
 import { FIELD_PERIOD_START } from "@/lib/data/field-period";
 import {
@@ -23,6 +23,11 @@ import {
   type HhGirlsFilters,
 } from "@/lib/data/hh-girls-metrics";
 import { mergeHhGirlsExportLists } from "@/lib/data/hh-girls-serialization";
+import {
+  applyHhGirlsProgressBasis,
+  HH_GIRLS_PROGRESS_BASIS_LABELS,
+  type HhGirlsProgressBasis,
+} from "@/lib/data/hh-girls-progress-basis";
 import { PROTOCOL } from "@/lib/data/protocol";
 import {
   fetchHhGirlsExports,
@@ -39,6 +44,8 @@ export default function HhGirlsSurveyPage() {
   );
   const deferredFilters = useDeferredValue(filters);
   const [exportsEnabled, setExportsEnabled] = useState(false);
+  const [progressBasis, setProgressBasis] =
+    useState<HhGirlsProgressBasis>("completed");
 
   useEffect(() => {
     setFilters((prev) => ({ ...prev, dateFrom: fieldDateFrom }));
@@ -94,8 +101,8 @@ export default function HhGirlsSurveyPage() {
       metrics = mergeHhGirlsExportLists(metrics, exports);
     }
 
-    return metrics;
-  }, [data, deferredFilters, exports]);
+    return applyHhGirlsProgressBasis(metrics, progressBasis);
+  }, [data, deferredFilters, exports, progressBasis]);
 
   const showLoading = isLoading || (isFetching && !display);
   const filtering = !hhGirlsFiltersEqual(filters, deferredFilters);
@@ -137,7 +144,8 @@ export default function HhGirlsSurveyPage() {
             colorClass: "text-deep-teal",
           },
           {
-            label: "Progress",
+            label:
+              progressBasis === "attempted" ? "Progress (attempted)" : "Progress",
             value: display?.core.progressToTarget ?? 0,
             icon: Target,
             colorClass: "text-deep-teal",
@@ -157,7 +165,21 @@ export default function HhGirlsSurveyPage() {
             colorClass: "text-teal",
           },
         ]}
-      />
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">
+            Target progress based on
+          </span>
+          <ModeToggle
+            value={progressBasis}
+            onChange={setProgressBasis}
+            options={[
+              { value: "completed", label: HH_GIRLS_PROGRESS_BASIS_LABELS.completed },
+              { value: "attempted", label: HH_GIRLS_PROGRESS_BASIS_LABELS.attempted },
+            ]}
+          />
+        </div>
+      </PageHero>
 
       <HhGirlsFiltersPanel
         filterOptions={data?.filterOptions}
@@ -176,7 +198,7 @@ export default function HhGirlsSurveyPage() {
 
       <SectionHeader
         title="Rollout pulse"
-        subtitle="Completed households versus protocol target and form mix."
+        subtitle={`${HH_GIRLS_PROGRESS_BASIS_LABELS[progressBasis]} versus protocol target and form mix.`}
       />
       <HhGirlsRolloutOverview metrics={display} loading={showLoading} />
 

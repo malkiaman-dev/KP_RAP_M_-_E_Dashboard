@@ -97,12 +97,15 @@ export function HhGirlsMainKpis({
       {kpiConfig.map((kpi, i) => {
         const raw = c[kpi.key];
         const value = typeof raw === "number" && Number.isFinite(raw) ? raw : 0;
+        const onAttempted =
+          c.progressBasis === "attempted" &&
+          (kpi.key === "progressToTarget" || kpi.key === "remainingToTarget");
 
         return (
           <StatCard
             key={kpi.key}
             index={i}
-            label={kpi.label}
+            label={onAttempted ? `${kpi.label} (attempted)` : kpi.label}
             value={value}
             icon={kpi.icon}
             color={kpi.colorClass}

@@ -1,4 +1,5 @@
 import type { HhGirlsProgressReportMetrics } from "@/lib/data/hh-girls-progress-report-metrics";
+import type { HhGirlsProgressBasis } from "@/lib/data/hh-girls-progress-basis";
 import type { HhGirlsMonitoringFilters } from "@/lib/data/hh-girls-monitoring";
 import { formatDisplayDate, toIsoDateString } from "@/lib/utils";
 import {
@@ -31,11 +32,26 @@ export interface ProgressKpiTile {
   sub?: string;
 }
 
+function onAttempted(metrics: HhGirlsProgressReportMetrics): boolean {
+  return metrics.progressBasis === "attempted";
+}
+
+function basisNoun(metrics: HhGirlsProgressReportMetrics): string {
+  return onAttempted(metrics) ? "attempted" : "completed";
+}
+
+function completedShare(metrics: HhGirlsProgressReportMetrics): number {
+  return metrics.hhTarget > 0 ? (metrics.completedHouseholds / metrics.hhTarget) * 100 : 0;
+}
+
 export function buildHhProgressKpiTiles(
   metrics: HhGirlsProgressReportMetrics
 ): ProgressKpiTile[] {
-  const progressTier =
-    metrics.progressToTarget >= 85
+  // Attempted-girls progress is always shown green; completed-household
+  // progress keeps the red / amber / green tiers.
+  const progressTier = onAttempted(metrics)
+    ? { fg: "#15803D", bg: "#DCFCE7" }
+    : metrics.progressToTarget >= 85
       ? { fg: "#15803D", bg: "#DCFCE7" }
       : metrics.progressToTarget >= 70
         ? { fg: "#B45309", bg: "#FEF3C7" }
@@ -87,14 +103,14 @@ export function buildHhProgressKpiTiles(
       bg: completionTier.bg,
     },
     {
-      label: "Progress to Target N",
+      label: onAttempted(metrics) ? "Progress to Target N (attempted)" : "Progress to Target N",
       value: pct(metrics.progressToTarget, 1),
       accent: progressTier.fg,
       bg: progressTier.bg,
-      sub: `${num(metrics.completedHouseholds)} of ${num(metrics.hhTarget)}`,
+      sub: `${num(metrics.progressBase)} ${basisNoun(metrics)} of ${num(metrics.hhTarget)}`,
     },
     {
-      label: "Remaining to Target",
+      label: onAttempted(metrics) ? "Remaining to Target (attempted)" : "Remaining to Target",
       value: num(metrics.remainingToTarget),
       accent: "#B45309",
       bg: "#FEF3C7",
@@ -106,8 +122,9 @@ export function buildHhProgressKpiTiles(
       bg: "#FEF3C7",
     },
     {
-      label: "Girls Revisited",
-      value: num(metrics.totalRevisitedGirls),
+      label: "Revisited",
+      value: num(metrics.revisitedPeople),
+      sub: `people · ${num(metrics.totalRevisitedGirls)} households`,
       accent: "#0F766E",
       bg: "#CCFBF1",
     },
@@ -150,8 +167,10 @@ export function buildHhProgressExecutiveSummaryBullets(
   return [
     `${scope}, field teams submitted ${num(metrics.totalSubmissions)} HH/Girls forms (${num(metrics.motherForms)} mother · ${num(metrics.fatherForms)} father · ${num(metrics.girlsForms)} girls) covering ${num(metrics.totalVillages)} villages.`,
     `${num(metrics.uniqueGirls)} girls were attempted; ${num(metrics.completedHouseholds)} households are completed per protocol (${pct(metrics.completionRate, 0)} of attempted girls).`,
-    `Progress toward the sample target of ${num(metrics.hhTarget)} completed households stands at ${pct(metrics.progressToTarget, 1)}, with ${num(metrics.remainingToTarget)} still remaining.`,
-    `${num(metrics.revisitsNeeded)} survey slots still need a revisit; ${num(metrics.totalRevisitedGirls)} girls have been revisited. ${num(metrics.missingSurveys)} required surveys are still missing.`,
+    onAttempted(metrics)
+      ? `Measured on attempted girls, progress toward the sample target of ${num(metrics.hhTarget)} stands at ${pct(metrics.progressToTarget, 1)} (${num(metrics.progressBase)} attempted), with ${num(metrics.remainingToTarget)} still remaining. On completed households it is ${pct(completedShare(metrics), 1)}.`
+      : `Progress toward the sample target of ${num(metrics.hhTarget)} completed households stands at ${pct(metrics.progressToTarget, 1)}, with ${num(metrics.remainingToTarget)} still remaining.`,
+    `${num(metrics.revisitsNeeded)} survey slots still need a revisit; ${num(metrics.revisitedPeople)} people have been revisited (${num(metrics.totalRevisitedGirls)} households). ${num(metrics.missingSurveys)} required surveys are still missing.`,
     `Unavailability: father ${num(metrics.fatherNotAvailable)}, mother ${num(metrics.motherNotAvailable)}, girl ${num(metrics.girlNotAvailable)}. Consent refused on ${num(metrics.consentRefused)} forms.`,
     `Girls survey consent: parental ${pct(metrics.parentalConsentRate, 0)} · child ${pct(metrics.childConsentRate, 0)}.`,
   ];
@@ -165,7 +184,9 @@ export function buildHhProgressConclusionBullets(
     districtLabel === "All Districts" ? "Overall" : districtLabel;
 
   const bullets = [
-    `${scope}: ${num(metrics.completedHouseholds)} completed households (${pct(metrics.progressToTarget, 1)} of target N ${num(metrics.hhTarget)}).`,
+    onAttempted(metrics)
+      ? `${scope}: ${num(metrics.progressBase)} attempted girls (${pct(metrics.progressToTarget, 1)} of target N ${num(metrics.hhTarget)}); ${num(metrics.completedHouseholds)} completed households.`
+      : `${scope}: ${num(metrics.completedHouseholds)} completed households (${pct(metrics.progressToTarget, 1)} of target N ${num(metrics.hhTarget)}).`,
     `Operational backlog: ${num(metrics.revisitsNeeded)} revisits still needed · ${num(metrics.missingSurveys)} missing surveys · ${num(metrics.consentRefused)} consent refusals.`,
   ];
 
@@ -197,7 +218,8 @@ function sanitizeFilenamePart(value: string): string {
 export function buildHhGirlsProgressReportFilename(
   scopeLabel: string,
   filters: HhGirlsMonitoringFilters,
-  format: ReportFormat = "pdf"
+  format: ReportFormat = "pdf",
+  basis: HhGirlsProgressBasis = "completed"
 ): string {
   const district =
     scopeLabel === "All_Districts"
@@ -224,5 +246,6 @@ export function buildHhGirlsProgressReportFilename(
   }
 
   const ext = format === "pdf" ? "pdf" : "docx";
-  return `${district}_HH_Girls_Progress_Report_${datePart}.${ext}`;
+  const basisPart = basis === "attempted" ? "_Attempted" : "";
+  return `${district}_HH_Girls_Progress_Report${basisPart}_${datePart}.${ext}`;
 }

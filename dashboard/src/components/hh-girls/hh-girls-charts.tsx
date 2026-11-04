@@ -15,6 +15,7 @@ import {
   Legend,
 } from "recharts";
 import type { HhGirlsMetrics } from "@/lib/data/hh-girls-metrics";
+import { HH_GIRLS_PROGRESS_BASIS_LABELS } from "@/lib/data/hh-girls-progress-basis";
 import { ChartArea, ChartCard, ChartGridSkeleton } from "@/components/ui/chart-card";
 import { tooltipStyle, ChartGradients, chartMargin, legendProps } from "@/components/ui/chart-theme";
 import { useFirm } from "@/components/brand/firm-provider";
@@ -234,16 +235,17 @@ export function HhGirlsCharts({
 
       <ChartCard
         title="Rollout Progress"
-        subtitle={`${metrics.targetN.toLocaleString()} completed households target`}
+        subtitle={`${metrics.targetN.toLocaleString()} households target · progress on ${HH_GIRLS_PROGRESS_BASIS_LABELS[c.progressBasis].toLowerCase()}`}
         className="lg:col-span-2"
         index={6}
       >
         <div className="flex flex-col items-center justify-center py-4">
           <p className="text-4xl font-bold text-teal">
-            {c.completedHouseholds.toLocaleString()}
+            {c.progressBase.toLocaleString()}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            completed households · {c.progressToTarget.toFixed(1)}% of target
+            {HH_GIRLS_PROGRESS_BASIS_LABELS[c.progressBasis].toLowerCase()} ·{" "}
+            {c.progressToTarget.toFixed(1)}% of target
           </p>
           <div className="relative mt-4 h-4 w-full max-w-md overflow-hidden rounded-full bg-muted">
             <div

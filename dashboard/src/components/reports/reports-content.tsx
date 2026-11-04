@@ -26,6 +26,10 @@ import {
 } from "@/lib/data/hh-girls-monitoring";
 import type { HhGirlsFilters } from "@/lib/data/hh-girls-metrics";
 import {
+  HH_GIRLS_PROGRESS_BASIS_LABELS,
+  type HhGirlsProgressBasis,
+} from "@/lib/data/hh-girls-progress-basis";
+import {
   applyErrorFilters,
   buildErrorTitleOptions,
   defaultErrorFilters,
@@ -49,6 +53,8 @@ export function ReportsContent() {
   const { dateFrom: fieldDateFrom } = useFieldPeriod();
   const [surveyModule, setSurveyModule] = useState<SurveyModule>("tracking");
   const [reportMode, setReportMode] = useState<ReportMode>("operations");
+  const [progressBasis, setProgressBasis] =
+    useState<HhGirlsProgressBasis>("completed");
 
   const [trackingFilters, setTrackingFilters] = useState<TrackingFilters>(() =>
     defaultMonitoringFilters(fieldDateFrom)
@@ -208,6 +214,16 @@ export function ReportsContent() {
               ]}
             />
           )}
+          {surveyModule === "hh-girls" && reportMode === "progress" && (
+            <ModeToggle
+              value={progressBasis}
+              onChange={setProgressBasis}
+              options={[
+                { value: "completed", label: `Target on ${HH_GIRLS_PROGRESS_BASIS_LABELS.completed}` },
+                { value: "attempted", label: `Target on ${HH_GIRLS_PROGRESS_BASIS_LABELS.attempted}` },
+              ]}
+            />
+          )}
         </div>
       </PageHero>
 
@@ -271,6 +287,7 @@ export function ReportsContent() {
                 allGirls={hhQuery.data?.allGirls}
                 filters={hhFilters}
                 districtOptions={hhDistricts}
+                progressBasis={progressBasis}
                 loading={isLoading}
               />
             ) : (
