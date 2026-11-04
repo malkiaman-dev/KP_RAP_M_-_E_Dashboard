@@ -2,13 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  ChevronDown,
-  Copy,
-  RefreshCw,
-  UserX,
-  Users,
-} from "lucide-react";
+import { ChevronDown, Copy, UserRound, Users } from "lucide-react";
 import { StatCard, StatCardSkeleton } from "@/components/ui/stat-card";
 import { cn } from "@/lib/utils";
 import type { HhGirlsDuplicateListKey } from "@/lib/data/hh-girls-duplicates";
@@ -21,88 +15,53 @@ type Detail = NonNullable<HhGirlsMetrics["duplicateDetail"]>;
 const cards: {
   label: string;
   hint: string;
-  exportLabel?: string;
+  exportLabel: string;
   icon: typeof Copy;
   color: string;
-  listKey?: HhGirlsDuplicateListKey;
-  exportable?: boolean;
+  listKey: HhGirlsDuplicateListKey;
   value: (d: Detail) => number;
   hoverDetail?: (d: Detail) => string;
 }[] = [
   {
-    label: "All Unnecessary Rows",
-    exportLabel: "all-unnecessary",
-    hint: "Every submission flagged as duplicate or unnecessary",
+    label: "Duplicate Submissions",
+    exportLabel: "duplicate-submissions",
+    hint: "Extra submissions of the same survey (same girl + same respondent, or the same girl's girls survey). The original is not counted",
     icon: Copy,
     color: "text-purple-600",
     listKey: "totalDuplicates",
-    value: (d) => d.totalUnnecessaryRows,
-  },
-  {
-    label: "Same-Attempt Duplicates",
-    exportLabel: "same-attempt-duplicates",
-    hint: "Same girl + respondent + attempt (HH) or girl + attempt (Girls)",
-    icon: Copy,
-    color: "text-violet-600",
-    listKey: "sameAttemptDuplicates",
-    value: (d) => d.sameAttemptDuplicateRows,
+    value: (d) => d.totalDuplicates,
     hoverDetail: (d) =>
-      `${d.duplicateGroups} group(s) · ${d.extraDuplicates} redundant copy(ies)`,
+      (Object.entries(d.byFormType) as [string, number][])
+        .filter(([, n]) => n > 0)
+        .map(([type, n]) => `${type}: ${n}`)
+        .join(" · ") || "No duplicates",
   },
   {
-    label: "Redundant Copies",
-    hint: "Extra same-attempt copies beyond one per slot",
-    icon: Copy,
-    color: "text-purple-700",
-    exportable: false,
-    value: (d) => d.extraDuplicates,
-    hoverDetail: (d) =>
-      `${d.extraDuplicates} extra row(s) · ${d.uniqueAttemptSlots} unique attempt slots`,
-  },
-  {
-    label: "Superseded Failed Attempts",
-    exportLabel: "superseded-failed-attempts",
-    hint: "Earlier failed attempt replaced by a later chronological attempt",
-    icon: UserX,
-    color: "text-orange-600",
-    listKey: "supersededUnsuccessful",
-    value: (d) => d.supersededUnsuccessful,
-  },
-  {
-    label: "Unnecessary Follow-up",
-    exportLabel: "unnecessary-follow-up",
-    hint: "Follow-up attempt filed after the slot was already complete",
-    icon: RefreshCw,
-    color: "text-amber-600",
-    listKey: "unnecessaryFollowUp",
-    value: (d) => d.unnecessaryFollowUp,
-  },
-  {
-    label: "Exact Duplicates",
-    exportLabel: "exact-duplicates",
-    hint: "Same girl, attempt, and enumerator submitted more than once",
+    label: "Same Enumerator",
+    exportLabel: "same-enumerator-duplicates",
+    hint: "The same enumerator submitted the same survey again",
     icon: Copy,
     color: "text-indigo-600",
-    listKey: "exactDuplicates",
-    value: (d) => d.exactDuplicates,
-  },
-  {
-    label: "Revisit Duplicates",
-    exportLabel: "revisit-duplicates",
-    hint: "Same slot and attempt submitted more than once on a revisit",
-    icon: RefreshCw,
-    color: "text-indigo-500",
-    listKey: "revisitDuplicates",
-    value: (d) => d.revisitDuplicates,
+    listKey: "sameEnumeratorDuplicates",
+    value: (d) => d.sameEnumeratorDuplicates,
   },
   {
     label: "Different Enumerator",
     exportLabel: "different-enumerator-duplicates",
-    hint: "Same girl and attempt submitted by more than one enumerator",
+    hint: "A different enumerator submitted a survey that was already submitted",
     icon: Users,
     color: "text-fuchsia-600",
     listKey: "differentEnumeratorDuplicates",
     value: (d) => d.differentEnumeratorDuplicates,
+  },
+  {
+    label: "Girls Affected",
+    exportLabel: "girls-with-duplicates",
+    hint: "Unique girls with at least one duplicate submission",
+    icon: UserRound,
+    color: "text-violet-600",
+    listKey: "girlsWithDuplicates",
+    value: (d) => d.girlsWithDuplicates,
   },
 ];
 
@@ -133,29 +92,20 @@ export function HhGirlsDuplicateSection({
             </p>
             {!expanded && d && (
               <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-700">
-                {d.totalUnnecessaryRows === 0
+                {d.totalDuplicates === 0
                   ? "No duplicates"
-                  : `${d.totalUnnecessaryRows} unnecessary row${d.totalUnnecessaryRows === 1 ? "" : "s"}`}
+                  : `${d.totalDuplicates} duplicate submission${d.totalDuplicates === 1 ? "" : "s"}`}
               </span>
             )}
           </div>
-          {expanded && d && metrics && (
-            <div className="mt-1 space-y-1 text-[10px] text-muted-foreground">
-              <p>
-                Father + mother forms for the same girl are expected — not
-                duplicates. Only same girl + same respondent + same attempt is
-                flagged.
-              </p>
-              <p>
-                Same-attempt only:{" "}
-                <span className="font-medium text-foreground">
-                  {metrics.core.totalSubmissions.toLocaleString()} submissions −{" "}
-                  {d.extraDuplicates.toLocaleString()} redundant ={" "}
-                  {d.uniqueAttemptSlots.toLocaleString()} unique attempt slots
-                </span>
-                .
-              </p>
-            </div>
+          {expanded && d && (
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              A duplicate is the same survey submitted again: after it was
+              already complete, or a second copy of the same attempt (by the
+              same or a different enumerator). Father + mother forms for the
+              same girl, and revisits after a not-found attempt, are not
+              duplicates. Each Excel row shows the form it duplicates.
+            </p>
           )}
         </div>
         <button
@@ -190,11 +140,7 @@ export function HhGirlsDuplicateSection({
               {loading
                 ? cards.map((_, i) => <StatCardSkeleton key={i} count={1} />)
                 : cards.map((card, i) => {
-                    const list =
-                      card.exportable !== false && card.listKey
-                        ? d!.lists[card.listKey]
-                        : undefined;
-                    const hasExport = (list?.length ?? 0) > 0;
+                    const list = d!.lists[card.listKey];
 
                     return (
                       <StatCard
@@ -208,8 +154,8 @@ export function HhGirlsDuplicateSection({
                         hint={card.hint}
                         hoverDetail={card.hoverDetail?.(d!)}
                         onClick={
-                          hasExport && card.exportLabel
-                            ? () => downloadCardList(list!, card.exportLabel!)
+                          list.length
+                            ? () => downloadCardList(list, card.exportLabel)
                             : undefined
                         }
                       />

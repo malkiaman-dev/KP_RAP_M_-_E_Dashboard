@@ -1,3 +1,4 @@
+import { isHhGirlsFormComplete } from "./hh-girls-completion";
 import {
   isCaretakerRespondent,
   isFatherRespondent,
@@ -9,53 +10,41 @@ import { submissionTimestamp } from "../utils";
 
 export type HhGirlsDuplicateListKey =
   | "totalDuplicates"
-  | "sameAttemptDuplicates"
-  | "exactDuplicates"
-  | "revisitDuplicates"
+  | "sameEnumeratorDuplicates"
   | "differentEnumeratorDuplicates"
-  | "supersededUnsuccessful"
-  | "unnecessaryFollowUp";
+  | "girlsWithDuplicates";
+
+export type DuplicateFormType = "Father" | "Mother" | "Caretaker" | "Girls" | "No respondent";
 
 export interface HhGirlsDuplicateDetailMetrics {
-  totalUnnecessaryRows: number;
-  sameAttemptDuplicateRows: number;
-  extraDuplicates: number;
-  uniqueAttemptSlots: number;
-  exactDuplicates: number;
-  revisitDuplicates: number;
+  /** Extra submissions to void (the original is not counted). */
+  totalDuplicates: number;
+  sameEnumeratorDuplicates: number;
   differentEnumeratorDuplicates: number;
-  supersededUnsuccessful: number;
-  unnecessaryFollowUp: number;
-  duplicateGroups: number;
+  /** Unique girls with at least one duplicate submission. */
+  girlsWithDuplicates: number;
+  byFormType: Record<DuplicateFormType, number>;
 }
 
 export interface HhGirlsDuplicateDetailData extends HhGirlsDuplicateDetailMetrics {
   lists: Record<HhGirlsDuplicateListKey, HhGirlsExportRow[]>;
 }
 
-const SUPERSEDED_TYPE = "Superseded failed attempt";
-const UNNECESSARY_FOLLOWUP_TYPE = "Unnecessary follow-up";
-
 function emptyDuplicateLists(): Record<HhGirlsDuplicateListKey, HhGirlsExportRow[]> {
   return {
     totalDuplicates: [],
-    sameAttemptDuplicates: [],
-    exactDuplicates: [],
-    revisitDuplicates: [],
+    sameEnumeratorDuplicates: [],
     differentEnumeratorDuplicates: [],
-    supersededUnsuccessful: [],
-    unnecessaryFollowUp: [],
+    girlsWithDuplicates: [],
   };
 }
 
-function duplicateGroupKey(row: HhGirlsRow): string {
-  const girl = (row.girl || "").trim();
-  const attempt = (row.attempt || "1").trim() || "1";
-  if (row.survey_type === "girls") {
-    return `${girl}|girls|${attempt}`;
-  }
-  const respondent = (row.respondent || "").trim();
-  return `${girl}|hh|${respondent}|${attempt}`;
+function formType(row: HhGirlsRow): DuplicateFormType {
+  if (row.survey_type === "girls") return "Girls";
+  if (isCaretakerRespondent(row)) return "Caretaker";
+  if (isFatherRespondent(row.respondent)) return "Father";
+  if (isMotherRespondent(row.respondent)) return "Mother";
+  return "No respondent";
 }
 
 function parseAttempt(row: HhGirlsRow): number {
@@ -67,185 +56,117 @@ function enumeratorKey(row: HhGirlsRow): string {
   return (row.enumerator_id || row.enumerator_name || "").trim();
 }
 
-function classifyDuplicateGroup(subs: HhGirlsRow[]): string {
-  const types: string[] = [];
-  const enumerators = new Set(subs.map(enumeratorKey).filter(Boolean));
-  const attempts = subs.map(parseAttempt);
-  if (enumerators.size <= 1 && subs.length > 1) {
-    types.push("Exact duplicate");
-  }
-  if (enumerators.size > 1) {
-    types.push("Different enumerator duplicate");
-  }
-  if (attempts.some((a) => a > 1)) {
-    types.push("Revisit duplicate");
-  }
-  return types.length > 0 ? types.join(" · ") : "Same-attempt duplicate";
+function formTime(row: HhGirlsRow): number {
+  return submissionTimestamp(row.starttime) || submissionTimestamp(row.SubmissionDate);
 }
 
-function isSlotSuccessful(row: HhGirlsRow): boolean {
-  if (row.survey_type === "girls") {
-    return row.girl_available === "1";
-  }
-  if (isCaretakerRespondent(row)) {
-    return row.agree_consent_caregiver === "1";
-  }
-  if (isMotherRespondent(row.respondent)) {
-    return row.agree_consent_mother === "1";
-  }
-  if (isFatherRespondent(row.respondent)) {
-    return row.agree_consent_father === "1";
-  }
-  return true;
+function cleanName(name?: string): string {
+  return (name || "").replace(/\(.*\)/, "").trim() || "unknown enumerator";
 }
 
-function mergeDuplicateExportRows(
-  ...groups: HhGirlsExportRow[][]
-): HhGirlsExportRow[] {
-  const map = new Map<string, HhGirlsExportRow>();
-  for (const rows of groups) {
-    for (const row of rows) {
-      const existing = map.get(row.keyId);
-      if (!existing) {
-        map.set(row.keyId, row);
-        continue;
-      }
-      const types = new Set(
-        `${existing.duplicateType || ""} · ${row.duplicateType || ""}`
-          .split(" · ")
-          .map((t) => t.trim())
-          .filter(Boolean)
-      );
-      map.set(row.keyId, {
-        ...existing,
-        duplicateType: [...types].join(" · "),
-        category: existing.category || row.category,
-      });
-    }
-  }
-  return [...map.values()];
-}
-
-function computeSequentialDuplicateIssues(rows: HhGirlsRow[]) {
-  const groups = new Map<string, HhGirlsRow[]>();
-
-  for (const row of rows) {
-    const slotKey =
-      row.survey_type === "girls"
-        ? `${row.girl}|girls`
-        : `${row.girl}|hh|${row.respondent}`;
-    if (!groups.has(slotKey)) groups.set(slotKey, []);
-    groups.get(slotKey)!.push(row);
-  }
-
-  const supersededUnsuccessful: HhGirlsExportRow[] = [];
-  const unnecessaryFollowUp: HhGirlsExportRow[] = [];
-
-  for (const subs of groups.values()) {
-    const sorted = [...subs].sort(
-      (a, b) =>
-        parseAttempt(a) - parseAttempt(b) ||
-        submissionTimestamp(a.SubmissionDate) -
-          submissionTimestamp(b.SubmissionDate)
-    );
-
-    let sawSuccess = false;
-
-    for (const row of sorted) {
-      const attempt = parseAttempt(row);
-      const success = isSlotSuccessful(row);
-
-      if (sawSuccess && attempt > 1) {
-        unnecessaryFollowUp.push({
-          ...toHhGirlsExportRow(row, UNNECESSARY_FOLLOWUP_TYPE),
-          duplicateType: UNNECESSARY_FOLLOWUP_TYPE,
-        });
-        continue;
-      }
-
-      if (!success && attempt < sorted.length) {
-        supersededUnsuccessful.push({
-          ...toHhGirlsExportRow(row, SUPERSEDED_TYPE),
-          duplicateType: SUPERSEDED_TYPE,
-        });
-      }
-
-      if (success) sawSuccess = true;
-    }
-  }
-
-  return { supersededUnsuccessful, unnecessaryFollowUp };
-}
-
+/**
+ * Real duplicate submissions: the same survey slot (girl + father / mother /
+ * caretaker, or the girl's girls survey) submitted again, by the same or a
+ * different enumerator.
+ *
+ * - Once the slot is complete, every later form for it is a duplicate
+ *   (whatever attempt number it carries).
+ * - Copies of the same attempt are duplicates; the complete copy is kept,
+ *   else the latest.
+ *
+ * Earlier unsuccessful attempts followed by a revisit are revisit history,
+ * not duplicates. Father and mother forms for the same girl are separate
+ * slots and never duplicates of each other.
+ */
 export function computeHhGirlsDuplicateDetail(
   household: HhGirlsRow[],
   girls: HhGirlsRow[]
 ): HhGirlsDuplicateDetailData {
-  const rows = [...household, ...girls];
-  const attemptGroups = new Map<string, HhGirlsRow[]>();
-
-  for (const row of rows) {
-    const key = duplicateGroupKey(row);
-    if (!attemptGroups.has(key)) attemptGroups.set(key, []);
-    attemptGroups.get(key)!.push(row);
+  const slots = new Map<string, HhGirlsRow[]>();
+  for (const row of [...household, ...girls]) {
+    const girl = (row.girl || "").trim();
+    if (!girl) continue;
+    const key = `${girl}|${formType(row)}`;
+    if (!slots.has(key)) slots.set(key, []);
+    slots.get(key)!.push(row);
   }
 
   const lists = emptyDuplicateLists();
-  let duplicateGroups = 0;
+  const byFormType: Record<DuplicateFormType, number> = {
+    Father: 0,
+    Mother: 0,
+    Caretaker: 0,
+    Girls: 0,
+    "No respondent": 0,
+  };
+  const girlsWithDuplicates = new Map<string, HhGirlsExportRow>();
 
-  for (const subs of attemptGroups.values()) {
-    if (subs.length <= 1) continue;
-    duplicateGroups += 1;
+  for (const subs of slots.values()) {
+    if (subs.length < 2) continue;
+    const sorted = [...subs].sort((a, b) => formTime(a) - formTime(b));
+    const original = sorted.find((r) => isHhGirlsFormComplete(r));
 
-    const duplicateType = classifyDuplicateGroup(subs);
-    const isExact = duplicateType.includes("Exact duplicate");
-    const isRevisit = duplicateType.includes("Revisit duplicate");
-    const isDiffEnum = duplicateType.includes("Different enumerator duplicate");
+    // duplicate row -> the form it duplicates
+    const duplicateOf = new Map<HhGirlsRow, HhGirlsRow>();
+    if (original) {
+      for (const row of sorted) {
+        if (row !== original && formTime(row) >= formTime(original)) {
+          duplicateOf.set(row, original);
+        }
+      }
+    }
 
-    for (const row of subs) {
+    const byAttempt = new Map<number, HhGirlsRow[]>();
+    for (const row of sorted) {
+      if (duplicateOf.has(row)) continue;
+      const a = parseAttempt(row);
+      if (!byAttempt.has(a)) byAttempt.set(a, []);
+      byAttempt.get(a)!.push(row);
+    }
+    for (const copies of byAttempt.values()) {
+      if (copies.length < 2) continue;
+      const kept =
+        original && copies.includes(original)
+          ? original
+          : [...copies].reverse().find((r) => isHhGirlsFormComplete(r)) ??
+            copies[copies.length - 1]!;
+      for (const row of copies) {
+        if (row !== kept) duplicateOf.set(row, kept);
+      }
+    }
+
+    for (const [row, of] of duplicateOf) {
+      const sameEnumerator = enumeratorKey(row) === enumeratorKey(of);
+      const type = sameEnumerator ? "Same enumerator" : "Different enumerator";
       const exportRow: HhGirlsExportRow = {
-        ...toHhGirlsExportRow(row, duplicateType),
-        duplicateType,
+        ...toHhGirlsExportRow(row, `Duplicate ${formType(row)} survey`),
+        duplicateType: type,
+        exportReason: `Duplicate of ${of.KEY} (${cleanName(of.enumerator_name)}, attempt ${parseAttempt(of)})`,
       };
-      lists.sameAttemptDuplicates.push(exportRow);
-      if (isExact) lists.exactDuplicates.push(exportRow);
-      if (isRevisit) lists.revisitDuplicates.push(exportRow);
-      if (isDiffEnum) lists.differentEnumeratorDuplicates.push(exportRow);
+      lists.totalDuplicates.push(exportRow);
+      (sameEnumerator
+        ? lists.sameEnumeratorDuplicates
+        : lists.differentEnumeratorDuplicates
+      ).push(exportRow);
+      byFormType[formType(row)] += 1;
+      girlsWithDuplicates.set(exportRow.girlId, exportRow);
     }
   }
 
-  const sequential = computeSequentialDuplicateIssues(rows);
-  lists.supersededUnsuccessful = sequential.supersededUnsuccessful;
-  lists.unnecessaryFollowUp = sequential.unnecessaryFollowUp;
-
-  lists.totalDuplicates = mergeDuplicateExportRows(
-    lists.sameAttemptDuplicates,
-    lists.supersededUnsuccessful,
-    lists.unnecessaryFollowUp
-  );
+  lists.girlsWithDuplicates = [...girlsWithDuplicates.values()];
 
   const sortByDate = (a: HhGirlsExportRow, b: HhGirlsExportRow) =>
-    new Date(b.submissionDate || 0).getTime() -
-    new Date(a.submissionDate || 0).getTime();
-
+    submissionTimestamp(b.submissionDate) - submissionTimestamp(a.submissionDate);
   for (const key of Object.keys(lists) as HhGirlsDuplicateListKey[]) {
     lists[key].sort(sortByDate);
   }
 
-  const sameAttemptDuplicateRows = lists.sameAttemptDuplicates.length;
-  const extraDuplicates = sameAttemptDuplicateRows - duplicateGroups;
-
   return {
-    totalUnnecessaryRows: lists.totalDuplicates.length,
-    sameAttemptDuplicateRows,
-    extraDuplicates,
-    uniqueAttemptSlots: attemptGroups.size,
-    exactDuplicates: lists.exactDuplicates.length,
-    revisitDuplicates: lists.revisitDuplicates.length,
+    totalDuplicates: lists.totalDuplicates.length,
+    sameEnumeratorDuplicates: lists.sameEnumeratorDuplicates.length,
     differentEnumeratorDuplicates: lists.differentEnumeratorDuplicates.length,
-    supersededUnsuccessful: lists.supersededUnsuccessful.length,
-    unnecessaryFollowUp: lists.unnecessaryFollowUp.length,
-    duplicateGroups,
+    girlsWithDuplicates: lists.girlsWithDuplicates.length,
+    byFormType,
     lists,
   };
 }
