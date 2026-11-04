@@ -25,15 +25,19 @@ const cards: {
   {
     label: "Duplicate Submissions",
     exportLabel: "duplicate-submissions",
-    hint: "Extra submissions of the same survey (same girl + same respondent, or the same girl's girls survey). The original is not counted",
+    hint: "Extra submissions of the same survey (same girl + same respondent, or the same girl's girls survey), including the same girl surveyed again under a second girl ID. The original is not counted",
     icon: Copy,
     color: "text-purple-600",
     listKey: "totalDuplicates",
     value: (d) => d.totalDuplicates,
     hoverDetail: (d) =>
-      (Object.entries(d.byFormType) as [string, number][])
-        .filter(([, n]) => n > 0)
-        .map(([type, n]) => `${type}: ${n}`)
+      [
+        ...(Object.entries(d.byFormType) as [string, number][])
+          .filter(([, n]) => n > 0)
+          .map(([type, n]) => `${type}: ${n}`),
+        d.sameGirlTwoIds ? `of which same girl, two IDs: ${d.sameGirlTwoIds}` : "",
+      ]
+        .filter(Boolean)
         .join(" · ") || "No duplicates",
   },
   {

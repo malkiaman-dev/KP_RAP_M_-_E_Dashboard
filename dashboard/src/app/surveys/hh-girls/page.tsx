@@ -145,8 +145,8 @@ export default function HhGirlsSurveyPage() {
             suffix: "%",
           },
           {
-            label: "Girls forms",
-            value: display?.girls.totalSubmissions ?? 0,
+            label: "Girls attempted",
+            value: display?.core.uniqueGirls ?? 0,
             icon: ClipboardCheck,
             colorClass: "text-amber-600 dark:text-gold",
           },
