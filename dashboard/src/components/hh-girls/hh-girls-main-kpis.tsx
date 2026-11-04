@@ -41,7 +41,7 @@ const kpiConfig: {
   },
   {
     key: "uniqueGirls",
-    label: "Unique Submissions",
+    label: "Girls Attempted",
     colorClass: "text-blue-500",
     icon: UserCheck,
   },

@@ -36,10 +36,10 @@ const kpiConfig: {
   {
     key: "uniqueGirls",
     exportLabel: "unique-girls",
-    label: "Unique Submissions",
+    label: "Girls Attempted",
     icon: Users,
     color: "text-sky-500",
-    hint: "Unique tracked girls across all survey forms (deduplicated by girl ID)",
+    hint: "Unique girls with at least one HH or Girls survey form (deduplicated by girl ID)",
   },
   {
     key: "fatherSurveys",
@@ -153,7 +153,7 @@ const kpiConfig: {
     label: "Incomplete Households",
     icon: Home,
     color: "text-amber-500",
-    hint: "Households (unique girls) with at least one HH/Girls form that do not yet meet the Completed Households rule. Equals Unique Submissions minus Completed Households",
+    hint: "Households (unique girls) with at least one HH/Girls form that do not yet meet the Completed Households rule. Equals Girls Attempted minus Completed Households",
   },
 ];
 
