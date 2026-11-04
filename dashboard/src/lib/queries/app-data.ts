@@ -3,10 +3,12 @@ import type { DashboardMetrics } from "@/lib/data/survey-metrics";
 import type { HhGirlsMetrics } from "@/lib/data/hh-girls-metrics";
 import type { TrackingTargetGaps } from "@/lib/data/tracking-target-gaps-types";
 import type { TrackingMetrics } from "@/lib/data/tracking-metrics";
+import type { TrackedGirlsByDistrict } from "@/lib/data/tracking-loader";
 
 export const TRACKING_METRICS_QUERY_KEY = ["tracking-metrics", "v5-dates"] as const;
 export const TRACKING_EXPORTS_QUERY_KEY = ["tracking-exports"] as const;
 export const TRACKING_GAPS_QUERY_KEY = ["tracking-gaps", "v5"] as const;
+export const TRACKING_DISTRICT_TARGETS_QUERY_KEY = ["tracking-district-targets", "v1"] as const;
 export const DASHBOARD_METRICS_QUERY_KEY = ["dashboard-metrics", "v4-frame"] as const;
 export const HH_GIRLS_METRICS_QUERY_KEY = ["hh-girls-metrics", "v10-dates"] as const;
 export const HH_GIRLS_EXPORTS_QUERY_KEY = ["hh-girls-exports", "v2"] as const;
@@ -24,6 +26,13 @@ const QUERY_STALE_MS = 15 * 60 * 1000;
 export async function fetchTrackingMetrics(): Promise<TrackingMetrics> {
   const res = await fetch("/api/tracking");
   if (!res.ok) throw new Error("Failed to load tracking data");
+  return res.json();
+}
+
+/** Successfully tracked girls per district (HH / Girls district targets). */
+export async function fetchTrackingDistrictTargets(): Promise<TrackedGirlsByDistrict[]> {
+  const res = await fetch("/api/tracking-district-targets");
+  if (!res.ok) throw new Error("Failed to load district targets");
   return res.json();
 }
 

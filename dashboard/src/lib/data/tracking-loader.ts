@@ -200,6 +200,25 @@ export function loadTrackingMetricsForClient() {
   });
 }
 
+export interface TrackedGirlsByDistrict {
+  district: string;
+  label: string;
+  /** Successfully tracked girls, same count as the Tracking page district chart. */
+  tracked: number;
+}
+
+/**
+ * Successfully tracked girls per district: the HH / Girls target for each
+ * district on the Monitoring page (used by /api/tracking-district-targets).
+ */
+export function loadTrackedGirlsByDistrict(): TrackedGirlsByDistrict[] {
+  return loadTrackingMetricsForClient().trackedByDistrict.map((d) => ({
+    district: d.district,
+    label: d.label,
+    tracked: d.tracked,
+  }));
+}
+
 /** Full metrics including Excel export lists (used by /api/tracking-exports). */
 export function loadTrackingMetrics() {
   const signature = `v4-cross-in-gap|${filesSignature(trackingFilePaths())}`;

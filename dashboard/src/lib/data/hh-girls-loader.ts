@@ -83,12 +83,50 @@ export function loadHhGirlsMetrics() {
 }
 
 /**
- * Client payload: metrics scoped to the default field period, with full row
- * arrays retained for further filtering without a refetch.
+ * Columns the browser-side HH / Girls code reads (filters, metrics, monitoring,
+ * reports). The CSVs have ~2,100 columns; sending only these keeps the
+ * /api/hh-girls payload small. A new field read on the client must be added here.
+ */
+const CLIENT_ROW_COLUMNS = new Set([
+  "survey_type", "KEY", "instanceID", "SubmissionDate", "starttime", "endtime", "duration",
+  "formdef_version", "enumerator", "enumerator_id", "enumerator_name",
+  "district", "district_label", "village", "village_label", "Address", "landmark",
+  "girl", "girlname_label", "fathername_label", "phonenumber", "name", "age",
+  "attempt", "available", "available_caretaker", "respondent", "respondent_selection",
+  "agree_consent_father", "agree_consent_mother", "agree_consent_caregiver",
+  "father_unavailable1", "father_unavailable_other", "mother_unavailable1", "mother_unavailable_other",
+  "girl_available", "girl_available_reason", "girl_available_reason_other",
+  "parental_consent_agree", "child_consent_agree",
+  "survey_status", "survey_status_othr", "survey_comments",
+  "currently_studying", "enroll_24_25", "days_school", "school", "girls_school",
+  "ay2425schoolname", "middleschool_label",
+  "schoollist_22_23_label_1", "schoollist_23_24_label_1", "schoollist_24_25_label_1",
+  "married", "max_fee", "mode_transport", "transport", "how_far", "months",
+  "alone", "children", "common", "concern", "concerns", "family", "finish", "follows",
+  "help", "incorrect", "last_word", "other", "reason", "share", "work",
+]);
+/** Household roster names, read by the same-girl-two-IDs duplicate check. */
+const CLIENT_ROW_COLUMN_PATTERN = /^name_(sibling_)?\d+$/;
+
+function slimRows(rows: HhGirlsRow[]): HhGirlsRow[] {
+  return rows.map((row) => {
+    const out: Record<string, string | undefined> = {};
+    for (const key in row) {
+      if (CLIENT_ROW_COLUMNS.has(key) || CLIENT_ROW_COLUMN_PATTERN.test(key)) {
+        out[key] = row[key];
+      }
+    }
+    return out as HhGirlsRow;
+  });
+}
+
+/**
+ * Client payload: metrics scoped to the default field period, with the row
+ * arrays (client columns only) retained for further filtering without a refetch.
  */
 export function loadHhGirlsMetricsForClient() {
   const signature = `v9-fp-client|${FIELD_PERIOD_START}|${filesSignature(hhGirlsFilePaths())}`;
-  return getCached("hh-girls-metrics-client-v10", signature, () => {
+  return getCached("hh-girls-metrics-client-v11-slim", signature, () => {
     const { household, girls } = loadHhGirlsSurveys();
     const filtered = applyHhGirlsDataFilters(
       household,
@@ -100,8 +138,8 @@ export function loadHhGirlsMetricsForClient() {
     );
     return {
       ...metrics,
-      allHousehold: household,
-      allGirls: girls,
+      allHousehold: slimRows(household),
+      allGirls: slimRows(girls),
     };
   });
 }

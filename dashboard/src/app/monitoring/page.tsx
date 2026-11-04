@@ -13,6 +13,7 @@ import { MonitoringEnumeratorTable } from "@/components/monitoring/monitoring-en
 import { HhGirlsMonitoringKpis } from "@/components/monitoring/hh-girls-monitoring-kpis";
 import { HhGirlsMonitoringCharts } from "@/components/monitoring/hh-girls-monitoring-charts";
 import { HhGirlsMonitoringEnumeratorTable } from "@/components/monitoring/hh-girls-monitoring-enumerator-table";
+import { HhGirlsDistrictTargetsSection } from "@/components/monitoring/hh-girls-district-targets";
 import { ModeToggle, PageHero, SectionHeader } from "@/components/ui/page-hero";
 import { useFieldPeriod } from "@/components/filters/field-period-provider";
 import {
@@ -28,11 +29,15 @@ import {
   type HhGirlsMonitoringFilters,
 } from "@/lib/data/hh-girls-monitoring";
 import type { HhGirlsFilters } from "@/lib/data/hh-girls-metrics";
+import { computeHhGirlsDistrictTargets } from "@/lib/data/hh-girls-district-targets";
+import type { HhGirlsProgressBasis } from "@/lib/data/hh-girls-progress-basis";
 import {
   fetchHhGirlsMetrics,
+  fetchTrackingDistrictTargets,
   fetchTrackingMetrics,
   HH_GIRLS_METRICS_QUERY_KEY,
   QUERY_STALE_MS,
+  TRACKING_DISTRICT_TARGETS_QUERY_KEY,
   TRACKING_METRICS_QUERY_KEY,
 } from "@/lib/queries/app-data";
 import {
@@ -85,6 +90,27 @@ export default function MonitoringPage() {
     staleTime: QUERY_STALE_MS,
     enabled: mode === "hh-girls",
   });
+
+  const districtTargetsQuery = useQuery({
+    queryKey: [...TRACKING_DISTRICT_TARGETS_QUERY_KEY],
+    queryFn: fetchTrackingDistrictTargets,
+    staleTime: QUERY_STALE_MS,
+    enabled: mode === "hh-girls",
+  });
+  const [districtBasis, setDistrictBasis] =
+    useState<HhGirlsProgressBasis>("completed");
+
+  // Cumulative progress on all HH / Girls data (not the date filters).
+  const districtTargets = useMemo(() => {
+    if (!hhQuery.data?.allHousehold || !hhQuery.data?.allGirls || !districtTargetsQuery.data)
+      return undefined;
+    return computeHhGirlsDistrictTargets(
+      hhQuery.data.allHousehold,
+      hhQuery.data.allGirls,
+      districtTargetsQuery.data,
+      districtBasis
+    );
+  }, [hhQuery.data, districtTargetsQuery.data, districtBasis]);
 
   const trackingMonitoring = useMemo(() => {
     if (!trackingQuery.data?.allSubmissions) return undefined;
@@ -299,8 +325,20 @@ export default function MonitoringPage() {
             resetFilters={() => defaultHhGirlsMonitoringFilters(fieldDateFrom)}
           />
           <SectionHeader
+            title="District targets"
+            subtitle="Each district's target is its successfully tracked girls: achieved, gap, speed, and time to target."
+          />
+          <HhGirlsDistrictTargetsSection
+            data={districtTargets}
+            loading={isLoading || districtTargetsQuery.isLoading}
+            basis={districtBasis}
+            onBasisChange={setDistrictBasis}
+          />
+
+          <SectionHeader
             title="HH enumerator performance"
             subtitle="Completed households and form throughput versus daily targets."
+            className="mt-6"
           />
           <HhGirlsMonitoringKpis metrics={hhMonitoring} loading={isLoading} />
           {hhMonitoring && !isLoading && (

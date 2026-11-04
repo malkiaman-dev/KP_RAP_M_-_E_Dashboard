@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/tracking": ["../Surveys/**/*"],
     "/api/tracking-gaps": ["../Surveys/**/*", "../Tracking_Targets/**/*"],
+    "/api/tracking-district-targets": ["../Surveys/**/*"],
     "/api/tracking-exports": ["../Surveys/**/*"],
     "/api/hh-girls": ["../Surveys/**/*"],
     "/api/hh-girls/exports": ["../Surveys/**/*"],
