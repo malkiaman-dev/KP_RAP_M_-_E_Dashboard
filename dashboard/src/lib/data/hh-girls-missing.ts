@@ -1,13 +1,13 @@
 import {
   analyzeParentSlot,
-  isCaretakerMarkedUnavailable,
   isCaretakerSurveyComplete,
-  isCompletedHouseholdForGirl,
-  isGirlUnavailableWithoutRevisit,
-  isTemporaryGirlUnavailable,
-  pickGirlsRow,
 } from "./hh-girls-completion";
-import type { HhGirlsRow } from "./hh-girls-metrics";
+import {
+  isCaretakerRespondent,
+  isFatherRespondent,
+  isMotherRespondent,
+  type HhGirlsRow,
+} from "./hh-girls-metrics";
 import {
   toHhGirlsExportRow,
   type HhGirlsExportRow,
@@ -19,6 +19,7 @@ export type HhGirlsMissingListKey =
   | "missingMotherSurveys"
   | "missingGirlSurveys"
   | "missingCaretakerSurveys"
+  | "missingBothParentsSurveys"
   | "totalMissingSurveys";
 
 export interface HhGirlsMissingDetailMetrics {
@@ -26,6 +27,8 @@ export interface HhGirlsMissingDetailMetrics {
   missingMotherSurveys: number;
   missingGirlSurveys: number;
   missingCaretakerSurveys: number;
+  /** People (father + mother) missing because a girls survey has no HH form: 2 per household. */
+  missingBothParentsSurveys: number;
   totalMissingSurveys: number;
   girlsWithAnyMissing: number;
 }
@@ -40,6 +43,7 @@ function emptyMissingLists(): Record<HhGirlsMissingListKey, HhGirlsExportRow[]> 
     missingMotherSurveys: [],
     missingGirlSurveys: [],
     missingCaretakerSurveys: [],
+    missingBothParentsSurveys: [],
     totalMissingSurveys: [],
   };
 }
@@ -51,15 +55,6 @@ function rowTimestamp(row: HhGirlsRow): number {
 function latestRow(rows: HhGirlsRow[]): HhGirlsRow | undefined {
   if (rows.length === 0) return undefined;
   return [...rows].sort((a, b) => rowTimestamp(b) - rowTimestamp(a))[0];
-}
-
-function isGirlSurveyComplete(gsRow: HhGirlsRow | undefined): boolean {
-  if (!gsRow) return false;
-  return (
-    gsRow.girl_available === "1" &&
-    gsRow.parental_consent_agree === "1" &&
-    gsRow.child_consent_agree === "1"
-  );
 }
 
 function toMissingExportRow(
@@ -75,13 +70,29 @@ function toMissingExportRow(
   };
 }
 
+/** Latest HH form where this person was available and agreed consent. */
+function latestAgreedRow(
+  hhSubs: HhGirlsRow[],
+  field: "agree_consent_father" | "agree_consent_mother" | "agree_consent_caregiver"
+): HhGirlsRow | undefined {
+  return latestRow(hhSubs.filter((s) => (s[field] || "").trim() === "1"));
+}
+
 /**
- * A survey is "missing" when it is still required for HH completion,
- * was not permanently waived, is not in an active temporary-revisit queue,
- * and has not been successfully interviewed yet.
+ * A survey is "missing" when the respondent was available and agreed consent
+ * but their own form was never submitted. This differs from a revisit, where
+ * the respondent was unavailable.
  *
- * Example: mother + girl done, father available / not coded unavailable,
- * but no father form → missing father survey.
+ * - Father / mother / caretaker: consent agreed on an HH form (e.g. both
+ *   parents available and agreed) but no form with them as respondent.
+ * - No HH form at all but a girls survey exists: father and mother both
+ *   missing, one row per person (2 per household) in their own list.
+ *
+ * All counts are people (one missing survey each), not households.
+ * - Girl: the HH side is done (each parent interviewed, permanently
+ *   unavailable or refused, with at least one interviewed; or the caretaker
+ *   interviewed when both parents are permanently away) but no girls survey
+ *   was submitted.
  */
 export function computeHhGirlsMissingDetail(
   household: HhGirlsRow[],
@@ -89,129 +100,86 @@ export function computeHhGirlsMissingDetail(
 ): HhGirlsMissingDetailData {
   const lists = emptyMissingLists();
   const hhByGirl = new Map<string, HhGirlsRow[]>();
-  const gsByGirl = new Map<string, HhGirlsRow>();
-  const girlIds = new Set<string>();
+  const latestGirlsRow = new Map<string, HhGirlsRow>();
 
   for (const row of household) {
     if (!row.girl) continue;
-    girlIds.add(row.girl);
     if (!hhByGirl.has(row.girl)) hhByGirl.set(row.girl, []);
     hhByGirl.get(row.girl)!.push(row);
   }
   for (const row of girls) {
     if (!row.girl) continue;
-    girlIds.add(row.girl);
-    gsByGirl.set(row.girl, pickGirlsRow(gsByGirl.get(row.girl), row));
+    const prev = latestGirlsRow.get(row.girl);
+    latestGirlsRow.set(row.girl, latestRow(prev ? [prev, row] : [row])!);
   }
 
   const girlsWithMissing = new Set<string>();
+  const add = (
+    key: Exclude<HhGirlsMissingListKey, "totalMissingSurveys">,
+    exportRow: HhGirlsExportRow,
+    girl: string
+  ) => {
+    lists[key].push(exportRow);
+    lists.totalMissingSurveys.push(exportRow);
+    girlsWithMissing.add(girl);
+  };
 
-  for (const girl of girlIds) {
-    const hhSubs = hhByGirl.get(girl) || [];
-    const gsRow = gsByGirl.get(girl);
-    const rep = latestRow(gsRow ? [...hhSubs, gsRow] : hhSubs);
-    if (!rep) continue;
-
-    // Already complete households have nothing missing
-    if (isCompletedHouseholdForGirl(hhSubs, gsRow)) continue;
-
-    const father = analyzeParentSlot(hhSubs, "father");
-    const mother = analyzeParentSlot(hhSubs, "mother");
-    const bothParentsPermanent =
-      father.isPermanentlyUnavailable && mother.isPermanentlyUnavailable;
-    // Every parent refused consent or is permanently away, with ≥1 refusal:
-    // the household refused, so nothing further is required (no revisit).
-    const householdRefused =
-      (father.hasRefusedConsent || mother.hasRefusedConsent) &&
-      (father.hasRefusedConsent || father.isPermanentlyUnavailable) &&
-      (mother.hasRefusedConsent || mother.isPermanentlyUnavailable);
-    if (householdRefused) continue;
-
-    // --- Father ---
-    // Required unless permanently unavailable or both-parents-permanent (caretaker path)
-    if (
-      !bothParentsPermanent &&
-      !father.isPermanentlyUnavailable &&
-      !father.hasCompleteInterview &&
-      !father.hasRefusedConsent &&
-      !father.hasPendingTemporaryUnavailable
-    ) {
-      const exportRow = toMissingExportRow(
-        rep,
-        "Father",
-        "Required father interview not filed"
+  for (const [girl, hhSubs] of hhByGirl) {
+    const fatherAgreed = latestAgreedRow(hhSubs, "agree_consent_father");
+    if (fatherAgreed && !hhSubs.some((s) => isFatherRespondent(s.respondent))) {
+      add(
+        "missingFatherSurveys",
+        toMissingExportRow(fatherAgreed, "Father", "Father agreed consent but his form was not submitted"),
+        girl
       );
-      lists.missingFatherSurveys.push(exportRow);
-      lists.totalMissingSurveys.push(exportRow);
-      girlsWithMissing.add(girl);
     }
 
-    // --- Mother ---
-    if (
-      !bothParentsPermanent &&
-      !mother.isPermanentlyUnavailable &&
-      !mother.hasCompleteInterview &&
-      !mother.hasRefusedConsent &&
-      !mother.hasPendingTemporaryUnavailable
-    ) {
-      const exportRow = toMissingExportRow(
-        rep,
-        "Mother",
-        "Required mother interview not filed"
+    const motherAgreed = latestAgreedRow(hhSubs, "agree_consent_mother");
+    if (motherAgreed && !hhSubs.some((s) => isMotherRespondent(s.respondent))) {
+      add(
+        "missingMotherSurveys",
+        toMissingExportRow(motherAgreed, "Mother", "Mother agreed consent but her form was not submitted"),
+        girl
       );
-      lists.missingMotherSurveys.push(exportRow);
-      lists.totalMissingSurveys.push(exportRow);
-      girlsWithMissing.add(girl);
     }
 
-    // --- Girl ---
-    const girlTempPending =
-      Boolean(gsRow) &&
-      isTemporaryGirlUnavailable(
-        gsRow!.girl_available,
-        gsRow!.girl_available_reason
-      ) &&
-      !isGirlSurveyComplete(gsRow);
+    const caretakerAgreed = latestAgreedRow(hhSubs, "agree_consent_caregiver");
+    if (caretakerAgreed && !hhSubs.some((s) => isCaretakerRespondent(s))) {
+      add(
+        "missingCaretakerSurveys",
+        toMissingExportRow(caretakerAgreed, "Caretaker", "Caretaker agreed consent but the form was not submitted"),
+        girl
+      );
+    }
 
-    if (!isGirlSurveyComplete(gsRow) && !girlTempPending) {
-      // Permanent / non-revisit unavailability (codes 2, 3) is not a "skipped" survey
-      const permanentlyUnavailableGirl =
-        Boolean(gsRow) &&
-        isGirlUnavailableWithoutRevisit(
-          gsRow!.girl_available,
-          gsRow!.girl_available_reason
+    if (!latestGirlsRow.has(girl)) {
+      const father = analyzeParentSlot(hhSubs, "father");
+      const mother = analyzeParentSlot(hhSubs, "mother");
+      const hhDone =
+        father.isPermanentlyUnavailable && mother.isPermanentlyUnavailable
+          ? isCaretakerSurveyComplete(hhSubs)
+          : (father.hasCompleteInterview ||
+              father.isPermanentlyUnavailable ||
+              father.hasRefusedConsent) &&
+            (mother.hasCompleteInterview ||
+              mother.isPermanentlyUnavailable ||
+              mother.hasRefusedConsent) &&
+            (father.hasCompleteInterview || mother.hasCompleteInterview);
+      if (hhDone) {
+        add(
+          "missingGirlSurveys",
+          toMissingExportRow(latestRow(hhSubs)!, "Girl", "HH survey done but girls survey not submitted"),
+          girl
         );
-
-      if (!permanentlyUnavailableGirl) {
-        const exportRow = toMissingExportRow(
-          rep,
-          "Girl",
-          gsRow
-            ? "Girls survey not completed"
-            : "Girls survey not filed"
-        );
-        lists.missingGirlSurveys.push(exportRow);
-        lists.totalMissingSurveys.push(exportRow);
-        girlsWithMissing.add(girl);
       }
     }
+  }
 
-    // --- Caretaker ---
-    // Required only when both parents are permanently unavailable
-    if (
-      bothParentsPermanent &&
-      !isCaretakerSurveyComplete(hhSubs) &&
-      !isCaretakerMarkedUnavailable(hhSubs)
-    ) {
-      const exportRow = toMissingExportRow(
-        rep,
-        "Caretaker",
-        "Both parents permanently unavailable — caretaker interview not filed"
-      );
-      lists.missingCaretakerSurveys.push(exportRow);
-      lists.totalMissingSurveys.push(exportRow);
-      girlsWithMissing.add(girl);
-    }
+  for (const [girl, gsRow] of latestGirlsRow) {
+    if (hhByGirl.has(girl)) continue;
+    const reason = "Girls survey submitted but no HH survey";
+    add("missingBothParentsSurveys", toMissingExportRow(gsRow, "Father", reason), girl);
+    add("missingBothParentsSurveys", toMissingExportRow(gsRow, "Mother", reason), girl);
   }
 
   return {
@@ -219,6 +187,7 @@ export function computeHhGirlsMissingDetail(
     missingMotherSurveys: lists.missingMotherSurveys.length,
     missingGirlSurveys: lists.missingGirlSurveys.length,
     missingCaretakerSurveys: lists.missingCaretakerSurveys.length,
+    missingBothParentsSurveys: lists.missingBothParentsSurveys.length,
     totalMissingSurveys: lists.totalMissingSurveys.length,
     girlsWithAnyMissing: girlsWithMissing.size,
     lists,

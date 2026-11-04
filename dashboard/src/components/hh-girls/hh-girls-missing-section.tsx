@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronDown,
   ClipboardX,
+  Home,
   UserRound,
   UserRoundSearch,
   Users,
@@ -31,18 +32,18 @@ const cards: {
   {
     label: "Total Missing Surveys",
     exportLabel: "total-missing",
-    hint: "All required father, mother, girl, or caretaker interviews still not filed",
+    hint: "People with a missing survey: sum of all cards (father + mother + father & mother + girl + caretaker)",
     icon: ClipboardX,
     color: "text-amber-700",
     listKey: "totalMissingSurveys",
     value: (d) => d.totalMissingSurveys,
     hoverDetail: (d) =>
-      `${d.girlsWithAnyMissing} girl(s) with at least one missing survey`,
+      `${d.totalMissingSurveys} people across ${d.girlsWithAnyMissing} household(s)`,
   },
   {
     label: "Missing Father Surveys",
     exportLabel: "missing-father",
-    hint: "Father was required and available (not permanent / not in revisit queue) but no father interview filed",
+    hint: "Father was available and agreed consent on an HH form, but no form with father as respondent was submitted",
     icon: UserRound,
     color: "text-gold",
     listKey: "missingFatherSurveys",
@@ -51,16 +52,26 @@ const cards: {
   {
     label: "Missing Mother Surveys",
     exportLabel: "missing-mother",
-    hint: "Mother was required and available but no mother interview filed",
+    hint: "Mother was available and agreed consent on an HH form, but no form with mother as respondent was submitted",
     icon: UserRound,
     color: "text-teal",
     listKey: "missingMotherSurveys",
     value: (d) => d.missingMotherSurveys,
   },
   {
+    label: "Missing Father & Mother",
+    exportLabel: "missing-father-and-mother",
+    hint: "Girls survey submitted but no HH survey at all: father and mother both missing, so each household counts 2 people",
+    icon: Home,
+    color: "text-orange-600",
+    listKey: "missingBothParentsSurveys",
+    value: (d) => d.missingBothParentsSurveys,
+    hoverDetail: (d) => `${d.missingBothParentsSurveys / 2} household(s) with no HH survey`,
+  },
+  {
     label: "Missing Girl Surveys",
     exportLabel: "missing-girl",
-    hint: "Girls survey still required and not completed (and not in a temporary-revisit queue)",
+    hint: "HH survey done (parents interviewed, permanently unavailable or refused) but no girls survey submitted",
     icon: Users,
     color: "text-blue-500",
     listKey: "missingGirlSurveys",
@@ -69,7 +80,7 @@ const cards: {
   {
     label: "Missing Caretaker Surveys",
     exportLabel: "missing-caretaker",
-    hint: "Both parents permanently unavailable but caretaker interview not filed",
+    hint: "Caretaker agreed consent on an HH form, but no form with caretaker as respondent was submitted",
     icon: UserRoundSearch,
     color: "text-violet-500",
     listKey: "missingCaretakerSurveys",
@@ -112,10 +123,13 @@ export function HhGirlsMissingSection({
           </div>
           {expanded && (
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Required interviews that were skipped while the respondent was
-              available (not permanently unavailable, and not waiting on a
-              temporary revisit). Example: mother + girl done, father never
-              filed. Click a card to download Excel.
+              Respondent was available and agreed consent, but their form was
+              not submitted. Example: both parents available and agreed, only
+              the mother&apos;s form submitted → father missing; or HH survey done
+              but no girls survey → girl missing. Unlike revisits, where the
+              respondent was unavailable. A girls survey with no HH survey at
+              all counts under Missing Father &amp; Mother. Click a card to
+              download Excel.
             </p>
           )}
         </div>
@@ -147,9 +161,9 @@ export function HhGirlsMissingSection({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 sm:p-5 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 sm:p-5 lg:grid-cols-6">
               {loading || !d ? (
-                <StatCardSkeleton count={5} />
+                <StatCardSkeleton count={6} />
               ) : (
                 cards.map((card, i) => {
                     const Icon = card.icon;
