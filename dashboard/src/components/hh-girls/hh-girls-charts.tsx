@@ -37,27 +37,63 @@ export function HhGirlsCharts({
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <ChartCard title="Survey Mix" subtitle="Father, mother, and girls forms" index={0}>
-        <ChartArea>
-          <PieChart>
-            <Pie
-              data={c.surveyMix}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              innerRadius={55}
-              outerRadius={85}
-              paddingAngle={2}
-            >
-              {c.surveyMix.map((entry) => (
-                <Cell key={entry.name} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend {...legendProps} />
-          </PieChart>
-        </ChartArea>
+      <ChartCard
+        title="Survey Mix"
+        subtitle="Father, mother and girls attempted (unique girls)"
+        index={0}
+      >
+        <div className="flex flex-1 flex-col">
+          <ChartArea>
+            <PieChart>
+              <Pie
+                data={c.surveyMix}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={62}
+                outerRadius={92}
+                paddingAngle={2}
+                stroke="var(--card)"
+                strokeWidth={2}
+              >
+                {c.surveyMix.map((entry) => (
+                  <Cell key={entry.name} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={tooltipStyle} cursor={false} />
+              <text
+                x="50%"
+                y="47%"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className="fill-foreground text-2xl font-bold"
+              >
+                {c.surveyMix.reduce((sum, d) => sum + d.value, 0).toLocaleString()}
+              </text>
+              <text
+                x="50%"
+                y="58%"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className="fill-muted-foreground text-[10px] uppercase tracking-wide"
+              >
+                Total attempted
+              </text>
+            </PieChart>
+          </ChartArea>
+          <div className="mt-1 flex flex-wrap justify-center gap-x-4 gap-y-1">
+            {c.surveyMix.map((d) => (
+              <span key={d.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: d.color }} aria-hidden="true" />
+                {d.name}
+                <span className="font-semibold tabular-nums text-foreground">
+                  {d.value.toLocaleString()}
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
       </ChartCard>
 
       <ChartCard title="Unavailability" subtitle="By tracked girl" index={1}>

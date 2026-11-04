@@ -753,12 +753,12 @@ export function computeHhGirlsMetrics(
     })
   );
 
+  // Attempted = unique girls with that respondent's form (same as the cards).
   const surveyMix = [
-    { name: "Father surveys", value: fatherSurveys, color: "#EDCA5C" },
-    { name: "Mother surveys", value: motherSurveys, color: "#21A1AA" },
-    { name: "Caretaker surveys", value: caretakerSurveys, color: "#A78BFA" },
-    { name: "Girls surveys", value: girlsSurveys, color: "#3B82F6" },
-  ].filter((x) => x.value > 0);
+    { name: "Father attempted", value: fatherSurveys, color: "#D4A72C" },
+    { name: "Mother attempted", value: motherSurveys, color: "#21A1AA" },
+    { name: "Girls attempted", value: girlsSurveys, color: "#3B82F6" },
+  ];
 
   const unavailabilityBreakdown = [
     { name: "Father not available", value: fatherNotAvailable, color: "#F59E0B" },

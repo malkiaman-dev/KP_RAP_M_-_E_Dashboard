@@ -120,6 +120,120 @@ export function StatCard({
   );
 }
 
+export type StatCardHalf = Pick<
+  StatCardProps,
+  "label" | "value" | "icon" | "color" | "hint" | "hoverDetail" | "onClick"
+>;
+
+/**
+ * One KPI card split down the middle into two related values (e.g. completed
+ * vs consent refused on a revisit). Each half has its own colour, hint and
+ * click action.
+ */
+export function SplitStatCard({
+  left,
+  right,
+  index = 0,
+  muted = false,
+}: {
+  left: StatCardHalf;
+  right: StatCardHalf;
+  index?: number;
+  muted?: boolean;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        delay: index * 0.035,
+        type: "spring",
+        stiffness: 260,
+        damping: 24,
+      }}
+      whileHover={{ y: -3 }}
+      className={cn(
+        "kpi-border relative grid grid-cols-2 divide-x divide-border/60 rounded-xl",
+        muted
+          ? "border border-border/50 bg-muted/30 transition-colors hover:border-teal/30 hover:bg-card"
+          : "surface-card"
+      )}
+    >
+      {[left, right].map((half) => (
+        <SplitStatHalf key={half.label} {...half} />
+      ))}
+    </motion.div>
+  );
+}
+
+function SplitStatHalf({
+  label,
+  value,
+  icon: Icon,
+  color = "text-foreground",
+  hint,
+  hoverDetail,
+  onClick,
+}: StatCardHalf) {
+  return (
+    <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      className={cn(
+        "group relative min-w-0 px-4 py-3",
+        onClick &&
+          "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/40"
+      )}
+      title={hoverDetail ? undefined : hint}
+    >
+      {hoverDetail && (
+        <div
+          role="tooltip"
+          className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-max max-w-[220px] -translate-x-1/2 rounded-lg border border-border/80 bg-card px-3 py-2 text-[10px] leading-relaxed text-foreground shadow-lg opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+        >
+          {hoverDetail}
+        </div>
+      )}
+
+      {Icon && (
+        <span
+          className={cn(
+            "mb-2 flex h-6 w-6 items-center justify-center rounded-md bg-current/10 transition-transform duration-300 group-hover:scale-110",
+            color
+          )}
+        >
+          <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+        </span>
+      )}
+
+      <p className="text-[10px] font-medium uppercase leading-tight tracking-wide text-muted-foreground wrap-break-word">
+        {label}
+      </p>
+
+      <p className={cn("mt-1 text-xl font-bold tabular-nums", color)}>
+        <AnimatedCounter value={value} />
+      </p>
+
+      {hint && (
+        <p className="mt-0.5 whitespace-pre-line text-[10px] leading-tight text-muted-foreground">
+          {hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** Shimmer skeleton card for KPI loading states. */
 export function StatCardSkeleton({ count = 8 }: { count?: number }) {
   return (

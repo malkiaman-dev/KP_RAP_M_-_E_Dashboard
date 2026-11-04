@@ -3,6 +3,7 @@ import {
   analyzeParentSlot,
   isCaretakerMarkedUnavailable,
   isCaretakerSurveyComplete,
+  isPermanentGirlUnavailable,
   isPermanentParentUnavailable,
   isTemporaryGirlUnavailable,
   isTemporaryParentUnavailable,
@@ -73,7 +74,9 @@ export type HhGirlsRevisitListKey =
   | "slotsNotCompletedOn3rdRevisit"
   | "totalRevisitedGirls"
   | "notFoundAfter2nd"
-  | "notFoundAfter3rd";
+  | "notFoundAfter3rd"
+  | "consentRefusedOn2ndRevisit"
+  | "consentRefusedOn3rdRevisit";
 
 export interface HhGirlsRevisitDetailMetrics {
   revisitsNeedToBeDone: number;
@@ -88,11 +91,21 @@ export interface HhGirlsRevisitDetailMetrics {
   slotsNotCompletedOn3rdRevisit: number;
   totalRevisitedGirls: number;
   revisitSubmissions: number;
-  /** Still unavailable on attempt 2 with no revisit left (father) → permanently not found. */
+  /** Not found on attempt 2 with no revisit left (father), or found permanently away → permanently not found. */
   notFoundAfter2nd: number;
-  /** Still unavailable on attempt 3 (mother / girl / caretaker) → permanently not found. */
+  /** Not found on attempt 3 (last revisit), or found permanently away → permanently not found. */
   notFoundAfter3rd: number;
+  /** How each attempt-2 / attempt-3 submission ended; each sums to that attempt's revisited count. */
+  revisit2Outcomes: Record<RevisitOutcome, number>;
+  revisit3Outcomes: Record<RevisitOutcome, number>;
 }
+
+export type RevisitOutcome =
+  | "completed"
+  | "notFound"
+  | "nextAttempt"
+  | "consentRefused"
+  | "other";
 
 export interface HhGirlsRevisitDetailData extends HhGirlsRevisitDetailMetrics {
   lists: Record<HhGirlsRevisitListKey, HhGirlsExportRow[]>;
@@ -122,6 +135,8 @@ function emptyRevisitLists(): Record<HhGirlsRevisitListKey, HhGirlsExportRow[]> 
     totalRevisitedGirls: [],
     notFoundAfter2nd: [],
     notFoundAfter3rd: [],
+    consentRefusedOn2ndRevisit: [],
+    consentRefusedOn3rdRevisit: [],
   };
 }
 
@@ -588,6 +603,49 @@ function slotPendingRevisit(
   return null;
 }
 
+function isPermanentlyAway(row: HhGirlsRow, slot: HhGirlsSurveySlot): boolean {
+  if (slot === "father") return isPermanentParentUnavailable(row.father_unavailable1);
+  if (slot === "mother") return isPermanentParentUnavailable(row.mother_unavailable1);
+  if (slot === "girls") {
+    return row.girl_available === "0" && isPermanentGirlUnavailable(row.girl_available_reason);
+  }
+  return false;
+}
+
+function isSlotConsentRefused(row: HhGirlsRow, slot: HhGirlsSurveySlot): boolean {
+  if (slot === "girls") {
+    return row.parental_consent_agree === "0" || row.child_consent_agree === "0";
+  }
+  if (slot === "father") return row.agree_consent_father === "0";
+  if (slot === "mother") return row.agree_consent_mother === "0";
+  return row.agree_consent_caregiver === "0";
+}
+
+/**
+ * How a revisit submission ended. Not found = still temporarily unavailable
+ * with no revisit left, or found to be permanently away (another city /
+ * country, passed away); either way no further revisit.
+ */
+function revisitOutcome(
+  row: HhGirlsRow,
+  slot: HhGirlsSurveySlot,
+  attempt: number
+): RevisitOutcome {
+  if (isSlotComplete(row, slot)) return "completed";
+  if (isPermanentlyAway(row, slot)) return "notFound";
+  if (priorAttemptRequiresRevisit(row, slot)) {
+    return attempt < maxAttemptForSlot(slot as HhGirlsRevisitSlot)
+      ? "nextAttempt"
+      : "notFound";
+  }
+  if (isSlotConsentRefused(row, slot)) return "consentRefused";
+  return "other";
+}
+
+function emptyOutcomes(): Record<RevisitOutcome, number> {
+  return { completed: 0, notFound: 0, nextAttempt: 0, consentRefused: 0, other: 0 };
+}
+
 export function computeHhGirlsRevisitDetail(
   household: HhGirlsRow[],
   girls: HhGirlsRow[]
@@ -606,6 +664,8 @@ export function computeHhGirlsRevisitDetail(
   let slotsNotCompletedOn3rdRevisit = 0;
   let notFoundAfter2nd = 0;
   let notFoundAfter3rd = 0;
+  const revisit2Outcomes = emptyOutcomes();
+  const revisit3Outcomes = emptyOutcomes();
 
   const revisitSubmissions = [...household, ...girls].filter(
     (r) => parseAttempt(r) > 1
@@ -648,17 +708,16 @@ export function computeHhGirlsRevisitDetail(
       );
       lists.girls2ndRevisited.push(exportRow);
       if (girl) revisitedGirls.set(girl, exportRow);
+      const outcome = revisitOutcome(second, slot, 2);
+      revisit2Outcomes[outcome] += 1;
+      if (outcome === "consentRefused") lists.consentRefusedOn2ndRevisit.push(exportRow);
       if (isSlotComplete(second, slot)) {
         slotsCompletedOn2ndRevisit += 1;
         lists.slotsCompletedOn2ndRevisit.push(exportRow);
       } else {
         slotsNotCompletedOn2ndRevisit += 1;
         lists.slotsNotCompletedOn2ndRevisit.push(exportRow);
-        // Still unavailable and no further revisit allowed → permanently not found.
-        if (
-          priorAttemptRequiresRevisit(second, slot) &&
-          maxAttemptForSlot(slot as HhGirlsRevisitSlot) <= 2
-        ) {
+        if (outcome === "notFound") {
           notFoundAfter2nd += 1;
           lists.notFoundAfter2nd.push(exportRow);
         }
@@ -675,13 +734,16 @@ export function computeHhGirlsRevisitDetail(
       );
       lists.girls3rdRevisited.push(exportRow);
       if (girl) revisitedGirls.set(girl, exportRow);
+      const outcome = revisitOutcome(third, slot, 3);
+      revisit3Outcomes[outcome] += 1;
+      if (outcome === "consentRefused") lists.consentRefusedOn3rdRevisit.push(exportRow);
       if (isSlotComplete(third, slot)) {
         slotsCompletedOn3rdRevisit += 1;
         lists.slotsCompletedOn3rdRevisit.push(exportRow);
       } else {
         slotsNotCompletedOn3rdRevisit += 1;
         lists.slotsNotCompletedOn3rdRevisit.push(exportRow);
-        if (priorAttemptRequiresRevisit(third, slot)) {
+        if (outcome === "notFound") {
           notFoundAfter3rd += 1;
           lists.notFoundAfter3rd.push(exportRow);
         }
@@ -710,6 +772,8 @@ export function computeHhGirlsRevisitDetail(
     revisitSubmissions,
     notFoundAfter2nd,
     notFoundAfter3rd,
+    revisit2Outcomes,
+    revisit3Outcomes,
     lists,
   };
 }

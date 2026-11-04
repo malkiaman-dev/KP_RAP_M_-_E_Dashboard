@@ -5,12 +5,18 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   CheckCircle2,
   ChevronDown,
+  Handshake,
   RefreshCw,
   Target,
   UserX,
   Users,
 } from "lucide-react";
-import { StatCard, StatCardSkeleton } from "@/components/ui/stat-card";
+import {
+  SplitStatCard,
+  StatCard,
+  StatCardSkeleton,
+  type StatCardHalf,
+} from "@/components/ui/stat-card";
 import { cn } from "@/lib/utils";
 import type { HhGirlsMetrics } from "@/lib/data/hh-girls-metrics";
 import type { HhGirlsExportRow } from "@/lib/data/hh-girls-revisit";
@@ -18,20 +24,37 @@ import { downloadHhGirlsExcel } from "@/lib/export/hh-girls-excel";
 
 type Detail = NonNullable<HhGirlsMetrics["revisitDetail"]>;
 
+/** Revisited = completed + not found + next attempt + consent refused + other. */
+function outcomeBreakdown(o: Detail["revisit2Outcomes"]): string {
+  const parts = [
+    `Completed: ${o.completed}`,
+    `Not found: ${o.notFound}`,
+    o.nextAttempt ? `Moved to 3rd attempt: ${o.nextAttempt}` : "",
+    o.consentRefused ? `Consent refused: ${o.consentRefused}` : "",
+    o.other ? `Other: ${o.other}` : "",
+  ];
+  return parts.filter(Boolean).join(" · ");
+}
+
 /** "all" = full-width card below both attempt columns. */
 type Group = "1st" | "2nd" | "all";
 
-const cards: {
+type CardConfig = {
   label: string;
   hint: string;
   exportLabel: string;
   icon: typeof RefreshCw;
   color: string;
-  group: Group;
   value: (d: Detail) => number;
   getList: (d: Detail) => HhGirlsExportRow[];
   hoverDetail?: (d: Detail) => string;
-}[] = [
+};
+
+const cards: (CardConfig & {
+  group: Group;
+  /** Second value shown in the right half of a split card. */
+  split?: CardConfig;
+})[] = [
   {
     label: "Revisit Needed",
     exportLabel: "1st-revisit-needed",
@@ -51,7 +74,7 @@ const cards: {
     group: "1st",
     value: (d) => d.girls2ndRevisited,
     getList: (d) => d.lists.girls2ndRevisited,
-    hoverDetail: (d) => `Not found on revisit: ${d.slotsNotCompletedOn2ndRevisit}`,
+    hoverDetail: (d) => outcomeBreakdown(d.revisit2Outcomes),
   },
   {
     label: "Completed on Revisit",
@@ -62,11 +85,20 @@ const cards: {
     group: "1st",
     value: (d) => d.slotsCompletedOn2ndRevisit,
     getList: (d) => d.lists.slotsCompletedOn2ndRevisit,
+    split: {
+      label: "Consent Refused",
+      exportLabel: "consent-refused-on-1st-revisit",
+      hint: "Found on the 1st revisit (attempt 2) but consent was refused",
+      icon: Handshake,
+      color: "text-red-500",
+      value: (d) => d.revisit2Outcomes.consentRefused,
+      getList: (d) => d.lists.consentRefusedOn2ndRevisit,
+    },
   },
   {
     label: "Not Found",
     exportLabel: "permanently-not-found",
-    hint: "Permanently not found: still unavailable after the last revisit allowed (father after attempt 2; mother / girl / caretaker after attempt 3)",
+    hint: "Permanently not found: still unavailable after the last revisit allowed (father after attempt 2; mother / girl / caretaker after attempt 3), or found on a revisit to be permanently away (another city / country, passed away)",
     icon: UserX,
     color: "text-red-500",
     group: "all",
@@ -94,7 +126,7 @@ const cards: {
     group: "2nd",
     value: (d) => d.girls3rdRevisited,
     getList: (d) => d.lists.girls3rdRevisited,
-    hoverDetail: (d) => `Not found on revisit: ${d.slotsNotCompletedOn3rdRevisit}`,
+    hoverDetail: (d) => outcomeBreakdown(d.revisit3Outcomes),
   },
   {
     label: "Completed on Revisit",
@@ -105,6 +137,15 @@ const cards: {
     group: "2nd",
     value: (d) => d.slotsCompletedOn3rdRevisit,
     getList: (d) => d.lists.slotsCompletedOn3rdRevisit,
+    split: {
+      label: "Consent Refused",
+      exportLabel: "consent-refused-on-2nd-revisit",
+      hint: "Found on the 2nd revisit (attempt 3) but consent was refused",
+      icon: Handshake,
+      color: "text-red-500",
+      value: (d) => d.revisit3Outcomes.consentRefused,
+      getList: (d) => d.lists.consentRefusedOn3rdRevisit,
+    },
   },
 ];
 
@@ -118,7 +159,31 @@ function downloadCardList(rows: HhGirlsExportRow[], exportLabel: string) {
   downloadHhGirlsExcel(rows, `hh-girls-follow-up-${exportLabel}-${date}.xlsx`);
 }
 
+function toHalf(card: CardConfig, d: Detail): StatCardHalf {
+  const list = card.getList(d);
+  return {
+    label: card.label,
+    value: card.value(d),
+    icon: card.icon,
+    color: card.color,
+    hint: card.hint,
+    hoverDetail: card.hoverDetail?.(d),
+    onClick: list.length ? () => downloadCardList(list, card.exportLabel) : undefined,
+  };
+}
+
 function renderCard(card: (typeof cards)[number], index: number, d: Detail) {
+  if (card.split) {
+    return (
+      <SplitStatCard
+        key={card.label}
+        index={index}
+        muted
+        left={toHalf(card, d)}
+        right={toHalf(card.split, d)}
+      />
+    );
+  }
   const list = card.getList(d);
   return (
     <StatCard
