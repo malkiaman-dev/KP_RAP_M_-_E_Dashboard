@@ -595,6 +595,9 @@ UNAVAILABLE_REASON_MAP = {
     "6": "Other (specify)",
 }
 
+# Parent unavailable codes that mean the parent will never be interviewed.
+PARENT_PERMANENT_UNAVAILABLE = {"3", "4", "5"}
+
 AVAILABLE_DAYS_TIME_MAP = {
     "1": "Monday (7 am to 9 am)",
     "2": "Monday (9 am to 11 am)",
@@ -1459,6 +1462,92 @@ def run(df: pd.DataFrame, col: dict) -> list[dict]:
                     f"{gid_col},{respondent_code_col}",
                     f"girl={gidv}; respondent_type={resp_label}; mismatched={','.join(mismatched)}",
                 )
+
+    # =========================================================
+    # HH_CR_PARENT_STATUS_CONFLICT: same girl, a parent is present on one HH
+    # form (consent answered, or the respondent) but recorded as permanently
+    # unavailable (3 another city / 4 another country / 5 passed away) on another.
+    # Flagged on the permanently-unavailable form.
+    # =========================================================
+    enum_name_col = _find_existing(df, ["enumerator_name", enum or "enumerator"])
+    parent_status_cols = [
+        ("Father", "1", consent_father_col, father_unavail_col),
+        ("Mother", "2", consent_mother_col, mother_unavail_col),
+    ]
+    if gid_col and gid_col in df.columns and respondent_code_col and respondent_code_col in df.columns:
+
+        def _start_dt(j):
+            dt = _parse_date_any(df.at[j, start_col]) if (start_col and start_col in df.columns) else None
+            if dt is None and sub and sub in df.columns:
+                dt = _parse_date_any(df.at[j, sub])
+            return dt
+
+        def _form_txt(j) -> str:
+            raw = df.at[j, enum_name_col] if enum_name_col else None
+            who = "" if raw is None or pd.isna(raw) else str(raw)
+            who = re.sub(r"\(.*\)", "", who).strip() or "unknown enumerator"
+            dt = _start_dt(j)
+            when = f"{dt.day} {dt:%b}" if dt else "date unknown"
+            return f"{who} ({when})"
+
+        def _code(j, c) -> str:
+            # columns may load as floats (4.0)
+            n = _to_num(df.at[j, c])
+            return str(int(n)) if n is not None else _norm_str(df.at[j, c])
+
+        gids = df[gid_col].map(_norm_str)
+        for gidv, subg in df[gids != ""].groupby(gids[gids != ""]):
+            idxs = list(subg.index)
+            if len(idxs) < 2:
+                continue
+            for label, resp_code, consent_c, unavail_c in parent_status_cols:
+                if not unavail_c or unavail_c not in df.columns:
+                    continue
+                away = [j for j in idxs if _code(j, unavail_c) in PARENT_PERMANENT_UNAVAILABLE]
+                if not away:
+                    continue
+                present = [
+                    j
+                    for j in idxs
+                    if j not in away
+                    and (
+                        _resp_code(df.at[j, respondent_code_col]) == resp_code
+                        or (consent_c and consent_c in df.columns and _code(j, consent_c) in {"0", "1"})
+                    )
+                ]
+                if not present:
+                    continue
+                def _and_join(items: list[str]) -> str:
+                    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+                present = sorted(present, key=lambda j: (_start_dt(j) is None, _start_dt(j)))
+                present_txt = _and_join([_form_txt(j) for j in present])
+                pronoun = "him" if label == "Father" else "her"
+                present_names = _and_join(
+                    list(dict.fromkeys(re.sub(r" \(.*\)$", "", _form_txt(j)) for j in present))
+                )
+                for i in away:
+                    code = _code(i, unavail_c)
+                    reason = UNAVAILABLE_REASON_MAP.get(code, f"code {code}")
+                    desc = (
+                        f"This form says {label} '{reason}', but {present_txt} recorded "
+                        f"{pronoun} as available. Both cannot be true."
+                    )
+                    if len(desc) > MAX_MSG_LEN:
+                        # drop the dates so the message is never clipped
+                        desc = (
+                            f"This form says {label} '{reason}', but {present_names} recorded "
+                            f"{pronoun} as available. Both cannot be true."
+                        )
+                    add_issue(
+                        i,
+                        "CRITICAL",
+                        "HH_CR_PARENT_STATUS_CONFLICT",
+                        f"{label} away on this form, but available on another form",
+                        desc,
+                        f"{gid_col},{unavail_c},{respondent_code_col}",
+                        f"girl={gidv}; {unavail_c}={code}; present_on={len(present)} form(s)",
+                    )
 
     # =========================================================
     # HH_CR_12: days_school range check (0-12)

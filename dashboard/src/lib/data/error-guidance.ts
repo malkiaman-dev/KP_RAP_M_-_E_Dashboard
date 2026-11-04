@@ -493,6 +493,14 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoidUrdu:
       "Har parent ka consent jawab pehli dafa hi sahi record karein; agar consent No hai to supervisor ke baghair us household ka doosra form shuru na karein. Parent available na hone wala attempt supervisor ko batayein taake household mukammal hone ke baad usay void kiya ja sake.",
   },
+  HH_CR_PARENT_STATUS_CONFLICT: {
+    focus:
+      "Contradictory parent status across forms for the same girl: one form records the father/mother as permanently unavailable (another city, another country, passed away), another records them available, giving consent, or interviewed.",
+    avoid:
+      "Confirm the parent's status with the household before recording it. If the parent is present, do not code them as living elsewhere; if they truly live elsewhere, do not record their consent or interview. Report the conflict to the supervisor to void the wrong form.",
+    avoidUrdu:
+      "Parent ka status record karne se pehle household se confirm karein. Agar parent mojood hai to usay dusre shehar/mulk mein rehne wala na likhein; aur agar waqai bahar rehta hai to us ka consent ya interview record na karein. Ghalat form void karwane ke liye supervisor ko batayein.",
+  },
   HH_DUP_OTHER: {
     focus: "Duplicate household record where the respondent (Father/Mother) could not be determined.",
     avoid: "Confirm the respondent for each copy, keep the latest complete KEY, and void the rest after supervisor review.",
