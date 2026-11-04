@@ -275,14 +275,14 @@ function consentAnswerTime(row: HhGirlsRow): number {
 }
 
 /**
- * Unique people counted as consent refused, keyed `girl|person`, with the
- * deciding form. A person's own forms (as respondent) decide when they exist;
- * otherwise their answers on other people's forms do. Among the deciding
- * forms the latest answer wins (refused then agreed = not counted).
+ * Each person's consent decision, keyed `girl|person`, with the deciding form.
+ * A person's own forms (as respondent) decide when they exist; otherwise their
+ * answers on other people's forms do. Among the deciding forms the latest
+ * answer wins (refused then agreed = agreed).
  */
-export function consentRefusedPeople(
+export function consentDecisions(
   rows: HhGirlsRow[]
-): Map<string, { person: ConsentPerson; row: HhGirlsRow }> {
+): Map<string, { person: ConsentPerson; agreed: boolean; row: HhGirlsRow }> {
   type Latest = { agreed: boolean; row: HhGirlsRow; time: number };
   type Tally = { person: ConsentPerson; own?: Latest; other?: Latest };
   const byPerson = new Map<string, Tally>();
@@ -301,12 +301,26 @@ export function consentRefusedPeople(
     }
   }
 
-  const refused = new Map<string, { person: ConsentPerson; row: HhGirlsRow }>();
+  const decisions = new Map<
+    string,
+    { person: ConsentPerson; agreed: boolean; row: HhGirlsRow }
+  >();
   for (const [key, t] of byPerson) {
     const deciding = t.own ?? t.other;
-    if (deciding && !deciding.agreed) {
-      refused.set(key, { person: t.person, row: deciding.row });
+    if (deciding) {
+      decisions.set(key, { person: t.person, agreed: deciding.agreed, row: deciding.row });
     }
+  }
+  return decisions;
+}
+
+/** Unique people counted as consent refused (see `consentDecisions`). */
+export function consentRefusedPeople(
+  rows: HhGirlsRow[]
+): Map<string, { person: ConsentPerson; row: HhGirlsRow }> {
+  const refused = new Map<string, { person: ConsentPerson; row: HhGirlsRow }>();
+  for (const [key, d] of consentDecisions(rows)) {
+    if (!d.agreed) refused.set(key, { person: d.person, row: d.row });
   }
   return refused;
 }

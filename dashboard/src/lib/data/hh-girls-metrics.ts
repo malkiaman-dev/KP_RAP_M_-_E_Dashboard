@@ -4,6 +4,7 @@ import {
   toIsoDateString,
 } from "../utils";
 import {
+  consentDecisions,
   consentRefusedPeople,
   isCompletedHouseholdForGirl,
   isHhGirlsFormComplete,
@@ -766,38 +767,34 @@ export function computeHhGirlsMetrics(
     { name: "Girl not available", value: girlNotAvailable, color: "#94A3B8" },
   ].filter((x) => x.value > 0);
 
+  // Consent outcome per person (father / mother / caretaker / girl), using the
+  // same decision rule as the Consent Refused card. Not taken = the person was
+  // attempted but no consent was recorded (unavailable or another reason).
+  const decisions = consentDecisions([...household, ...girls]);
   let consentAgreed = 0;
   let consentRefusedCount = 0;
-  let consentPending = 0;
-  for (const r of household) {
-    const val = isMotherRespondent(r.respondent)
-      ? r.agree_consent_mother
-      : isFatherRespondent(r.respondent)
-        ? r.agree_consent_father
-        : isHouseholdRefusalWithoutRespondent(r)
-          ? "0"
-          : "";
-    if (val === "1") consentAgreed += 1;
-    else if (val === "0") consentRefusedCount += 1;
-    else consentPending += 1;
+  for (const d of decisions.values()) {
+    if (d.agreed) consentAgreed += 1;
+    else consentRefusedCount += 1;
   }
-  for (const r of girls) {
-    if (r.parental_consent_agree === "1" && r.child_consent_agree === "1") {
-      consentAgreed += 1;
-    } else if (
-      r.parental_consent_agree === "0" ||
-      r.child_consent_agree === "0"
-    ) {
-      consentRefusedCount += 1;
-    } else {
-      consentPending += 1;
-    }
+  let consentNotTaken = 0;
+  const hhGirlIds = new Set(household.map((r) => r.girl).filter(Boolean));
+  for (const girl of hhGirlIds) {
+    if (!decisions.has(`${girl}|father`)) consentNotTaken += 1;
+    if (!decisions.has(`${girl}|mother`)) consentNotTaken += 1;
   }
+  for (const girl of new Set(girls.map((r) => r.girl).filter(Boolean))) {
+    if (!decisions.has(`${girl}|girl`)) consentNotTaken += 1;
+  }
+  const consentAgreedRate =
+    consentAgreed + consentRefusedCount > 0
+      ? (consentAgreed / (consentAgreed + consentRefusedCount)) * 100
+      : 0;
   const unifiedConsentOutcome = [
-    { name: "Consented", value: consentAgreed, color: "#21A1AA" },
+    { name: "Agreed", value: consentAgreed, color: "#21A1AA" },
     { name: "Refused", value: consentRefusedCount, color: "#EF4444" },
-    { name: "Pending / Incomplete", value: consentPending, color: "#94A3B8" },
-  ].filter((x) => x.value > 0);
+    { name: "Not taken", value: consentNotTaken, color: "#94A3B8" },
+  ];
 
   const surveysByEnumerator = new Map<
     string,
@@ -881,6 +878,7 @@ export function computeHhGirlsMetrics(
       combinedTrend,
       completionByDistrict: coreCompletionByDistrict,
       consentOutcome: unifiedConsentOutcome,
+      consentAgreedRate,
       surveyFormsByEnumerator,
     },
     household: {

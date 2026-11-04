@@ -127,27 +127,66 @@ export function HhGirlsCharts({
         </ChartArea>
       </ChartCard>
 
-      <ChartCard title="Consent Outcome" subtitle="All survey forms combined" index={3}>
-        <ChartArea>
-          <PieChart>
-            <Pie
-              data={c.consentOutcome}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              innerRadius={55}
-              outerRadius={85}
-              paddingAngle={2}
-            >
-              {c.consentOutcome.map((entry) => (
-                <Cell key={entry.name} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend {...legendProps} />
-          </PieChart>
-        </ChartArea>
+      <ChartCard
+        title="Consent Outcome"
+        subtitle="People (father, mother, caretaker, girl) · not taken = respondent unavailable or other reason"
+        index={3}
+      >
+        <div className="flex flex-1 flex-col">
+          <ChartArea>
+            <PieChart>
+              <Pie
+                data={c.consentOutcome}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={62}
+                outerRadius={92}
+                paddingAngle={2}
+                stroke="var(--card)"
+                strokeWidth={2}
+              >
+                {c.consentOutcome.map((entry) => (
+                  <Cell key={entry.name} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={tooltipStyle} cursor={false} />
+              <text
+                x="50%"
+                y="47%"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className="fill-foreground text-2xl font-bold"
+              >
+                {`${c.consentAgreedRate.toFixed(1)}%`}
+              </text>
+              <text
+                x="50%"
+                y="58%"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className="fill-muted-foreground text-[10px] uppercase tracking-wide"
+              >
+                Consent agreed
+              </text>
+            </PieChart>
+          </ChartArea>
+          <div className="mt-1 flex flex-wrap justify-center gap-x-4 gap-y-1">
+            {c.consentOutcome.map((d) => (
+              <span key={d.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: d.color }} aria-hidden="true" />
+                {d.name}
+                <span className="font-semibold tabular-nums text-foreground">
+                  {d.value.toLocaleString()}
+                </span>
+              </span>
+            ))}
+          </div>
+          <p className="mt-1 text-center text-[10px] text-muted-foreground">
+            % agreed = agreed ÷ (agreed + refused). Not taken is excluded because no consent was asked.
+          </p>
+        </div>
       </ChartCard>
 
       <ChartCard
