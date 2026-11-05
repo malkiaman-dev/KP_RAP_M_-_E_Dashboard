@@ -447,6 +447,18 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoidUrdu:
       "Listed girl ki naam ki spelling bilkul wahi honi chahiye jo tracking se mili thi. Roster aur girl form dono mein tracking wali spelling hi use karein, alag tarah se na likhein.",
   },
+  HH_QF_EMPTY_SIBLING_ROSTER: {
+    focus: "No brothers or sisters were listed in the sibling roster.",
+    avoid: "Ask about every brother and sister of the girl and add each one to the sibling roster. Leave it empty only if the girl truly has no siblings.",
+    avoidUrdu:
+      "Girl ke har bhai aur behen ke baare mein poochein aur sibling roster mein har ek ko shamil karein. Roster sirf tab khaali chhorein jab girl ka waqai koi bhai behen na ho.",
+  },
+  HH_QF_EMPTY_FAMILY_ROSTER: {
+    focus: "No one was listed in the family (HH) roster, which should include at least the girl's father and/or mother.",
+    avoid: "Fill the family roster with every household member: parents, grandparents, aunts, uncles and others living in the house.",
+    avoidUrdu:
+      "Family roster mein ghar ke har fard ko shamil karein: walidain, dada-dadi, chacha-chachi aur ghar mein rehne wale baqi log.",
+  },
   HH_QF_SMALL_HOUSEHOLD: {
     focus: "Very few members (2 or fewer) were listed in the household roster.",
     avoid: "Include every household member in the roster, from the youngest to the oldest — do not miss anyone.",

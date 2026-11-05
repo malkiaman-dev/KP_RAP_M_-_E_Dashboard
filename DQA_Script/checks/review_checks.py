@@ -161,7 +161,6 @@ def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[d
     issues: list[dict] = []
     sibling_max = int(col.get("sibling_roster_max", 11) or 11)
     hh_roster_max = int(col.get("hh_roster_max", 14) or 14)
-    small_thr = float(col.get("small_household_threshold", 2) or 2)
     edu_iqr = float(col.get("edu_spend_iqr_mult", 3) or 3)
     phone_col = "phonenumber" if "phonenumber" in df.columns else None
     phone1_col = "phonenumber1" if "phonenumber1" in df.columns else None
@@ -174,40 +173,59 @@ def run_household_review(df: pd.DataFrame, col: dict, meta_fn: MetaFn) -> list[d
     if "listed_girl_index" in df.columns:
         listed_cols.append("listed_girl_index")
 
-    # Extremely small household: siblings roster / num_siblings, PLUS the family
-    # roster (relation_1..relation_N — step-parents, spouse, in-laws, grandparents,
-    # aunts/uncles, etc.). Flag when the combined count is 2 or fewer.
+    # Empty rosters. Both rosters sit in the form's HH_members_details group,
+    # asked only when consent was agreed and the respondent is the mother or
+    # caretaker, or the father when the mother refused or was not available.
+    # Forms where the rosters are not asked are skipped.
     family_relation_cols = [
         f"relation_{k}" for k in range(1, hh_roster_max + 1) if f"relation_{k}" in df.columns
     ]
+    sibling_name_cols = [
+        f"name_sibling_{k}" for k in range(1, sibling_max + 1) if f"name_sibling_{k}" in df.columns
+    ]
+
+    def _val(i, c) -> str:
+        return "" if c not in df.columns or _is_blank(df.at[i, c]) else str(df.at[i, c]).strip().split(".")[0]
+
+    def _rosters_asked(i) -> bool:
+        consented = "1" in (_val(i, "agree_consent_mother"), _val(i, "agree_consent_father"), _val(i, "agree_consent_caregiver"))
+        resp = _val(i, "respondent")
+        mother_available = "2" in _val(i, "available").replace(",", " ").split()
+        details = resp in ("2", "3") or (
+            resp == "1" and (_val(i, "agree_consent_mother") == "0" or not mother_available)
+        )
+        return consented and details
+
     for i in df.index:
+        if not _rosters_asked(i):
+            continue
         num_sib = _to_num(df.at[i, "num_siblings"]) if "num_siblings" in df.columns else None
-        sib_n = 0
-        for k in range(1, sibling_max + 1):
-            c = f"name_sibling_{k}"
-            if c in df.columns and not _is_blank(df.at[i, c]):
-                sib_n += 1
-        sib_count = num_sib if num_sib is not None else float(sib_n)
-
-        fam_n = sum(1 for c in family_relation_cols if not _is_blank(df.at[i, c]))
-
-        size_proxy = sib_count + fam_n
-        if size_proxy > 0 and size_proxy <= small_thr:
+        sib_n = sum(1 for c in sibling_name_cols if not _is_blank(df.at[i, c]))
+        if sib_n == 0 and not num_sib:
             _emit(
                 issues,
                 "Household",
                 i,
                 meta_fn,
                 "FLAG",
-                "HH_QF_SMALL_HOUSEHOLD",
-                "Extremely small household",
-                (
-                    f"Only {int(size_proxy)} household member(s) are listed across the sibling "
-                    f"roster and family roster combined (threshold {int(small_thr)}). "
-                    "Verify that household members were not omitted."
-                ),
-                "num_siblings,name_sibling_1,relation_1",
-                f"num_siblings={'' if num_sib is None else int(num_sib)}; roster_siblings={sib_n}; roster_family={fam_n}",
+                "HH_QF_EMPTY_SIBLING_ROSTER",
+                "Sibling roster is empty",
+                "No brothers or sisters are listed in the sibling roster. Confirm the girl has no siblings; otherwise add them.",
+                "num_siblings,name_sibling_1",
+                f"num_siblings={'' if num_sib is None else int(num_sib)}; roster_siblings=0",
+            )
+        if not any(not _is_blank(df.at[i, c]) for c in family_relation_cols):
+            _emit(
+                issues,
+                "Household",
+                i,
+                meta_fn,
+                "FLAG",
+                "HH_QF_EMPTY_FAMILY_ROSTER",
+                "Family roster is empty",
+                "No one is listed in the family (HH) roster. It should list at least the girl's father and/or mother, plus other household members.",
+                "relation_1",
+                "roster_family=0",
             )
 
         if phone_col:
