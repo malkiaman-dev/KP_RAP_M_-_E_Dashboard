@@ -17,6 +17,7 @@ import math
 import re
 from collections import defaultdict
 from datetime import datetime
+from itertools import combinations
 from typing import Any, Callable
 
 import pandas as pd
@@ -274,6 +275,26 @@ def _row_geo_points(
             continue
         acc = _to_num(row.get(acc_c)) if acc_c else None
         pts.append({"lat": lat, "lon": lon, "acc": acc, "lat_col": lat_c, "lon_col": lon_c})
+    return pts
+
+
+def _drop_single_drift(pts: list[dict[str, Any]], close_m: float) -> list[dict[str, Any]]:
+    """Drop one drifted capture when all the others (at least three) sit together.
+
+    The others must all be within close_m of each other, and the dropped capture
+    must be farther than close_m from every one of them. Otherwise pts is
+    returned unchanged.
+    """
+    if len(pts) < 4:
+        return pts
+
+    def d(a: dict[str, Any], b: dict[str, Any]) -> float:
+        return _haversine_m(a["lat"], a["lon"], b["lat"], b["lon"])
+
+    for k, odd in enumerate(pts):
+        rest = pts[:k] + pts[k + 1:]
+        if all(d(a, b) <= close_m for a, b in combinations(rest, 2)):
+            return rest if all(d(odd, r) > close_m for r in rest) else pts
     return pts
 
 
@@ -734,11 +755,13 @@ def run_missing_and_village_gps(df: pd.DataFrame, col: dict, meta_fn: MetaFn, su
     qf = "HH_QF" if survey == "Household" else "GL_QF"
     village_col = "village_label" if "village_label" in df.columns else ("village" if "village" in df.columns else None)
     outlier_m = float(col.get("gps_village_outlier_meters", 2000) or 2000)
+    close_m = float(col.get("gps_drift_cluster_meters", 200) or 200)
 
     first_pts: dict[Any, dict[str, Any]] = {}
-    later_pts: dict[Any, list[dict[str, Any]]] = {}
+    # Forms where one capture drifted away from the others: first of the rest.
+    settled_pts: dict[Any, dict[str, Any]] = {}
     geo_cols = sorted({c for p in pairs for c in p if c})
-    for i, geo_row in (df[geo_cols].iterrows() if geo_cols else ((j, pd.Series(dtype=object)) for j in df.index)):
+    for i, geo_row in df[geo_cols].iterrows():
         pts = _row_geo_points(geo_row, pairs) if pairs else []
         if not pts:
             _emit(
@@ -758,6 +781,9 @@ def run_missing_and_village_gps(df: pd.DataFrame, col: dict, meta_fn: MetaFn, su
             )
             continue
         first_pts[i] = pts[0]
+        trusted = _drop_single_drift(pts, close_m)
+        if trusted is not pts:
+            settled_pts[i] = trusted[0]
 
     if not village_col or not first_pts:
         return issues
@@ -779,6 +805,11 @@ def run_missing_and_village_gps(df: pd.DataFrame, col: dict, meta_fn: MetaFn, su
             p = first_pts[i]
             dist = _haversine_m(p["lat"], p["lon"], med_lat, med_lon)
             if dist < outlier_m:
+                continue
+            # Only one capture drifted; the other three or more stayed together
+            # in the village, so the interview was in the village.
+            q = settled_pts.get(i)
+            if q is not None and _haversine_m(q["lat"], q["lon"], med_lat, med_lon) < outlier_m:
                 continue
             _emit(
                 issues,

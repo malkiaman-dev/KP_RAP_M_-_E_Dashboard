@@ -22,6 +22,7 @@ columns:
   gps_cluster_min_villages: 5
   gps_accuracy_max_meters: 100
   gps_village_outlier_meters: 2000
+  gps_drift_cluster_meters: 200
   dk_refuse_min_interviews: 5
   dk_refuse_rate_multiplier: 3
   reading_score_min_n: 5
