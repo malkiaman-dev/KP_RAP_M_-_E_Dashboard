@@ -736,8 +736,9 @@ def run_missing_and_village_gps(df: pd.DataFrame, col: dict, meta_fn: MetaFn, su
     outlier_m = float(col.get("gps_village_outlier_meters", 2000) or 2000)
 
     first_pts: dict[Any, dict[str, Any]] = {}
+    later_pts: dict[Any, list[dict[str, Any]]] = {}
     geo_cols = sorted({c for p in pairs for c in p if c})
-    for i, geo_row in df[geo_cols].iterrows():
+    for i, geo_row in (df[geo_cols].iterrows() if geo_cols else ((j, pd.Series(dtype=object)) for j in df.index)):
         pts = _row_geo_points(geo_row, pairs) if pairs else []
         if not pts:
             _emit(
