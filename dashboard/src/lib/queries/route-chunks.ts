@@ -5,11 +5,11 @@ const loaded = new Set<string>();
 function preloadOnce(key: string, loader: () => Promise<unknown>) {
   if (loaded.has(key)) return;
   loaded.add(key);
-  void loader();
+  void loader().catch(() => loaded.delete(key));
 }
 
 export function preloadRouteChunks(href: string) {
-  if (href === "/" || href === "/analytics" || href === "/surveys") {
+  if (href === "/") {
     preloadOnce("dashboard-charts", () =>
       import("@/components/dashboard/charts-section")
     );
@@ -18,12 +18,7 @@ export function preloadRouteChunks(href: string) {
     );
   }
 
-  if (
-    href === "/tracking" ||
-    href === "/monitoring" ||
-    href === "/reports" ||
-    href === "/analytics"
-  ) {
+  if (href === "/tracking") {
     preloadOnce("tracking-charts", () =>
       import("@/components/tracking/tracking-charts")
     );

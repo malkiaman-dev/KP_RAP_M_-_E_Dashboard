@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard,
@@ -79,6 +79,7 @@ export function Sidebar({
   onMobileClose,
 }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { canAccess, user } = useAuth();
   const { navigate, displayPath, pendingPath } = useRouteCache();
@@ -86,6 +87,7 @@ export function Sidebar({
   const effectiveCollapsed = collapsed && !isMobile;
 
   const prefetchRoute = (href: string) => {
+    router.prefetch(href);
     prefetchRouteData(queryClient, href);
     preloadRouteChunks(href);
   };
@@ -201,7 +203,7 @@ export function Sidebar({
                       <li key={item.href}>
                         <Link
                           href={item.href}
-                          prefetch={true}
+                          prefetch={false}
                           onClick={(e) => onNavClick(e, item.href)}
                           onMouseEnter={() => prefetchRoute(item.href)}
                           onFocus={() => prefetchRoute(item.href)}

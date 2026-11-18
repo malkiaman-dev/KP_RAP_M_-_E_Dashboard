@@ -1,4 +1,3 @@
-import * as XLSX from "xlsx";
 import type { HhGirlsEnumeratorPerformance } from "@/lib/data/hh-girls-monitoring";
 import type { HhGirlsMonitoringFilters } from "@/lib/data/hh-girls-monitoring";
 import { formatDisplayDate, toIsoDateString } from "@/lib/utils";
@@ -83,10 +82,11 @@ function toSheetRows(rows: HhGirlsEnumeratorPerformance[]) {
   }));
 }
 
-export function downloadHhGirlsEnumeratorReport(
+export async function downloadHhGirlsEnumeratorReport(
   rows: HhGirlsEnumeratorPerformance[],
   filename: string
 ) {
+  const XLSX = await import("xlsx");
   const ws = XLSX.utils.json_to_sheet(toSheetRows(rows));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Enumerator Performance");

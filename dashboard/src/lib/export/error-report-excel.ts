@@ -1,4 +1,3 @@
-import * as XLSX from "xlsx";
 import type { ErrorRow } from "@/lib/data/error-metrics";
 
 function toSheetRows(rows: ErrorRow[]) {
@@ -23,7 +22,8 @@ function toSheetRows(rows: ErrorRow[]) {
   }));
 }
 
-export function downloadErrorReportExcel(rows: ErrorRow[], filename: string) {
+export async function downloadErrorReportExcel(rows: ErrorRow[], filename: string) {
+  const XLSX = await import("xlsx");
   const sheet = XLSX.utils.json_to_sheet(toSheetRows(rows));
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, "Errors");

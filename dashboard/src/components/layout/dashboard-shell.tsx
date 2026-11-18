@@ -10,7 +10,6 @@ import {
   TabNavProgress,
 } from "./route-cache";
 import { RouteGuard } from "@/components/auth/route-guard";
-import { PrefetchAppData } from "@/components/prefetch-app-data";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -35,7 +34,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           mobileOpen={mobileOpen}
           onMobileClose={() => setMobileOpen(false)}
         />
-        <PrefetchAppData />
         <div className="min-h-screen transition-[margin] duration-300 lg:ml-(--sidebar-w)">
           <TopNav onMenuClick={() => setMobileOpen(true)} />
           <main className="p-4 sm:p-6 lg:p-8" id="main-content" role="main">

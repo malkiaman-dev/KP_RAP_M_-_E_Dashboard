@@ -1,4 +1,3 @@
-import * as XLSX from "xlsx";
 import type { RevisitGirlExportRow } from "@/lib/data/tracking-metrics";
 
 /** Combine code + meaning into one cell, e.g. "1 (Yes)". */
@@ -92,10 +91,11 @@ function toSheetRows(rows: RevisitGirlExportRow[]) {
   });
 }
 
-export function downloadRevisitExcel(
+export async function downloadRevisitExcel(
   rows: RevisitGirlExportRow[],
   filename: string
 ) {
+  const XLSX = await import("xlsx");
   const sheet = XLSX.utils.json_to_sheet(toSheetRows(rows));
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, "Girls");

@@ -13,6 +13,7 @@ import { trackingTargetsAvailable } from "./tracking-targets-loader";
 import { loadHhGirlsSurveys } from "./hh-girls-loader";
 import { FIELD_PERIOD_START } from "./field-period";
 import { filesSignature, getCached } from "./survey-cache";
+import { slimDashboardRows } from "./survey-serialization";
 
 export type {
   SurveyRow,
@@ -100,11 +101,11 @@ export function loadDashboardMetrics() {
 
 /**
  * Client dashboard payload: aggregates for the default field period,
- * plus full-row arrays and full-span filter options for client filtering.
+ * plus the columns needed for client filtering and full-span filter options.
  */
 export function loadDashboardMetricsForClient() {
-  const signature = `v4-fp|${FIELD_PERIOD_START}|${filesSignature(surveyFilePaths())}`;
-  return getCached("dashboard-metrics-client-v5", signature, () => {
+  const signature = `v5-slim|${FIELD_PERIOD_START}|${filesSignature(surveyFilePaths())}`;
+  return getCached("dashboard-metrics-client-v6", signature, () => {
     const allRows = loadAllSurveys();
     const fieldPeriodRows = applyFilters(
       allRows,
@@ -118,7 +119,7 @@ export function loadDashboardMetricsForClient() {
       ...metrics,
       // Full calendar span so users can select March (and earlier) dates.
       filterOptions: getFilterOptions(allRows),
-      allSubmissions: allRows,
+      allSubmissions: slimDashboardRows(allRows),
     };
   });
 }

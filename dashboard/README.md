@@ -16,6 +16,26 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+For normal use and load-time testing, run the optimized production server:
+
+```bash
+npm run build
+npm run start
+```
+
+Development mode compiles pages as you open them. `npm run dev` uses Turbopack;
+`npm run dev:webpack` is available if Webpack is needed.
+
+Run `npm run test:performance` to verify that the smaller dashboard response
+preserves survey filters, totals, charts, and submission ordering. With a local
+production server on port 3001 and Playwright installed, `npm run test:load`
+measures browser loading and checks navigation, table interactions, and Excel
+downloads using an installed Chrome browser. Install the optional browser test
+dependency with `npm install --no-save playwright` if needed.
+Set `PERF_BASE_URL` for another local port or `PERF_BROWSER=msedge` to use Edge.
+The browser check signs in with a local administrator account and only accepts
+a localhost or 127.0.0.1 URL.
+
 ## Metrics documentation
 
 See **[METRICS.md](./METRICS.md)** for definitions, formulas, and logic for every KPI on the Tracking page and main Dashboard (success rate, form completion, consent, untracked breakdown, protocol targets, and more).

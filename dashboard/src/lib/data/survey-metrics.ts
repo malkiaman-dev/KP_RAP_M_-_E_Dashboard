@@ -257,7 +257,9 @@ export function applyFilters(
       const isRevisit = Number(r.visit_num) > 1 || Number(r.attempt) > 1;
       if (!isRevisit) return false;
     }
-    const subDate = parseSubmissionDate(r.SubmissionDate || "");
+    const subDate = filters.dateFrom || filters.dateTo
+      ? parseSubmissionDate(r.SubmissionDate || "")
+      : null;
     if (filters.dateFrom && subDate) {
       const from = new Date(filters.dateFrom);
       if (subDate < from) return false;
@@ -363,9 +365,14 @@ export function computeMetrics(
   const uniqueHHGirls = new Set(household.map((r) => r.girl).filter(Boolean));
   const motherForms = household.filter((r) => r.respondent === "2");
   const fatherForms = household.filter((r) => r.respondent === "1");
-  const bothParentGirls = [...uniqueHHGirls].filter((g) => {
-    const subs = household.filter((r) => r.girl === g);
-    const respondents = new Set(subs.map((s) => s.respondent));
+  const respondentsByGirl = new Map<string, Set<string | undefined>>();
+  for (const row of household) {
+    if (!row.girl) continue;
+    const respondents = respondentsByGirl.get(row.girl) ?? new Set();
+    respondents.add(row.respondent);
+    respondentsByGirl.set(row.girl, respondents);
+  }
+  const bothParentGirls = [...respondentsByGirl.values()].filter((respondents) => {
     return respondents.has("1") && respondents.has("2");
   });
   const completedHouseholds = countCompletedHouseholds(household, girls);

@@ -3,7 +3,6 @@ import path from "path";
 import Papa from "papaparse";
 import {
   applyHhGirlsDataFilters,
-  applyHhGirlsFilters,
   computeHhGirlsMetrics,
   createDefaultHhGirlsFilters,
   type HhGirlsRow,
@@ -11,7 +10,6 @@ import {
 import { FIELD_PERIOD_START } from "./field-period";
 import { filesSignature, getCached } from "./survey-cache";
 import {
-  mergeHhGirlsExportLists,
   stripHhGirlsExportLists,
 } from "./hh-girls-serialization";
 
@@ -49,14 +47,29 @@ function hhGirlsFilePaths(): string[] {
 function parseCsv(filePath: string, surveyType: "household" | "girls"): HhGirlsRow[] {
   if (!fs.existsSync(filePath)) return [];
   const content = fs.readFileSync(filePath, "utf-8");
-  const parsed = Papa.parse<Record<string, string>>(content, {
-    header: true,
+  const rows: HhGirlsRow[] = [];
+  let columns: { name: string; index: number }[] | undefined;
+  Papa.parse<string[]>(content, {
     skipEmptyLines: true,
+    step: ({ data }) => {
+      if (!columns) {
+        columns = data.flatMap((name, index) =>
+          name !== "survey_type" &&
+          (CLIENT_ROW_COLUMNS.has(name) || CLIENT_ROW_COLUMN_PATTERN.test(name)) &&
+          data.indexOf(name) === index
+            ? [{ name, index }]
+            : []
+        );
+        return;
+      }
+      const row: HhGirlsRow = {
+        KEY: "", SubmissionDate: "", district: "", survey_type: surveyType,
+      };
+      for (const { name, index } of columns) row[name] = data[index];
+      rows.push(row);
+    },
   });
-  return parsed.data.map((row) => ({
-    ...row,
-    survey_type: surveyType,
-  })) as HhGirlsRow[];
+  return rows;
 }
 
 function readHhGirlsSurveys(): { household: HhGirlsRow[]; girls: HhGirlsRow[] } {
@@ -71,7 +84,7 @@ function readHhGirlsSurveys(): { household: HhGirlsRow[]; girls: HhGirlsRow[] } 
 
 export function loadHhGirlsSurveys() {
   const signature = filesSignature(hhGirlsFilePaths());
-  return getCached("hh-girls-rows-v2", signature, readHhGirlsSurveys);
+  return getCached("hh-girls-rows-v3-columns", signature, readHhGirlsSurveys);
 }
 
 export function loadHhGirlsMetrics() {
@@ -83,9 +96,9 @@ export function loadHhGirlsMetrics() {
 }
 
 /**
- * Columns the browser-side HH / Girls code reads (filters, metrics, monitoring,
- * reports). The CSVs have ~2,100 columns; sending only these keeps the
- * /api/hh-girls payload small. A new field read on the client must be added here.
+ * Columns used by HH / Girls filters, metrics, monitoring, and reports.
+ * Retain these while parsing to avoid building and caching ~2,100 properties
+ * per submission. Add fields here when metrics or exports start using them.
  */
 const CLIENT_ROW_COLUMNS = new Set([
   "survey_type", "KEY", "instanceID", "SubmissionDate", "starttime", "endtime", "duration",
@@ -108,18 +121,6 @@ const CLIENT_ROW_COLUMNS = new Set([
 /** Household roster names, read by the same-girl-two-IDs duplicate check. */
 const CLIENT_ROW_COLUMN_PATTERN = /^name_(sibling_)?\d+$/;
 
-function slimRows(rows: HhGirlsRow[]): HhGirlsRow[] {
-  return rows.map((row) => {
-    const out: Record<string, string | undefined> = {};
-    for (const key in row) {
-      if (CLIENT_ROW_COLUMNS.has(key) || CLIENT_ROW_COLUMN_PATTERN.test(key)) {
-        out[key] = row[key];
-      }
-    }
-    return out as HhGirlsRow;
-  });
-}
-
 /**
  * Client payload: metrics scoped to the default field period, with the row
  * arrays (client columns only) retained for further filtering without a refetch.
@@ -138,8 +139,8 @@ export function loadHhGirlsMetricsForClient() {
     );
     return {
       ...metrics,
-      allHousehold: slimRows(household),
-      allGirls: slimRows(girls),
+      allHousehold: household,
+      allGirls: girls,
     };
   });
 }

@@ -17,7 +17,7 @@ const ENGLISH_DATE_FORMATS = [
  * `Date.parse` treats the numeric form as US month-first, so 12-07-26
  * becomes 7 Dec instead of 12 Jul, and 25-07-26 is invalid.
  */
-export function parseFlexibleDate(raw: string): Date | null {
+function parseDateUncached(raw: string): Date | null {
   if (!raw) return null;
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -57,6 +57,23 @@ export function parseFlexibleDate(raw: string): Date | null {
 
   const fallback = new Date(trimmed);
   return isValid(fallback) ? fallback : null;
+}
+
+const dateTimestamps = new Map<string, number | null>();
+const MAX_CACHED_DATES = 20_000;
+
+export function parseFlexibleDate(raw: string): Date | null {
+  const key = raw.trim();
+  if (!key) return null;
+  const cached = dateTimestamps.get(key);
+  if (cached !== undefined) return cached === null ? null : new Date(cached);
+
+  const parsed = parseDateUncached(key);
+  if (dateTimestamps.size >= MAX_CACHED_DATES) {
+    dateTimestamps.delete(dateTimestamps.keys().next().value!);
+  }
+  dateTimestamps.set(key, parsed?.getTime() ?? null);
+  return parsed;
 }
 
 export function submissionTimestamp(raw: string | undefined | null): number {

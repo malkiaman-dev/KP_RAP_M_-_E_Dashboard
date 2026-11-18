@@ -1,4 +1,3 @@
-import * as XLSX from "xlsx";
 import type {
   EnumeratorPerformance,
   TrackingFilters,
@@ -82,10 +81,11 @@ function toSheetRows(rows: EnumeratorPerformance[]) {
   });
 }
 
-export function downloadEnumeratorReport(
+export async function downloadEnumeratorReport(
   rows: EnumeratorPerformance[],
   filename: string
 ) {
+  const XLSX = await import("xlsx");
   const sheet = XLSX.utils.json_to_sheet(toSheetRows(rows));
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, "Enumerator Performance");
