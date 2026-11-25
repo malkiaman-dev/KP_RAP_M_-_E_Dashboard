@@ -3,7 +3,8 @@ High-frequency checks from partner Torghar review (HH + Girls).
 
 Possible from current SurveyCTO exports (no text-audit media files, no backcheck file):
 1. Reading-test internal consistency (word1–72 vs last_word vs incorrect)
-2. Interview GPS: out of district / Mansehra, mid-survey jump, village clustering
+2. Interview GPS: missing, mid-survey jump, far from the village, village clustering
+   (a single capture that drifted while three or more others stayed together is ignored)
 3. Speed-warning counts (violation_count)
 4. Late-night start times and re-interview of an already-completed case
 5. Impossible device years on start/end timestamps
@@ -24,18 +25,6 @@ import pandas as pd
 
 from utils.logging import add_issue
 
-
-
-# Approximate bounding boxes (lat_min, lat_max, lon_min, lon_max)
-DISTRICT_BBOX: dict[str, tuple[float, float, float, float]] = {
-    "1": (31.30, 32.60, 70.30, 71.60),  # D.I. Khan
-    "2": (33.30, 33.80, 70.70, 71.40),  # Hangu
-    "3": (32.20, 33.00, 70.30, 71.40),  # Lakki Marwat
-    "4": (34.45, 34.85, 72.55, 73.05),  # Torghar
-}
-DISTRICT_LABEL = {"1": "D.I. Khan", "2": "Hangu", "3": "Lakki Marwat", "4": "Torghar"}
-# Mansehra city / valley — used in the Torghar GPS finding
-MANSEHRA_BBOX = (34.20, 34.50, 73.05, 73.45)
 
 WORD_CORRECT = 1
 WORD_INCORRECT = 2
@@ -77,23 +66,6 @@ def _resp_code(val: Any) -> str:
     if n is not None:
         return str(int(round(n)))
     return _norm(val)
-
-
-def _district_code(val: Any) -> str:
-    s = _norm(val)
-    if s in DISTRICT_BBOX:
-        return s
-    n = _to_num(s)
-    if n is not None and str(int(round(n))) in DISTRICT_BBOX:
-        return str(int(round(n)))
-    for code, label in DISTRICT_LABEL.items():
-        if s == _norm(label) or label.lower().split()[0] in s:
-            return code
-    return s
-
-
-def _in_bbox(lat: float, lon: float, box: tuple[float, float, float, float]) -> bool:
-    return box[0] <= lat <= box[1] and box[2] <= lon <= box[3]
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -313,10 +285,10 @@ def run_gps_checks(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey: str) ->
 
     jump_m = float(col.get("gps_jump_meters", 2000) or 2000)
     acc_max = float(col.get("gps_accuracy_max_meters", 100) or 100)
+    close_m = float(col.get("gps_drift_cluster_meters", 200) or 200)
     cluster_dec = int(col.get("gps_cluster_decimals", 3) or 3)
     cluster_min = int(col.get("gps_cluster_min_villages", 5) or 5)
     village_col = "village_label" if "village_label" in df.columns else ("village" if "village" in df.columns else None)
-    district_col = "district" if "district" in df.columns else None
 
     cr = "HH_CR" if survey == "Household" else "GL_CE"
     qf = "HH_QF" if survey == "Household" else "GL_QF"
@@ -327,9 +299,10 @@ def run_gps_checks(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey: str) ->
         pts = _row_geo_points(geo_row, pairs)
         if not pts:
             continue
+        # One capture drifted while three or more stayed together: the
+        # interview stayed in one place, so judge it on the others.
+        pts = _drop_single_drift(pts, close_m)
         first_pts[i] = pts[0]
-        dcode = _district_code(df.at[i, district_col]) if district_col else ""
-        box = DISTRICT_BBOX.get(dcode)
         usable = [p for p in pts if p["acc"] is None or p["acc"] <= acc_max]
         if not usable:
             usable = pts
@@ -595,8 +568,6 @@ def run_missing_and_village_gps(df: pd.DataFrame, col: dict, meta_fn: MetaFn, su
     close_m = float(col.get("gps_drift_cluster_meters", 200) or 200)
 
     first_pts: dict[Any, dict[str, Any]] = {}
-    # Forms where one capture drifted away from the others: first of the rest.
-    settled_pts: dict[Any, dict[str, Any]] = {}
     geo_cols = sorted({c for p in pairs for c in p if c})
     for i, geo_row in df[geo_cols].iterrows():
         pts = _row_geo_points(geo_row, pairs) if pairs else []
@@ -617,10 +588,9 @@ def run_missing_and_village_gps(df: pd.DataFrame, col: dict, meta_fn: MetaFn, su
                 "gps_missing=1",
             )
             continue
-        first_pts[i] = pts[0]
-        trusted = _drop_single_drift(pts, close_m)
-        if trusted is not pts:
-            settled_pts[i] = trusted[0]
+        # One capture drifted while three or more stayed together: the
+        # interview was where the others are, so use them for this form.
+        first_pts[i] = _drop_single_drift(pts, close_m)[0]
 
     if not village_col or not first_pts:
         return issues
@@ -642,11 +612,6 @@ def run_missing_and_village_gps(df: pd.DataFrame, col: dict, meta_fn: MetaFn, su
             p = first_pts[i]
             dist = _haversine_m(p["lat"], p["lon"], med_lat, med_lon)
             if dist < outlier_m:
-                continue
-            # Only one capture drifted; the other three or more stayed together
-            # in the village, so the interview was in the village.
-            q = settled_pts.get(i)
-            if q is not None and _haversine_m(q["lat"], q["lon"], med_lat, med_lon) < outlier_m:
                 continue
             _emit(
                 issues,
