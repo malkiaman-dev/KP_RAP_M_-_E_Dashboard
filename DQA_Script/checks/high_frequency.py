@@ -4,7 +4,7 @@ High-frequency checks from partner Torghar review (HH + Girls).
 Possible from current SurveyCTO exports (no text-audit media files, no backcheck file):
 1. Reading-test internal consistency (word1–72 vs last_word vs incorrect)
 2. Interview GPS: out of district / Mansehra, mid-survey jump, village clustering
-3. Speed-warning counts and rushed consent fields (violation_list / violation_count)
+3. Speed-warning counts (violation_count)
 4. Late-night start times and re-interview of an already-completed case
 5. Impossible device years on start/end timestamps
 
@@ -36,59 +36,6 @@ DISTRICT_BBOX: dict[str, tuple[float, float, float, float]] = {
 DISTRICT_LABEL = {"1": "D.I. Khan", "2": "Hangu", "3": "Lakki Marwat", "4": "Torghar"}
 # Mansehra city / valley — used in the Torghar GPS finding
 MANSEHRA_BBOX = (34.20, 34.50, 73.05, 73.45)
-
-GIRLS_CONSENT_PARENT = {
-    "parental_consent",
-    "parental_consent_understand",
-    "parenal_consent_understand",
-    "parental_consent_copy",
-    "parental_consent_agree",
-}
-GIRLS_CONSENT_CHILD = {
-    "child_consent",
-    "child_consent_understand",
-    "child_consent_copy",
-    "child_consent_agree",
-}
-HH_CONSENT_FATHER = {
-    "understand_consent_father",
-    "copy_consent_father",
-    "agree_consent_father",
-}
-HH_CONSENT_MOTHER = {
-    "understand_consent_mother",
-    "copy_consent_mother",
-    "agree_consent_mother",
-}
-HH_CONSENT_CAREGIVER = {
-    "understand_consent_caregiver",
-    "copy_consent_caregiver",
-    "agree_consent_caregiver",
-}
-
-HH_CONSENT_PARTIES = {
-    party: {
-        "understand": f"understand_consent_{party}",
-        "agree": f"agree_consent_{party}",
-        "all": fields,
-    }
-    for party, fields in (
-        ("father", HH_CONSENT_FATHER),
-        ("mother", HH_CONSENT_MOTHER),
-        ("caregiver", HH_CONSENT_CAREGIVER),
-    )
-}
-
-_YES_CODES = {"yes", "y", "1", "true", "t"}
-
-
-def _is_yes_code(val: Any) -> bool:
-    # Numeric consent columns load as float64 (e.g. 1.0), so str(val) is "1.0"
-    # and never matches a plain text code — compare numerically first.
-    n = _to_num(val)
-    if n is not None:
-        return abs(n - 1.0) < 1e-9
-    return _norm(val) in _YES_CODES
 
 WORD_CORRECT = 1
 WORD_INCORRECT = 2
@@ -218,21 +165,6 @@ def _emit(
         submission_date=m.get("submission_date"),
         district=m.get("district"),
     )
-
-
-def _violation_leaves(raw: Any) -> set[str]:
-    if raw is None or (isinstance(raw, float) and pd.isna(raw)):
-        return set()
-    out: set[str] = set()
-    for part in str(raw).split(","):
-        t = part.strip()
-        if not t:
-            continue
-        leaf = t.split("/")[-1]
-        leaf = leaf.split("[")[0].strip().lower()
-        if leaf:
-            out.add(leaf)
-    return out
 
 
 def _geo_point_pairs(df: pd.DataFrame) -> list[tuple[str, str, str | None]]:
@@ -464,110 +396,15 @@ def run_gps_checks(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey: str) ->
 
 def run_speed_checks(df: pd.DataFrame, col: dict, meta_fn: MetaFn, survey: str) -> list[dict]:
     issues: list[dict] = []
-    if "violation_list" not in df.columns and "violation_count" not in df.columns:
+    if "violation_count" not in df.columns:
         return issues
 
     default_thr = 120 if survey == "Household" else 45
     thr = float(col.get("speed_warning_flag_threshold", default_thr) or default_thr)
     prefix_qf = "HH_QF" if survey == "Household" else "GL_QF"
-    consent_field = "violation_list" if "violation_list" in df.columns else "violation_count"
-
-    # Household consent is judged per parent, in the form where that parent's
-    # consent was FIRST recorded (agree=Yes, earliest starttime for the girl):
-    # - both parents available on visit 1 -> both consents are taken there, so
-    #   both must be read properly in that form;
-    # - one parent unavailable on visit 1 -> that parent's consent is first taken
-    #   on the later visit, so it must be read properly there.
-    # A parent whose consent was already recorded on an earlier form is often
-    # re-asked and tapped through on the next respondent's form; that repeat is
-    # expected and not flagged (any rushing is flagged on the earlier form).
-    already_consented: dict[Any, set[str]] = defaultdict(set)
-    if survey == "Household":
-        gid_col = col.get("girl_id") or "girl"
-        start_col = "starttime" if "starttime" in df.columns else None
-        if gid_col in df.columns:
-            groups: dict[str, list[Any]] = defaultdict(list)
-            for i in df.index:
-                gid = _norm(df.at[i, gid_col])
-                if gid:
-                    groups[gid].append(i)
-
-            # A form whose starttime can't be parsed sorts last, so it can
-            # never be mistaken for the first visit.
-            def _sort_key(j: Any) -> tuple[int, Any]:
-                dt = _parse_dt(df.at[j, start_col]) if start_col else None
-                return (0, dt) if dt is not None else (1, j)
-
-            for idxs in groups.values():
-                seen: set[str] = set()
-                for i in sorted(idxs, key=_sort_key):
-                    already_consented[i] = set(seen)
-                    for parent, fields in HH_CONSENT_PARTIES.items():
-                        agree_c = fields["agree"]
-                        if agree_c in df.columns and _is_yes_code(df.at[i, agree_c]):
-                            seen.add(parent)
 
     for i in df.index:
-        leaves = _violation_leaves(df.at[i, "violation_list"]) if "violation_list" in df.columns else set()
-        vc = _to_num(df.at[i, "violation_count"]) if "violation_count" in df.columns else None
-
-        consent_hit = False
-        if survey == "Girls":
-            parent_n = len(leaves & GIRLS_CONSENT_PARENT)
-            child_n = len(leaves & GIRLS_CONSENT_CHILD)
-            # Both scripts appear, and several consent screens were speed-flagged
-            if parent_n >= 1 and child_n >= 1 and (parent_n + child_n) >= 4:
-                consent_hit = True
-                _emit(
-                    issues,
-                    survey,
-                    i,
-                    meta_fn,
-                    "CRITICAL",
-                    f"{prefix_qf}_CONSENT_SPEED",
-                    "Consent screens were tapped through",
-                    (
-                        "SurveyCTO speed warnings fired on both parental and child consent fields. "
-                        "A recorded consent value is not evidence that the procedure was carried out. "
-                        "This is an integrity finding (Track 2), not a routine timing flag. "
-                        "Read consent aloud — do not tap through."
-                    ),
-                    consent_field,
-                    f"parent_consent_fields={parent_n}; child_consent_fields={child_n}; violation_count={'' if vc is None else int(vc)}",
-                )
-        else:
-            rushed = [
-                parent
-                for parent, fields in HH_CONSENT_PARTIES.items()
-                if fields["understand"] in leaves
-                and fields["agree"] in leaves
-                and parent not in already_consented.get(i, set())
-            ]
-            if rushed:
-                consent_hit = True
-                hit = sorted(
-                    x for parent in rushed for x in leaves & HH_CONSENT_PARTIES[parent]["all"]
-                )
-                _emit(
-                    issues,
-                    survey,
-                    i,
-                    meta_fn,
-                    "CRITICAL",
-                    f"{prefix_qf}_CONSENT_SPEED",
-                    "Consent screens were tapped through",
-                    (
-                        f"SurveyCTO speed warnings fired on {' and '.join(rushed)} understand and agree "
-                        "consent fields, and this is the first form where that consent was taken. "
-                        "A recorded consent value is not evidence that the procedure was carried out. "
-                        "This is an integrity finding (Track 2). The consent script must be read aloud."
-                    ),
-                    consent_field,
-                    f"consent_fields={','.join(hit)}; violation_count={'' if vc is None else int(vc)}",
-                )
-
-        if consent_hit:
-            continue
+        vc = _to_num(df.at[i, "violation_count"])
         if vc is None or vc < thr:
             continue
         _emit(

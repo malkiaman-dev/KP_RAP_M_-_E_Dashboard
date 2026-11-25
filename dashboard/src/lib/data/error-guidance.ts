@@ -552,13 +552,6 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     avoidUrdu:
       "Har interview shuru karne se pehle tablet ki GPS setting ON karein. Confirm karein ke location signal mil raha hai, tab hi form shuru karein.",
   },
-  HH_QF_CONSENT_SPEED: {
-    focus: "Household consent screens triggered SurveyCTO speed warnings.",
-    avoid:
-      "Read the consent script when those screens are open. Spend at least 10 seconds on each consent screen — do not tap understand/agree faster than that.",
-    avoidUrdu:
-      "Consent screen khulte hi script parh kar sunayein. Har consent screen par kam az kam 10 second zaroor dein, is se jaldi tap na karein.",
-  },
   HH_QF_SPEED_WARNINGS: {
     focus: "This household interview has a very high SurveyCTO speed-warning count.",
     avoid: "Read questions fully. High speed-warning counts mean too many items were on screen for under about two seconds.",
@@ -887,13 +880,6 @@ const RULE_GUIDANCE: Record<string, RuleGuidance> = {
     focus: "This enumerator's rate of 'Don't Know'/refused answers is much higher than the team's.",
     avoid: "Probe respondents patiently for a real answer before recording Don't Know or Refused.",
     avoidUrdu: "Jawab record karne se pehle respondent se sabar ke sath dobara poochein, foran Don't Know ya Refused na likhein.",
-  },
-  GL_QF_CONSENT_SPEED: {
-    focus: "Parental and child consent screens triggered SurveyCTO speed warnings.",
-    avoid:
-      "When the consent screens appear, read the scripts aloud. Spend at least 10 seconds on each consent screen — do not tap through faster than that even if consent was discussed earlier.",
-    avoidUrdu:
-      "Jab consent screens aayen to script zaban se parhein. Har consent screen par kam az kam 10 second zaroor dein, consent pehle discuss ho chuka ho tab bhi is se jaldi tap na karein.",
   },
   GL_QF_SPEED_WARNINGS: {
     focus: "This Girls interview has a very high SurveyCTO speed-warning count.",
